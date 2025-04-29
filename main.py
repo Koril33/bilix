@@ -10,7 +10,7 @@ from typing import Annotated, Optional
 
 import httpx
 import typer
-from tqdm.asyncio import tqdm
+
 from typer import Option
 
 from log_config import log_config_dict
@@ -98,41 +98,19 @@ async def parse(url: str):
             app_logger.exception(f'未知错误')
 
 
-# async def download_stream(url: str, filename: str) -> None:
-#     """
-#     下载单个流（视频或音频）到本地文件
-#     """
-#     app_logger.info(f"开始下载: {filename}")
-#     async with httpx.AsyncClient(headers=headers, timeout=None) as client:
-#         resp = await client.get(url, headers=headers)
-#         resp.raise_for_status()
-#         with open(filename, 'wb') as f:
-#             async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
-#                 f.write(chunk)
-#     app_logger.info(f"{filename} 下载完成")
-
 async def download_stream(url: str, filename: str) -> None:
     """
-    下载单个流（视频或音频）到本地文件，并显示下载进度条
+    下载单个流（视频或音频）到本地文件
     """
     app_logger.info(f"开始下载: {filename}")
     async with httpx.AsyncClient(headers=headers, timeout=None) as client:
-        resp = await client.get(url, headers=headers, follow_redirects=True)
+        resp = await client.get(url, headers=headers)
         resp.raise_for_status()
-
         total = int(resp.headers.get('Content-Length', 0))
-        app_logger.info(f'total: {total}')
-        chunk_size = 1024 * 1024  # 1MB
-
-        progress = tqdm(total=total, unit='B', unit_scale=True, desc=filename, position=0)
-
+        app_logger.info(f'{filename} total size: {total} bytes')
         with open(filename, 'wb') as f:
-            async for chunk in resp.aiter_bytes(chunk_size=chunk_size):
+            async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
                 f.write(chunk)
-                progress.update(len(chunk))
-
-        progress.close()
-
     app_logger.info(f"{filename} 下载完成")
 
 async def download_async(
