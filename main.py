@@ -183,12 +183,16 @@ def merge_m4s_ffmpeg(video_file, audio_file, output_file):
     Returns:
         bool: True 如果合并成功，False 如果失败。
     """
-    import sys
-    if getattr(sys, "frozen", False):
-        base_dir = os.path.dirname(__file__)
+    import sys, platform
+    if platform.system() == 'Windows':
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(__file__)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        ffmpeg_path = os.path.join(base_dir, 'ffmpeg.exe')
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-    ffmpeg_path = os.path.join(base_dir, 'ffmpeg.exe')
+        ffmpeg_path = '/usr/bin/ffmpeg'
+
     command = [ffmpeg_path, '-i', video_file, '-i', audio_file, '-c', 'copy', output_file]
 
     try:
