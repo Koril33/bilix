@@ -169,8 +169,8 @@ async def download_async(
 
     app_logger.info("所有流下载完成，使用 ffmpeg 合并音视频")
     merge_m4s_ffmpeg(video_file, audio_file, output_file)
-    Path.unlink(Path(video_file))
-    Path.unlink(Path(audio_file))
+    Path.unlink(Path(video_file), missing_ok=True)
+    Path.unlink(Path(audio_file), missing_ok=True)
 
 
 def parse(url: str):
@@ -199,12 +199,12 @@ def parse(url: str):
 
 def download_stream(url: str, filename: str):
     app_logger.info(f"开始下载: {filename}")
+
     with httpx.Client(headers=headers, timeout=None) as client:
         with client.stream("GET", url, headers=headers) as resp:
             resp.raise_for_status()
             total = int(resp.headers.get('Content-Length', 0))
             app_logger.info(f'{filename} total size: {total} bytes')
-
             with Progress(
                     TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
                     BarColumn(),
@@ -212,7 +212,7 @@ def download_stream(url: str, filename: str):
                     TransferSpeedColumn(),
                     TimeRemainingColumn(),
             ) as progress:
-                task_id = progress.add_task("download", filename=filename, total=total)
+                task_id = progress.add_task(f"download-{filename}", filename=filename, total=total)
                 with open(filename, 'wb') as f:
                     for chunk in resp.iter_bytes(chunk_size=1024 * 1024):
                         f.write(chunk)
@@ -257,10 +257,6 @@ def download_sync(
     audio_file = f'{title}_a_{selected["id"]}.m4s'
     output_file = f'{title}_{selected["id"]}.mp4'
     start = int(time.time() * 1000)
-    # 同时下载视频和音频流
-    # with ThreadPoolExecutor(max_workers=2) as executor:
-    #     executor.submit(download_stream, video_url, video_file)
-    #     executor.submit(download_stream, audio_url, audio_file)
 
     download_stream(video_url, video_file)
     download_stream(audio_url, audio_file)
@@ -274,8 +270,8 @@ def download_sync(
 
     app_logger.info("所有流下载完成，使用 ffmpeg 合并音视频")
     merge_m4s_ffmpeg(video_file, audio_file, output_file)
-    Path.unlink(Path(video_file))
-    Path.unlink(Path(audio_file))
+    Path.unlink(Path(video_file), missing_ok=True)
+    Path.unlink(Path(audio_file), missing_ok=True)
 
 
 def merge_m4s_ffmpeg(video_file, audio_file, output_file):

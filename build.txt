@@ -1,1 +1,2 @@
 python -m nuitka --standalone --onefile --lto=yes --include-data-files="./ffmpeg.exe=ffmpeg.exe" main.py --output-filename=bilix.exe
+python -m nuitka --standalone --onefile --lto=yes --include-data-files="/usr/bin/ffmpeg=ffmpeg" main.py --output-filename=bilix
