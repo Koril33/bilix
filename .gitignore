@@ -2,7 +2,8 @@
 main.build
 main.dist
 main.onefile-build
-*.exe
+bilix.exe
+bilix
 *.mp4
 .idea
 __pycache__
