@@ -4,3 +4,5 @@ main.dist
 main.onefile-build
 *.exe
 *.mp4
+.idea
+__pycache__
