@@ -12,18 +12,6 @@ from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, T
 from log_config import app_logger
 from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg
 
-progress = Progress(
-    TextColumn("[progress.description]{task.description}"),
-    BarColumn(),
-    TaskProgressColumn(),
-    TimeRemainingColumn(),
-    TimeElapsedColumn(),
-    MofNCompleteColumn(),
-    FileSizeColumn(),
-    TotalFileSizeColumn(),
-    SpinnerColumn(),
-)
-
 def parse(url: str, headers: dict):
     with httpx.Client() as client:
         try:
@@ -48,7 +36,7 @@ def parse(url: str, headers: dict):
     return None
 
 
-def download_stream(url: str, headers, filename: str):
+def download_stream(url: str, headers, filename: str, progress):
     task = progress.add_task(f'{filename}', start=False)
     with httpx.Client().stream("GET", url=url, headers=headers) as resp:
         resp.raise_for_status()
@@ -61,7 +49,7 @@ def download_stream(url: str, headers, filename: str):
                 progress.update(task, advance=len(chunk))
 
 
-def download_stream_requests(url, headers, filename):
+def download_stream_requests(url, headers, filename, progress):
     import requests
     task = progress.add_task(f'{filename}', start=False)
     with requests.get(url, headers=headers, stream=True) as resp:
@@ -113,10 +101,20 @@ def download_sync(
     output_file = f'{title}_{selected["id"]}.mp4'
     start = int(time.time() * 1000)
 
-    with progress:
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        TimeElapsedColumn(),
+        MofNCompleteColumn(),
+        FileSizeColumn(),
+        TotalFileSizeColumn(),
+        SpinnerColumn(),
+    ) as progress:
         with ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(download_stream, video_url, headers, video_file)
-            executor.submit(download_stream, audio_url, headers, audio_file)
+            executor.submit(download_stream, video_url, headers, video_file, progress)
+            executor.submit(download_stream, audio_url, headers, audio_file, progress)
 
 
     end = int(time.time() * 1000)

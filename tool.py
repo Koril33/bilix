@@ -104,3 +104,14 @@ def merge_m4s_ffmpeg(video_file, audio_file, output_file):
     except Exception:
         app_logger.exception("未知错误")
         return False
+
+
+def load_urls_from_file(file_path: str) -> list[str]:
+    path = Path(file_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"文件不存在: {file_path}")
+
+    with path.open("r", encoding="utf-8") as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    return urls
