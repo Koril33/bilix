@@ -1,3 +1,5 @@
+import logging.config
+
 log_config_dict = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -27,3 +29,8 @@ log_config_dict = {
     }
 }
 
+def log_init():
+    logging.config.dictConfig(log_config_dict)
+
+
+app_logger = logging.getLogger('bilix')
