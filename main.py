@@ -1,13 +1,14 @@
 import copy
 import time
 from typing import Annotated, Optional, List
+from urllib.parse import urlparse, urlunparse, urlsplit, urlunsplit
 
 import typer
 from typer import Option
 
-from download_sync import download_sync
+from download_sync import download_sync, parse
 from log_config import app_logger, log_init
-from tool import load_urls_from_file
+from tool import load_urls_from_file, clean_bili_url
 
 app = typer.Typer()
 
@@ -33,6 +34,7 @@ def download(
         quality: Optional[int] = Option(None, "-q", "--quality", help="视频清晰度"),
         origin: Optional[str] = Option(None, "-o", "--origin", help="指定下载来源文件路径"),
         save: Optional[str] = Option(None, "-s", "--save", help="指定下载结果保存目录路径"),
+        page: bool = typer.Option(False, "-p", "--page", is_flag=True, help="是否下载多集视频"),
         ffmpeg: Optional[str] = Option(None, "-f", "--ffmpeg", help="指定 ffmpeg 可执行文件路径"),
 ) -> None:
     """
@@ -52,10 +54,21 @@ def download(
             urls = load_urls_from_file(origin)
         app_logger.info(f'开始下载, 共计: {len(urls)} 个任务')
 
-        for url in urls:
+        if len(urls) == 1 and page:
             h = copy.deepcopy(download_headers)
+            url = clean_bili_url(urls[0])
             h['Referer'] = url
-            BiliTask(url=url, headers=h, quality=quality, save=save).download()
+            initial_state = parse(url, headers=h).get('initial_state')
+            video_pages = initial_state['videoData']['pages']
+            if len(video_pages) > 1:
+                app_logger.info(f'检测到视频集合')
+                for page in video_pages:
+                    BiliTask(url=f'{url}?p={page["page"]}', headers=h, quality=quality, save=save).download()
+        for url in urls:
+            clean_url = clean_bili_url(url)
+            h = copy.deepcopy(download_headers)
+            h['Referer'] = clean_url
+            BiliTask(url=clean_url, headers=h, quality=quality, save=save).download()
 
     except Exception:
         app_logger.exception(f"下载过程中出现错误")

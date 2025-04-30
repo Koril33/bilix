@@ -1,4 +1,4 @@
-
+import json
 import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -10,10 +10,11 @@ from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, T
     MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn
 
 from log_config import app_logger
-from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg
+from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract_initial_state_json
+
 
 def parse(url: str, headers: dict):
-    with httpx.Client() as client:
+    with httpx.Client(follow_redirects=True) as client:
         try:
             response = client.get(url=url, headers=headers, timeout=5)
             response.raise_for_status()
@@ -21,12 +22,26 @@ def parse(url: str, headers: dict):
             html = response.text
             title = extract_title(html)
             playinfo = extract_playinfo_json(html)
+            initial_state = extract_initial_state_json(html)
+
             if playinfo:
                 app_logger.info("成功提取到 playinfo JSON")
                 playinfo['title'] = title
-                return playinfo
             else:
                 app_logger.error("未能提取到 playinfo JSON。")
+
+            if initial_state:
+                app_logger.info("成功提取到 initial state JSON")
+                with open('initial_state.json', 'w', encoding='utf-8') as f:
+                    f.write(json.dumps(initial_state, ensure_ascii=False, indent=4))
+            else:
+                app_logger.error("未能提取到 initial state JSON。")
+
+            return {
+                'playinfo': playinfo,
+                'initial_state': initial_state,
+            }
+
         except httpx.RequestError:
             app_logger.exception(f'下载失败，网络请求错误')
         except httpx.HTTPStatusError:
@@ -69,7 +84,9 @@ def download_sync(
         quality: Optional[int] = None,
         save: str = None,
 ):
-    playinfo = parse(url, headers)
+    parse_res = parse(url, headers)
+    playinfo = parse_res.get('playinfo')
+
     if not playinfo or 'data' not in playinfo:
         app_logger.error("无法获取播放信息，退出。")
         raise typer.Exit(code=1)

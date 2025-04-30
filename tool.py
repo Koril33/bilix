@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlunsplit, urlsplit
 
 from log_config import app_logger
 
@@ -42,6 +43,21 @@ def extract_playinfo_json(html_content: str):
             return None
     else:
         app_logger.error("没有找到 window.__playinfo__ 的内容")
+        return None
+
+
+def extract_initial_state_json(html_content: str):
+    match = re.search(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?})\s*;', html_content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        try:
+            initial_state = json.loads(json_str)
+            return initial_state
+        except json.JSONDecodeError:
+            app_logger.exception(f"解析 JSON 出错")
+            return None
+    else:
+        app_logger.error("没有找到 window.__INITIAL_STATE__ 的内容")
         return None
 
 
@@ -115,3 +131,9 @@ def load_urls_from_file(file_path: str) -> list[str]:
         urls = [line.strip() for line in f if line.strip()]
 
     return urls
+
+
+def clean_bili_url(url: str):
+    parsed = urlsplit(url)
+    clean_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+    return clean_url
