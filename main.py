@@ -24,7 +24,7 @@ class BiliTask:
         self.save = save
 
     def download(self):
-        download_sync(self.url, self.headers, self.quality)
+        download_sync(self.url, self.headers, self.quality, self.save)
 
 
 @app.command()
@@ -55,7 +55,7 @@ def download(
         for url in urls:
             h = copy.deepcopy(download_headers)
             h['Referer'] = url
-            BiliTask(url=url, headers=h, quality=quality, save='').download()
+            BiliTask(url=url, headers=h, quality=quality, save=save).download()
 
     except Exception:
         app_logger.exception(f"下载过程中出现错误")

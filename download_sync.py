@@ -66,7 +66,8 @@ def download_stream_requests(url, headers, filename, progress):
 def download_sync(
         url: str,
         headers: dict,
-        quality: Optional[int] = None
+        quality: Optional[int] = None,
+        save: str = None,
 ):
     playinfo = parse(url, headers)
     if not playinfo or 'data' not in playinfo:
@@ -98,7 +99,6 @@ def download_sync(
     title = playinfo['title']
     video_file = f'{title}_v_{selected["id"]}.m4s'
     audio_file = f'{title}_a_{selected["id"]}.m4s'
-    output_file = f'{title}_{selected["id"]}.mp4'
     start = int(time.time() * 1000)
 
     with Progress(
@@ -120,11 +120,17 @@ def download_sync(
     end = int(time.time() * 1000)
     app_logger.info(f'下载音视频共耗时: {end - start} ms')
 
-    if Path(output_file).exists():
+    if save:
+        save_path = Path(save)
+        save_path.mkdir(parents=True, exist_ok=True)
+    else:
+        save_path = Path('.')  # 当前目录
+    output_path = save_path / f'{title}_{selected["id"]}.mp4'
+    if output_path.exists():
         app_logger.warning('目标MP4存在，进行删除')
-        Path.unlink(Path(output_file))
+        output_path.unlink()
 
     app_logger.info("所有流下载完成，使用 ffmpeg 合并音视频")
-    merge_m4s_ffmpeg(video_file, audio_file, output_file)
+    merge_m4s_ffmpeg(video_file, audio_file, str(output_path))
     Path.unlink(Path(video_file), missing_ok=True)
     Path.unlink(Path(audio_file), missing_ok=True)
