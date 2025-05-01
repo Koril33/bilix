@@ -1,4 +1,3 @@
-import json
 import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
@@ -10,7 +9,8 @@ from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, T
     MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn
 
 from log_config import app_logger
-from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract_initial_state_json
+from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract_initial_state_json, \
+    extract_playurl_ssr_data
 
 
 def parse(url: str, headers: dict):
@@ -23,23 +23,27 @@ def parse(url: str, headers: dict):
             title = extract_title(html)
             playinfo = extract_playinfo_json(html)
             initial_state = extract_initial_state_json(html)
+            playurl_ssr_data = extract_playurl_ssr_data(html)
 
             if playinfo:
                 app_logger.info("成功提取到 playinfo JSON")
-                playinfo['title'] = title
             else:
                 app_logger.error("未能提取到 playinfo JSON。")
 
             if initial_state:
                 app_logger.info("成功提取到 initial state JSON")
-                with open('initial_state.json', 'w', encoding='utf-8') as f:
-                    f.write(json.dumps(initial_state, ensure_ascii=False, indent=4))
             else:
                 app_logger.error("未能提取到 initial state JSON。")
 
+            if playurl_ssr_data:
+                app_logger.info("成功提取到 playurl_ssr_data JSON")
+            else:
+                app_logger.error("未能提取到 playurl_ssr_data JSON。")
             return {
+                'title': title,
                 'playinfo': playinfo,
                 'initial_state': initial_state,
+                'playurl_ssr_data': playurl_ssr_data,
             }
 
         except httpx.RequestError:
@@ -85,18 +89,25 @@ def download_sync(
         save: str = None,
 ):
     parse_res = parse(url, headers)
+    title = parse_res.get('title')
     playinfo = parse_res.get('playinfo')
+    playurl_info = parse_res.get('playurl_ssr_data')
 
-    if not playinfo or 'data' not in playinfo:
-        app_logger.error("无法获取播放信息，退出。")
-        raise typer.Exit(code=1)
+    if playurl_info:
+        dash = playurl_info['result'].get('video_info').get('dash')
+        videos = dash.get('video', [])
+        audios = dash.get('audio', [])
+    else:
+        if not playinfo or 'data' not in playinfo:
+            app_logger.error("无法获取播放信息，退出。")
+            raise typer.Exit(code=1)
 
-    dash = playinfo['data'].get('dash', {})
-    videos = dash.get('video', [])
-    audios = dash.get('audio', [])
-    if not videos or not audios:
-        app_logger.error("未检测到视频或音频流，退出。")
-        raise typer.Exit(code=1)
+        dash = playinfo['data'].get('dash', {})
+        videos = dash.get('video', [])
+        audios = dash.get('audio', [])
+        if not videos or not audios:
+            app_logger.error("未检测到视频或音频流，退出。")
+            raise typer.Exit(code=1)
 
     # 选择视频流
     if quality:
@@ -112,8 +123,6 @@ def download_sync(
     audio = audios[0]
     audio_url = audio.get('baseUrl') or audio.get('base_url')
 
-    # 下载
-    title = playinfo['title']
     video_file = f'{title}_v_{selected["id"]}.m4s'
     audio_file = f'{title}_a_{selected["id"]}.m4s'
     start = int(time.time() * 1000)
