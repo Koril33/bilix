@@ -30,7 +30,7 @@ class BiliTask:
 @app.command()
 def download(
         urls: Annotated[List[str], typer.Argument(help="一个或多个目标视频 URL")] = None,
-        quality: Optional[int] = Option(None, "-q", "--quality", help="视频清晰度"),
+        quality: Optional[int] = Option(None, "-q", "--quality", help="视频清晰度 | 120: 4K | 112: 1080P+ | 80: 1080P | 64: 720P | 32: 480P | 16: 360P |"),
         origin: Optional[str] = Option(None, "-o", "--origin", help="指定下载来源文件路径"),
         save: Optional[str] = Option(None, "-s", "--save", help="指定下载结果保存目录路径"),
         page: bool = typer.Option(False, "-p", "--page", is_flag=True, help="是否下载多集视频"),
