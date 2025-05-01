@@ -21,6 +21,7 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     """
     # Windows 文件名非法字符: \ / : * ? " < > |，以及控制字符和空白尾随
     name = name.strip()  # 移除首尾空格
+    name = name.replace("-电影-高清正版在线观看-bilibili-哔哩哔哩", "")
     name = name.replace("_哔哩哔哩_bilibili", "")
     name = re.sub(r'[\\/:*?"<>|]', replacement, name)  # 替换非法字符
     name = re.sub(r'[\x00-\x1f]', replacement, name)  # 控制字符
@@ -66,6 +67,20 @@ def extract_title(html_content: str) -> str | None:
     if match:
         title = match.group(1).strip()
         return sanitize_filename(title)
+    return None
+
+
+def extract_playurl_ssr_data(html_content: str) -> dict | None:
+    pattern = r'const\s+playurlSSRData\s*=\s*({.*?})\s'
+    match = re.search(pattern, html_content, re.DOTALL)
+
+    if match:
+        json_str = match.group(1)
+        try:
+            data = json.loads(json_str)
+            return data
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
     return None
 
 
