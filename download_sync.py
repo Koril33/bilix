@@ -14,7 +14,7 @@ from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract
 
 
 def parse(url: str, headers: dict):
-    with httpx.Client(follow_redirects=True, proxy=None) as client:
+    with httpx.Client(follow_redirects=True, trust_env=False, proxy=None) as client:
         try:
             response = client.get(url=url, headers=headers, timeout=5)
             response.raise_for_status()
@@ -57,7 +57,7 @@ def parse(url: str, headers: dict):
 
 def download_stream(url: str, headers, filename: str, progress):
     task = progress.add_task(f'{filename}', start=False)
-    with httpx.Client(proxy=None).stream("GET", url=url, headers=headers) as resp:
+    with httpx.Client(proxy=None, trust_env=False).stream("GET", url=url, headers=headers) as resp:
         resp.raise_for_status()
         total = int(resp.headers.get('Content-Length', 0))
         progress.update(task, total=total)
