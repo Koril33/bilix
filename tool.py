@@ -21,13 +21,12 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     """
     # Windows 文件名非法字符: \ / : * ? " < > |，以及控制字符和空白尾随
     name = name.strip()  # 移除首尾空格
-    name = name.replace("-电影-高清正版在线观看-bilibili-哔哩哔哩", "")
     name = name.replace("_哔哩哔哩_bilibili", "")
     name = re.sub(r'[\\/:*?"<>|]', replacement, name)  # 替换非法字符
     name = re.sub(r'[\x00-\x1f]', replacement, name)  # 控制字符
     name = re.sub(r'\s+', ' ', name)  # 连续空格变单空格
     name = name.strip(" .")  # 去除结尾的点和空格（Windows 不允许）
-
+    name = name.replace("-电影-高清正版在线观看-bilibili-哔哩哔哩", "")
     # 限制长度（通常 255 是安全最大长度）
     return name[:240]  # 留一点空间给文件扩展名
 
