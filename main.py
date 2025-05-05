@@ -5,7 +5,7 @@ from typing import Annotated, Optional, List
 import typer
 from typer import Option
 
-from download_sync import download_sync, parse
+from download_sync import download_sync, parse, get_video_info
 from log_config import app_logger, log_init
 from tool import load_urls_from_file, clean_bili_url
 
@@ -34,6 +34,7 @@ def download(
         origin: Optional[str] = Option(None, "-o", "--origin", help="指定下载来源文件路径"),
         save: Optional[str] = Option(None, "-s", "--save", help="指定下载结果保存目录路径"),
         page: bool = typer.Option(False, "-p", "--page", is_flag=True, help="是否下载多集视频"),
+        info: bool = typer.Option(False, "-i", "--info", is_flag=True, help="是否仅获取视频信息"),
         ffmpeg: Optional[str] = Option(None, "-f", "--ffmpeg", help="指定 ffmpeg 可执行文件路径"),
 ) -> None:
     """
@@ -48,6 +49,14 @@ def download(
     try:
         # asyncio.run(download_async(url, headers, quality))
         # download_sync(urls, headers, quality, )
+
+        if info:
+            for url in urls:
+                h = copy.deepcopy(download_headers)
+                h['Referer'] = url
+                get_video_info(url, h)
+                return
+
         if origin:
             app_logger.info(f'用户指定URL文件: {origin}')
             urls = load_urls_from_file(origin)

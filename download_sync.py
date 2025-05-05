@@ -1,16 +1,63 @@
 import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional
+from typing import Optional, OrderedDict
 
 import httpx
 import typer
+from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn, \
     MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn
+from rich.text import Text
 
 from log_config import app_logger
 from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract_initial_state_json, \
     extract_playurl_ssr_data
+
+
+def get_video_info(url: str, header: dict):
+    parse_res = parse(url, header)
+    console = Console()
+
+    video_url = url
+    video_title = parse_res['title']
+    if parse_res.get('playurl_ssr_data'):
+        video_info = parse_res.get('playurl_ssr_data').get('result').get('video_info')
+        accept_quality = video_info['accept_quality']
+        accept_description = video_info['accept_description']
+    elif parse_res.get('playinfo'):
+        data = parse_res.get('playinfo').get('data')
+        accept_quality = data['accept_quality']
+        accept_description = data['accept_description']
+    else:
+        app_logger.error("无法找到视频信息")
+        return
+
+    qualities = OrderedDict(zip(accept_description, accept_quality))
+
+    # 构造内容
+    text = Text()
+    text.append("视频 URL：", style="bold cyan")
+    text.append(video_url + "\n", style="bold green")
+    text.append("视频标题：", style="bold cyan")
+    text.append(video_title + "\n\n", style="bold magenta")
+    text.append("可选择清晰度：\n", style="bold yellow")
+
+    for key, value in qualities.items():
+        text.append(f"{key} - {value}\n", style="bold white")
+
+    # 使用 Panel 包裹内容
+    panel = Panel(
+        text,
+        title="🎬 视频信息",
+        title_align="left",
+        border_style="bright_blue",
+        padding=(1, 2),
+    )
+
+    console.print(panel)
+
 
 
 def parse(url: str, headers: dict):
