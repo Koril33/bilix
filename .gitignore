@@ -7,3 +7,5 @@ bilix
 *.mp4
 .idea
 __pycache__
+cookie.txt
+login_qrcode.png
