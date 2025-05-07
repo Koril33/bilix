@@ -1,8 +1,8 @@
 import time
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, OrderedDict
-
+from typing import OrderedDict, Optional
+from curl_cffi import requests
 import httpx
 import typer
 from rich.console import Console
@@ -61,9 +61,9 @@ def get_video_info(url: str, header: dict):
 
 
 def parse(url: str, headers: dict):
-    with httpx.Client(follow_redirects=True, trust_env=False, proxy=None) as client:
+    with requests.Session() as session:
         try:
-            response = client.get(url=url, headers=headers, timeout=5)
+            response = session.get(url=url, headers=headers, timeout=5)
             response.raise_for_status()
 
             html = response.text
