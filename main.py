@@ -12,6 +12,13 @@ from login import qrcode_img, get_cookie
 from tool import load_urls_from_file, clean_bili_url
 from user import get_user_info
 
+__version__ = "v1.0.0"
+
+def version_callback(value: bool):
+    if value:
+        app_logger.info(f"bilix version: {__version__}")
+        raise typer.Exit()
+
 app = typer.Typer()
 
 download_headers = {
@@ -40,9 +47,10 @@ def download(
         login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录账号"),
         logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
         user:    bool          = Option(False, "-u", "--user", is_flag=True, help="当前账号信息"),
+        version: Annotated[Optional[bool], typer.Option("-v", "--version", callback=version_callback, is_eager=True, help="查看软件版本信息"),] = None,
 ) -> None:
     """
-    下载 Bilibili 视频及音频流，并提供清晰度选择。
+    下载 Bilibili 视频的命令行工具，支持账号登陆，下载视频，选择清晰度下载等功能
     """
 
     if user:
