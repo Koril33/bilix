@@ -172,7 +172,6 @@ def gen_uuid():
     return f"{uuid_sec}{time_sec}infoc"
 
 
-
 def hmac_sha256(key, message):
     """
     使用HMAC-SHA256算法对给定的消息进行加密
@@ -214,7 +213,6 @@ def gen_web_ticket():
         'bili_ticket': resp['data']['ticket'],
         'bili_ticket_expires': resp['data']['created_at'] + resp['data']['ttl'],
     }
-
 
 
 if __name__ == '__main__':

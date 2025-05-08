@@ -10,6 +10,7 @@ from download_sync import download_sync, parse, get_video_info
 from log_config import app_logger, log_init
 from login import qrcode_img, get_cookie
 from tool import load_urls_from_file, clean_bili_url
+from user import get_user_info
 
 app = typer.Typer()
 
@@ -38,11 +39,22 @@ def download(
         info:    bool          = Option(False, "-i", "--info", is_flag=True, help="是否仅获取视频信息"),
         login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录账号"),
         logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
-        ffmpeg:  Optional[str] = Option(None, "-f", "--ffmpeg", help="指定 ffmpeg 可执行文件路径"),
+        user:    bool          = Option(False, "-u", "--user", is_flag=True, help="当前账号信息"),
 ) -> None:
     """
     下载 Bilibili 视频及音频流，并提供清晰度选择。
     """
+
+    if user:
+        cookie_file = Path('cookie.txt')
+        if cookie_file.is_file():
+            h = copy.deepcopy(download_headers)
+            h['cookie'] = cookie_file.read_text()
+            get_user_info(h)
+            return
+        else:
+            app_logger.warning('用户未登录, 登录请使用 --login 选项')
+        return
 
     if login:
         qrcode_key_res = qrcode_img()
