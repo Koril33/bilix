@@ -6,6 +6,7 @@ import random
 import time
 import uuid
 from io import BytesIO
+from pathlib import Path
 
 import qrcode
 from curl_cffi import requests
@@ -43,8 +44,6 @@ def qrcode_img():
     qr = qrcode.make(qrcode_url)
     buffer = BytesIO()
     qr.save(buffer, format="PNG")
-    # 命令行上显示 qrcode
-    # qrcode_terminal.draw(qrcode_url)
 
     # 保存二维码图片到当前目录
     qr.save("login_qrcode.png")
@@ -66,6 +65,9 @@ def get_cookie(qrcode_key):
         msg = resp_json['data']['message']
         if code == 0:
             app_logger.info("登录成功")
+
+            # 删除二维码
+            Path('login_qrcode.png').unlink(missing_ok=True)
 
             first_req = session.get('https://bilibili.com/')
             cookies_dict = first_req.cookies.get_dict()
