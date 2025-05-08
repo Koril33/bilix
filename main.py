@@ -36,7 +36,8 @@ def download(
         save:    Optional[str] = Option(None, "-s", "--save", help="指定下载结果保存目录路径"),
         page:    bool          = Option(False, "-p", "--page", is_flag=True, help="是否下载多集视频"),
         info:    bool          = Option(False, "-i", "--info", is_flag=True, help="是否仅获取视频信息"),
-        login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录"),
+        login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录账号"),
+        logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
         ffmpeg:  Optional[str] = Option(None, "-f", "--ffmpeg", help="指定 ffmpeg 可执行文件路径"),
 ) -> None:
     """
@@ -51,6 +52,15 @@ def download(
             app_logger.info('cookie 写入本地文件成功')
         return
 
+    if logout:
+        cookie_file = Path('cookie.txt')
+        if cookie_file.is_file():
+            cookie_file.unlink()
+            app_logger.info('退出账号成功')
+        else:
+            app_logger.warning('用户未登录, 登录请使用 --login 选项')
+        return
+
     if not urls and not origin:
         app_logger.error('请提供 urls 或 --origin 中的一个')
         raise typer.Exit(code=1)
@@ -63,15 +73,13 @@ def download(
 
     start = int(time.time() * 1000)
     try:
-        # asyncio.run(download_async(url, headers, quality))
-        # download_sync(urls, headers, quality, )
-
         if info:
+            app_logger.info(f"获取 {len(urls)} 个视频信息")
             for url in urls:
                 h = copy.deepcopy(download_headers)
                 h['Referer'] = url
                 get_video_info(url, h)
-                return
+            return
 
         if origin:
             app_logger.info(f'用户指定URL文件: {origin}')
