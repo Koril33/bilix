@@ -10,6 +10,8 @@
 
 Github: https://github.com/Koril33/bilix
 
+Gitee: https://gitee.com/ding_jing_hui/bilix
+
 ## 功能
 
 ### 登录
@@ -49,9 +51,12 @@ bilix.exe -s "videos" "https://www.bilibili.com/video/BV1j4411W7F7"
 ## 依赖
 
 1. ffmpeg
-2. requests
+2. httpx
 3. curl_cffi
 4. typer
+5. rich
+6. qrcode
+7. nuitka
 
 ## 感谢
 
