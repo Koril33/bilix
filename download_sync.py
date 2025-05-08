@@ -1,10 +1,13 @@
 import time
+from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
-from typing import OrderedDict, Optional
-from curl_cffi import requests
+from typing import Optional
+
 import httpx
+from curl_cffi import requests
 import typer
+from curl_cffi.requests.exceptions import HTTPError, RequestException
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn, \
@@ -92,11 +95,10 @@ def parse(url: str, headers: dict):
                 'initial_state': initial_state,
                 'playurl_ssr_data': playurl_ssr_data,
             }
-
-        except httpx.RequestError:
-            app_logger.exception(f'下载失败，网络请求错误')
-        except httpx.HTTPStatusError:
+        except HTTPError:
             app_logger.exception(f'HTTP 错误')
+        except RequestException:
+            app_logger.exception(f'下载失败，网络请求错误')
         except Exception:
             app_logger.exception(f'未知错误')
     return None
@@ -111,20 +113,6 @@ def download_stream(url: str, headers, filename: str, progress):
         progress.start_task(task)
         with open(filename, 'wb') as f:
             for chunk in resp.iter_bytes(chunk_size=1024 * 1024):
-                f.write(chunk)
-                progress.update(task, advance=len(chunk))
-
-
-def download_stream_requests(url, headers, filename, progress):
-    import requests
-    task = progress.add_task(f'{filename}', start=False)
-    with requests.get(url, headers=headers, stream=True) as resp:
-        resp.raise_for_status()
-        total = int(resp.headers.get('Content-Length', 0))
-        progress.update(task, total=total)
-        progress.start_task(task)
-        with open(filename, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
                 progress.update(task, advance=len(chunk))
 

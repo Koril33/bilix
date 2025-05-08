@@ -1,7 +1,5 @@
 # Bilix
 
----
-
 一个简单的 Bilibili 命令行视频下载器
 
 ![](https://img.shields.io/badge/Python-3.11.2-green.svg)
