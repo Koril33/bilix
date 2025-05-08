@@ -1,5 +1,7 @@
 # Bilix
 
+![](doc/bilix-icon.jpg)
+
 一个简单的 Bilibili 命令行视频下载器
 
 ![](https://img.shields.io/badge/Python-3.11.2-green.svg)
@@ -34,6 +36,11 @@ bilix.exe --help
 查看指定视频的清晰度信息
 ```shell
 bilix.exe -i "https://www.bilibili.com/video/BV1j4411W7F7"
+```
+
+查看当前登陆用户的信息
+```shell
+bilix.exe -u
 ```
 
 ### 下载
