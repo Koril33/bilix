@@ -9,7 +9,7 @@ from typer import Option, Argument
 from download_sync import download_sync, parse, get_video_info
 from log_config import app_logger, log_init
 from login import qrcode_img, get_cookie
-from tool import load_urls_from_file, clean_bili_url
+from tool import load_urls_from_file, clean_bili_url, parse_page_input
 from user import get_user_info
 
 __version__ = "v1.0.0"
@@ -42,7 +42,7 @@ def download(
         quality: Optional[int] = Option(None, "-q", "--quality", help="视频清晰度 | 120: 4K | 112: 1080P+ | 80: 1080P | 64: 720P | 32: 480P | 16: 360P |"),
         origin:  Optional[str] = Option(None, "-o", "--origin", help="指定下载来源文件路径"),
         save:    Optional[str] = Option(None, "-s", "--save", help="指定下载结果保存目录路径"),
-        page:    bool          = Option(False, "-p", "--page", is_flag=True, help="是否下载多集视频"),
+        page:    Optional[str] = Option(None, "-p", "--page", help="指定要下载的集数，例如 -p 3、-p 1,4,9、-p 4-12；不指定值表示下载全部"),
         info:    bool          = Option(False, "-i", "--info", is_flag=True, help="是否仅获取视频信息"),
         login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录账号"),
         logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
@@ -107,20 +107,25 @@ def download(
         app_logger.info(f'开始下载, 共计: {len(urls)} 个任务')
 
         if len(urls) == 1 and page:
+            page_parsed = parse_page_input(page)
+            app_logger.info(f'准备下载视频集合, page={page_parsed}')
             h = copy.deepcopy(download_headers)
             url = clean_bili_url(urls[0])
             h['Referer'] = url
             initial_state = parse(url, headers=h).get('initial_state')
             video_pages = initial_state['videoData']['pages']
+            page_nums = [p['page'] for p in video_pages]
             if len(video_pages) > 1:
-                app_logger.info(f'检测到视频集合')
-                for page in video_pages:
-                    BiliTask(url=f'{url}?p={page["page"]}', headers=h, quality=quality, save=save).download()
-        for url in urls:
-            clean_url = clean_bili_url(url)
-            h = copy.deepcopy(download_headers)
-            h['Referer'] = clean_url
-            BiliTask(url=clean_url, headers=h, quality=quality, save=save).download()
+                download_page_nums = page_nums if page_parsed == 'all' else page_parsed
+                app_logger.info(f'检测到视频集合, 待下载总数: {len(download_page_nums)}, 集数: {download_page_nums}')
+                for page in download_page_nums:
+                    BiliTask(url=f'{url}?p={page}', headers=h, quality=quality, save=save).download()
+        else:
+            for url in urls:
+                clean_url = clean_bili_url(url)
+                h = copy.deepcopy(download_headers)
+                h['Referer'] = clean_url
+                BiliTask(url=clean_url, headers=h, quality=quality, save=save).download()
 
     except Exception:
         app_logger.exception(f"下载过程中出现错误")

@@ -134,7 +134,7 @@ def download_sync(
         audios = dash.get('audio', [])
     else:
         if not playinfo or 'data' not in playinfo:
-            app_logger.error("无法获取播放信息，退出。")
+            app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")
             raise typer.Exit(code=1)
 
         dash = playinfo['data'].get('dash', {})

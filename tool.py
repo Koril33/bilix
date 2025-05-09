@@ -3,9 +3,36 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from typing import Optional, Union, List
 from urllib.parse import urlunsplit, urlsplit
 
+import typer
+
 from log_config import app_logger
+
+def parse_page_input(value: Optional[str]) -> Union[str, List[int]]:
+    """
+    解析下载多 p 视频的传参
+    """
+
+    if value is None or value == "" or value == "all":
+        return "all"
+    elif '-' in value:
+        try:
+            start, end = map(int, value.split('-'))
+            return list(range(start, end + 1))
+        except Exception:
+            raise typer.BadParameter("范围格式应为 起始-结束，例如 3-7")
+    elif ',' in value:
+        try:
+            return [int(v.strip()) for v in value.split(',')]
+        except Exception:
+            raise typer.BadParameter("多个值应为英文逗号分隔，例如 1,4,9")
+    else:
+        try:
+            return [int(value)]
+        except Exception:
+            raise typer.BadParameter("必须是整数、范围或英文逗号分隔的整数")
 
 
 def sanitize_filename(name: str, replacement: str = "_") -> str:
