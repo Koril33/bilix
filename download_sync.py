@@ -1,3 +1,4 @@
+import re
 import time
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -19,11 +20,64 @@ from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract
     extract_playurl_ssr_data
 
 
+def get_cheese_info(url, header: dict):
+    console = Console()
+    match = re.search(r'ep(\d+)', url)
+    if match:
+        ep_id = match.group(1)
+    else:
+        app_logger.warning("无法找到参数: ep")
+        return
+    url = f"https://api.bilibili.com/pugv/view/web/season?ep_id={ep_id}"
+
+    resp = requests.get(url, headers=header)
+    resp.raise_for_status()
+    resp_json = resp.json()
+    data = resp_json['data']
+    video_title = data['title']
+    video_subtitle = data['subtitle']
+    episodes = data['episodes']
+
+    # 构造内容
+    text = Text()
+    text.append("课程 URL：", style="bold cyan")
+    text.append(url + "\n", style="bold green")
+    text.append("视频标题：", style="bold cyan")
+    text.append(video_title + "\n\n", style="bold magenta")
+    text.append("视频副标题：\n", style="bold yellow")
+    text.append(video_subtitle + "\n\n", style="bold magenta")
+
+    text.append("\n选集信息：\n", style="bold yellow")
+
+    for episode in episodes:
+        text.append(
+            f"第{episode['index']}集: <{episode['title']}> - <{episode['subtitle']}>\n",
+            style="bold white"
+        )
+
+    # 使用 Panel 包裹内容
+    panel = Panel(
+        text,
+        title="🎬 课程信息",
+        title_align="left",
+        border_style="bright_blue",
+        padding=(1, 2),
+    )
+
+    console.print(panel)
+
+
 def get_video_info(url: str, header: dict):
+
+    video_url = url
+
+    if "cheese" in video_url:
+        get_cheese_info(url, header)
+        return
+
     parse_res = parse(url, header)
     console = Console()
 
-    video_url = url
     video_title = parse_res['title']
     if parse_res.get('playurl_ssr_data'):
         result = parse_res.get('playurl_ssr_data').get('result')

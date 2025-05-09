@@ -1,0 +1,501 @@
+{
+    "code": 0,
+    "data": {
+        "accept_format": "hdflv2,flv_p60,flv,flv720,flv480,mp4",
+        "code": 0,
+        "seek_param": "start",
+        "is_preview": 0,
+        "fnval": 16,
+        "video_project": true,
+        "play_view_business_info": {
+            "user_status": {
+                "watch_progress": {
+                    "current_watch_progress": 141000,
+                    "last_ep_id": 262013,
+                    "last_ep_index": "第五讲：切入社会制度之感性根基：马克思的历史观",
+                    "last_time": 141000
+                }
+            }
+        },
+        "fnver": 0,
+        "type": "DASH",
+        "result": "suee",
+        "seek_type": "offset",
+        "from": "local",
+        "video_codecid": 7,
+        "no_rexcode": 0,
+        "format": "flv",
+        "support_formats": [
+            {
+                "display_desc": "4K",
+                "superscript": "",
+                "need_login": true,
+                "codecs": [
+                    "avc1.640034",
+                    "hev1.1.6.L153.90"
+                ],
+                "format": "hdflv2",
+                "description": "超清 4K",
+                "quality": 120,
+                "new_description": "4K 超高清"
+            },
+            {
+                "display_desc": "1080P",
+                "superscript": "60帧",
+                "need_login": true,
+                "codecs": [
+                    "avc1.640032",
+                    "hev1.1.6.L150.90"
+                ],
+                "format": "flv_p60",
+                "description": "高清 1080P60",
+                "quality": 116,
+                "new_description": "1080P 60帧"
+            },
+            {
+                "display_desc": "1080P",
+                "superscript": "",
+                "need_login": true,
+                "codecs": [
+                    "avc1.640032",
+                    "hev1.1.6.L150.90"
+                ],
+                "format": "flv",
+                "description": "高清 1080P",
+                "quality": 80,
+                "new_description": "1080P 高清"
+            },
+            {
+                "display_desc": "720P",
+                "superscript": "",
+                "need_login": true,
+                "codecs": [
+                    "avc1.640028",
+                    "hev1.1.6.L120.90"
+                ],
+                "format": "flv720",
+                "description": "高清 720P",
+                "quality": 64,
+                "new_description": "720P 准高清"
+            },
+            {
+                "display_desc": "480P",
+                "superscript": "",
+                "need_login": false,
+                "codecs": [
+                    "avc1.64001F",
+                    "hev1.1.6.L120.90"
+                ],
+                "format": "flv480",
+                "description": "清晰 480P",
+                "quality": 32,
+                "new_description": "480P 标清"
+            },
+            {
+                "display_desc": "360P",
+                "superscript": "",
+                "need_login": false,
+                "codecs": [
+                    "avc1.64001E",
+                    "hev1.1.6.L120.90"
+                ],
+                "format": "mp4",
+                "description": "流畅 360P",
+                "quality": 16,
+                "new_description": "360P 流畅"
+            }
+        ],
+        "message": "Success",
+        "accept_quality": [
+            120,
+            116,
+            80,
+            64,
+            32,
+            16
+        ],
+        "quality": 80,
+        "timelength": 1836031,
+        "durls": [],
+        "has_paid": true,
+        "dash": {
+            "duration": 1837,
+            "min_buffer_time": 1.5,
+            "video": [
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 5486421,
+                    "sar": "1:1",
+                    "codecs": "avc1.640034",
+                    "base_url": "https://upos-sz-estghw.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30120.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&os=upos&mid=3305808&uipk=5&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&tag=&nbs=1&gen=playurlv3&og=hw&upsig=8055a269108590a1435a2ed0ffea1119&uparams=e,os,mid,uipk,oi,platform,trid,deadline,tag,nbs,gen,og&bvc=vod&nettype=0&bw=5488992&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30120.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&platform=pc&os=08cbv&deadline=1746788232&gen=playurlv3&og=hw&nbs=1&uipk=5&oi=3078979014&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&upsig=fa294ea5228103db6c7378c3105b1874&uparams=e,tag,platform,os,deadline,gen,og,nbs,uipk,oi,trid,mid&bvc=vod&nettype=0&bw=5488992&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30120.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&mid=3305808&deadline=1746788232&nbs=1&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&gen=playurlv3&os=08cbv&og=hw&upsig=042e6373884a0beed9f1ceab3a0e2f70&uparams=e,uipk,mid,deadline,nbs,oi,platform,trid,tag,gen,os,og&bvc=vod&nettype=0&bw=5488992&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-978",
+                        "index_range": "979-5414"
+                    },
+                    "frame_rate": "50",
+                    "codecid": 7,
+                    "size": 1259037765,
+                    "mime_type": "video/mp4",
+                    "width": 4096,
+                    "id": 120,
+                    "noRexcode": 0,
+                    "height": 2160,
+                    "md5": "e7b5246d2fd4b740b048baae64870b8f"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 3502725,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L153.90",
+                    "base_url": "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30121.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&os=upos&og=cos&mid=3305808&uipk=5&oi=3078979014&platform=pc&gen=playurlv3&deadline=1746788232&tag=&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&upsig=d9f76aba0abb7bc435393f6d4baedbbe&uparams=e,os,og,mid,uipk,oi,platform,gen,deadline,tag,nbs,trid&bvc=vod&nettype=0&bw=3504443&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30121.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&nbs=1&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&og=cos&mid=3305808&deadline=1746788232&uipk=5&oi=3078979014&os=upos&upsig=7768df9d2d769884fab1a13941178e2f&uparams=e,tag,nbs,platform,trid,gen,og,mid,deadline,uipk,oi,os&bvc=vod&nettype=0&bw=3504443&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=1,3",
+                        "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30121.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&oi=3078979014&platform=pc&nbs=1&og=cos&uipk=5&gen=playurlv3&os=alibv&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&deadline=1746788232&tag=&upsig=d2c8549d127a02b48ae9655a15d62300&uparams=e,oi,platform,nbs,og,uipk,gen,os,trid,mid,deadline,tag&bvc=vod&nettype=0&bw=3504443&agrr=1&buvid=&build=0&dl=0&f=u_0_0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1042",
+                        "index_range": "1043-5478"
+                    },
+                    "frame_rate": "50",
+                    "codecid": 12,
+                    "size": 803831773,
+                    "mime_type": "video/mp4",
+                    "width": 4096,
+                    "id": 120,
+                    "noRexcode": 0,
+                    "height": 2160,
+                    "md5": "258610507767d58f0a0f36a9f6bfcb48"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 1155812,
+                    "sar": "1:1",
+                    "codecs": "avc1.640032",
+                    "base_url": "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30116.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&oi=3078979014&deadline=1746788232&tag=&nbs=1&gen=playurlv3&os=upos&og=cos&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&upsig=a89249306d2651fc759378fd05b4aecd&uparams=e,uipk,oi,deadline,tag,nbs,gen,os,og,platform,trid,mid&bvc=vod&nettype=0&bw=1156353&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30116.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&og=cos&mid=3305808&deadline=1746788232&uipk=5&oi=3078979014&platform=pc&gen=playurlv3&os=upos&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&nbs=1&upsig=cf448878774cfa5f2b20bcd10989cae3&uparams=e,og,mid,deadline,uipk,oi,platform,gen,os,trid,tag,nbs&bvc=vod&nettype=0&bw=1156353&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30116.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&oi=3078979014&mid=3305808&tag=&nbs=1&os=alibv&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&uipk=5&gen=playurlv3&og=cos&upsig=846c2a2177e1a282813df0e3e1b8e354&uparams=e,oi,mid,tag,nbs,os,platform,trid,deadline,uipk,gen,og&bvc=vod&nettype=0&bw=1156353&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-979",
+                        "index_range": "980-5415"
+                    },
+                    "frame_rate": "50",
+                    "codecid": 7,
+                    "size": 265238659,
+                    "mime_type": "video/mp4",
+                    "width": 1920,
+                    "id": 116,
+                    "noRexcode": 0,
+                    "height": 1012,
+                    "md5": "c7724711d851acd2598c782e9d767ea4"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 519020,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L150.90",
+                    "base_url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30106.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&gen=playurlv3&os=08cbv&mid=3305808&deadline=1746788232&nbs=1&uipk=5&oi=3078979014&platform=pc&og=hw&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&upsig=91101e1ee1b3ee454eeba12fa844eb6f&uparams=e,gen,os,mid,deadline,nbs,uipk,oi,platform,og,trid,tag&bvc=vod&nettype=0&bw=519274&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30106.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&og=hw&mid=3305808&deadline=1746788232&tag=&os=08cbv&uipk=5&oi=3078979014&platform=pc&upsig=31830248c54183dc5e29d36075d8a020&uparams=e,nbs,trid,gen,og,mid,deadline,tag,os,uipk,oi,platform&bvc=vod&nettype=0&bw=519274&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=1,3",
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30106.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&oi=3078979014&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&og=hw&tag=&uipk=5&platform=pc&deadline=1746788232&gen=playurlv3&os=08cbv&upsig=31b6b585516da665eea61baa819bb1ed&uparams=e,nbs,oi,trid,mid,og,tag,uipk,platform,deadline,gen,os&bvc=vod&nettype=0&bw=519274&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1042",
+                        "index_range": "1043-5478"
+                    },
+                    "frame_rate": "50",
+                    "codecid": 12,
+                    "size": 119108628,
+                    "mime_type": "video/mp4",
+                    "width": 1920,
+                    "id": 116,
+                    "noRexcode": 0,
+                    "height": 1012,
+                    "md5": "cb8338d4601e9d09e7eabec85eb5238e"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 338566,
+                    "sar": "1:1",
+                    "codecs": "avc1.640032",
+                    "base_url": "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100050.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&gen=playurlv3&tag=&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&oi=3078979014&platform=pc&os=cosbv&og=cos&mid=3305808&deadline=1746788232&uipk=5&upsig=0232eb934f0d181e6740253f4c76b58b&uparams=e,gen,tag,nbs,trid,oi,platform,os,og,mid,deadline,uipk&bvc=vod&nettype=0&bw=338731&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100050.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&uipk=5&gen=playurlv3&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&deadline=1746788232&os=cosbv&og=cos&oi=3078979014&platform=pc&nbs=1&upsig=900224f28c23eb87a6cb1debcdb56bf0&uparams=e,tag,uipk,gen,trid,mid,deadline,os,og,oi,platform,nbs&bvc=vod&nettype=0&bw=338731&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100050.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1746788232&nbs=1&uipk=5&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&gen=playurlv3&os=cosbv&tag=&oi=3078979014&platform=pc&og=cos&upsig=b55367233f5d43bbcbde89a2e505d368&uparams=e,deadline,nbs,uipk,trid,mid,gen,os,tag,oi,platform,og&bvc=vod&nettype=0&bw=338731&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-979",
+                        "index_range": "980-5415"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 7,
+                    "size": 77696641,
+                    "mime_type": "video/mp4",
+                    "width": 1920,
+                    "id": 80,
+                    "noRexcode": 0,
+                    "height": 1012,
+                    "md5": "18fdf38ca79e4539f1daad649dc83030"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 377441,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L150.90",
+                    "base_url": "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30077.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&uipk=5&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&os=upos&deadline=1746788232&og=cos&mid=3305808&tag=&upsig=2ac7893695a50f4d470afadf46d9c6b9&uparams=e,nbs,uipk,oi,platform,trid,gen,os,deadline,og,mid,tag&bvc=vod&nettype=0&bw=377626&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30077.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&mid=3305808&deadline=1746788232&gen=playurlv3&uipk=5&oi=3078979014&tag=&nbs=1&os=upos&og=cos&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&upsig=81c7e964cd918a88e674e2c5c3a87967&uparams=e,mid,deadline,gen,uipk,oi,tag,nbs,os,og,platform,trid&bvc=vod&nettype=0&bw=377626&agrr=1&buvid=&build=0&dl=0&f=u_0_0&orderid=1,3",
+                        "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30077.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&mid=3305808&deadline=1746788232&nbs=1&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&uipk=5&gen=playurlv3&os=alibv&og=cos&upsig=c7b94b151343ac2cb480c98c9cb0bae2&uparams=e,mid,deadline,nbs,oi,platform,trid,tag,uipk,gen,os,og&bvc=vod&nettype=0&bw=377626&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1043",
+                        "index_range": "1044-5479"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 12,
+                    "size": 86618161,
+                    "mime_type": "video/mp4",
+                    "width": 1920,
+                    "id": 80,
+                    "noRexcode": 0,
+                    "height": 1012,
+                    "md5": "07291da6ffacc987b3b1e15f32a5cafe"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 217268,
+                    "sar": "1:1",
+                    "codecs": "avc1.640028",
+                    "base_url": "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100048.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&og=cos&tag=&uipk=5&mid=3305808&deadline=1746788232&os=cosbv&upsig=cf00395361982b2b78417cc0edf61af5&uparams=e,nbs,oi,platform,trid,gen,og,tag,uipk,mid,deadline,os&bvc=vod&nettype=0&bw=217374&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100048.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&tag=&nbs=1&gen=playurlv3&os=cosbv&og=cos&uipk=5&oi=3078979014&platform=pc&mid=3305808&upsig=cda4cd508680d98643844612445da339&uparams=e,trid,deadline,tag,nbs,gen,os,og,uipk,oi,platform,mid&bvc=vod&nettype=0&bw=217374&agrr=1&buvid=&build=0&dl=0&f=u_0_0&orderid=1,3",
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100048.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1746788232&uipk=5&gen=playurlv3&og=cos&os=cosbv&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&tag=&nbs=1&oi=3078979014&upsig=bf942b95c09b1ac5252d58cc8d02b55a&uparams=e,deadline,uipk,gen,og,os,platform,trid,mid,tag,nbs,oi&bvc=vod&nettype=0&bw=217374&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-979",
+                        "index_range": "980-5415"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 7,
+                    "size": 49860336,
+                    "mime_type": "video/mp4",
+                    "width": 1280,
+                    "id": 64,
+                    "noRexcode": 0,
+                    "height": 674,
+                    "md5": "077aebd2402fa20e71320759ae6b1d89"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 209650,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L120.90",
+                    "base_url": "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30066.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&og=hw&uipk=5&oi=3078979014&platform=pc&deadline=1746788232&gen=playurlv3&os=bdbv&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&tag=&upsig=e6e2e0dddbcf8b7996a67f1c357cc093&uparams=e,og,uipk,oi,platform,deadline,gen,os,nbs,trid,mid,tag&bvc=vod&nettype=0&bw=209753&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30066.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&gen=playurlv3&og=hw&uipk=5&oi=3078979014&platform=pc&mid=3305808&os=bdbv&tag=&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&upsig=1d3826270e51b7e5917acb3717e13dfa&uparams=e,gen,og,uipk,oi,platform,mid,os,tag,nbs,trid,deadline&bvc=vod&nettype=0&bw=209753&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=1,3",
+                        "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30066.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&tag=&gen=playurlv3&os=bdbv&og=hw&uipk=5&oi=3078979014&platform=pc&deadline=1746788232&upsig=9d3340ec0303b212f5d012c9c1816be8&uparams=e,nbs,trid,mid,tag,gen,os,og,uipk,oi,platform,deadline&bvc=vod&nettype=0&bw=209753&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1044",
+                        "index_range": "1045-5480"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 12,
+                    "size": 48112121,
+                    "mime_type": "video/mp4",
+                    "width": 1280,
+                    "id": 64,
+                    "noRexcode": 0,
+                    "height": 674,
+                    "md5": "90f226381d0a21146fc25d092ea9fcb8"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 119378,
+                    "sar": "1:1",
+                    "codecs": "avc1.64001F",
+                    "base_url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100047.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&os=08cbv&og=hw&nbs=1&uipk=5&oi=3078979014&deadline=1746788232&tag=&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&gen=playurlv3&upsig=fb8d9ed6b9184e7bf37fc27ef4b1a70b&uparams=e,os,og,nbs,uipk,oi,deadline,tag,platform,trid,mid,gen&bvc=vod&nettype=0&bw=119437&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100047.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&os=08cbv&platform=pc&mid=3305808&tag=&nbs=1&oi=3078979014&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&uipk=5&gen=playurlv3&og=hw&upsig=8e85fe3fee3f7936a8e88732cf61331f&uparams=e,os,platform,mid,tag,nbs,oi,trid,deadline,uipk,gen,og&bvc=vod&nettype=0&bw=119437&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100047.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&mid=3305808&deadline=1746788232&gen=playurlv3&oi=3078979014&uipk=5&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&os=08cbv&og=hw&nbs=1&upsig=d11ac85efed2adbf3b23695072ef1f68&uparams=e,mid,deadline,gen,oi,uipk,platform,trid,tag,os,og,nbs&bvc=vod&nettype=0&bw=119437&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-979",
+                        "index_range": "980-5415"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 7,
+                    "size": 27395873,
+                    "mime_type": "video/mp4",
+                    "width": 854,
+                    "id": 32,
+                    "noRexcode": 0,
+                    "height": 450,
+                    "md5": "6dcc0688a8ea23f9cea7b1d603e750fa"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 130925,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L120.90",
+                    "base_url": "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30033.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&oi=3078979014&platform=pc&os=cosbv&og=cos&uipk=5&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&mid=3305808&deadline=1746788232&tag=&nbs=1&upsig=835e79138cdba4cbd86df6f73706e70d&uparams=e,oi,platform,os,og,uipk,trid,gen,mid,deadline,tag,nbs&bvc=vod&nettype=0&bw=130989&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-estgcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30033.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&oi=3078979014&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&os=upos&nbs=1&gen=playurlv3&og=cos&uipk=5&platform=pc&deadline=1746788232&tag=&upsig=6b524812cedccc2acdfc5c5b78bfebaa&uparams=e,oi,trid,mid,os,nbs,gen,og,uipk,platform,deadline,tag&bvc=vod&nettype=0&bw=130989&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=1,3",
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30033.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&os=cosbv&nbs=1&oi=3078979014&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&mid=3305808&og=cos&deadline=1746788232&tag=&uipk=5&platform=pc&upsig=aa3699983da3ff465e30e26a6ae01841&uparams=e,os,nbs,oi,trid,gen,mid,og,deadline,tag,uipk,platform&bvc=vod&nettype=0&bw=130989&agrr=1&buvid=&build=0&dl=0&f=u_0_0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1043",
+                        "index_range": "1044-5479"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 12,
+                    "size": 30045639,
+                    "mime_type": "video/mp4",
+                    "width": 854,
+                    "id": 32,
+                    "noRexcode": 0,
+                    "height": 450,
+                    "md5": "99fa2ea087c98991945f88cd2eb1c353"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 74273,
+                    "sar": "1:1",
+                    "codecs": "avc1.64001E",
+                    "base_url": "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100046.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&uipk=5&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&deadline=1746788232&gen=playurlv3&oi=3078979014&platform=pc&tag=&os=upos&og=cos&upsig=251a99ae2b2cd83536e5b0d95c8bbec5&uparams=e,nbs,uipk,trid,mid,deadline,gen,oi,platform,tag,os,og&bvc=vod&nettype=0&bw=74309&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-estgoss.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100046.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&nbs=1&uipk=5&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&os=upos&oi=3078979014&deadline=1746788232&gen=playurlv3&og=cos&upsig=c2ec4b1c8dbabbf0d87ace4c51dc28b3&uparams=e,tag,nbs,uipk,platform,trid,mid,os,oi,deadline,gen,og&bvc=vod&nettype=0&bw=74309&build=0&dl=0&f=u_0_0&agrr=1&buvid=&orderid=1,3",
+                        "https://upos-sz-mirrorali.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-100046.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&oi=3078979014&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&deadline=1746788232&tag=&gen=playurlv3&os=alibv&og=cos&nbs=1&mid=3305808&upsig=0fbe5fbaefd94465b4a1e8e08939c758&uparams=e,uipk,oi,platform,trid,deadline,tag,gen,os,og,nbs,mid&bvc=vod&nettype=0&bw=74309&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-987",
+                        "index_range": "988-5423"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 7,
+                    "size": 17044794,
+                    "mime_type": "video/mp4",
+                    "width": 640,
+                    "id": 16,
+                    "noRexcode": 0,
+                    "height": 338,
+                    "md5": "76fed6c80820ea0be9bdc5433ed806db"
+                },
+                {
+                    "start_with_sap": 1,
+                    "bandwidth": 93436,
+                    "sar": "1:1",
+                    "codecs": "hev1.1.6.L120.90",
+                    "base_url": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30011.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1746788232&uipk=5&gen=playurlv3&os=upos&og=cos&oi=3078979014&mid=3305808&tag=&nbs=1&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&upsig=3abcfafe98f780f9852ebf25fd43937d&uparams=e,deadline,uipk,gen,os,og,oi,mid,tag,nbs,platform,trid&bvc=vod&nettype=0&bw=93482&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30011.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&mid=3305808&deadline=1746788232&tag=&uipk=5&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&og=cos&nbs=1&oi=3078979014&platform=pc&os=cosbv&upsig=58ea64730827ad1dba3e9ce11303d0a4&uparams=e,mid,deadline,tag,uipk,trid,gen,og,nbs,oi,platform,os&bvc=vod&nettype=0&bw=93482&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30011.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&mid=3305808&tag=&uipk=5&platform=pc&gen=playurlv3&og=cos&trid=6fe4c8d0a3194130ba559c5d74c6bccu&nbs=1&oi=3078979014&os=cosbv&deadline=1746788232&upsig=babec872cc35b50aac04a9371b9e8311&uparams=e,mid,tag,uipk,platform,gen,og,trid,nbs,oi,os,deadline&bvc=vod&nettype=0&bw=93482&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-1042",
+                        "index_range": "1043-5478"
+                    },
+                    "frame_rate": "30.303",
+                    "codecid": 12,
+                    "size": 21442458,
+                    "mime_type": "video/mp4",
+                    "width": 640,
+                    "id": 16,
+                    "noRexcode": 0,
+                    "height": 338,
+                    "md5": "d183a8fe2fc52e825834f9f1624fff78"
+                }
+            ],
+            "audio": [
+                {
+                    "start_with_sap": 0,
+                    "bandwidth": 139965,
+                    "sar": "",
+                    "codecs": "mp4a.40.2",
+                    "base_url": "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1746788232&nbs=1&gen=playurlv3&uipk=5&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&os=08cbv&og=hw&oi=3078979014&mid=3305808&tag=&upsig=5b29e56a3cd34646073ecd58c00c1e48&uparams=e,deadline,nbs,gen,uipk,platform,trid,os,og,oi,mid,tag&bvc=vod&nettype=0&bw=140039&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&trid=6fe4c8d0a3194130ba559c5d74c6bccu&gen=playurlv3&og=hw&tag=&uipk=5&oi=3078979014&deadline=1746788232&os=08cbv&nbs=1&platform=pc&mid=3305808&upsig=4054193843bf13dc620639176300fe05&uparams=e,trid,gen,og,tag,uipk,oi,deadline,os,nbs,platform,mid&bvc=vod&nettype=0&bw=140039&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirror08c.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&uipk=5&trid=6fe4c8d0a3194130ba559c5d74c6bccu&og=hw&deadline=1746788232&tag=&oi=3078979014&platform=pc&mid=3305808&gen=playurlv3&os=08cbv&upsig=04ff559ad1d06284dad05a1c9e81be55&uparams=e,nbs,uipk,trid,og,deadline,tag,oi,platform,mid,gen,os&bvc=vod&nettype=0&bw=140039&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-933",
+                        "index_range": "934-5381"
+                    },
+                    "frame_rate": "",
+                    "codecid": 0,
+                    "size": 32121583,
+                    "mime_type": "audio/mp4",
+                    "width": 0,
+                    "id": 30280,
+                    "noRexcode": 0,
+                    "height": 0,
+                    "md5": "747be9b6449c70254f6a075a1050a2ad"
+                },
+                {
+                    "start_with_sap": 0,
+                    "bandwidth": 36612,
+                    "sar": "",
+                    "codecs": "mp4a.40.5",
+                    "base_url": "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30216.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&os=bdbv&platform=pc&mid=3305808&deadline=1746788232&nbs=1&uipk=5&oi=3078979014&gen=playurlv3&og=hw&trid=6fe4c8d0a3194130ba559c5d74c6bccu&upsig=8a8223a43196c823ae4f7321e9019ca0&uparams=e,tag,os,platform,mid,deadline,nbs,uipk,oi,gen,og,trid&bvc=vod&nettype=0&bw=36613&dl=0&f=u_0_0&agrr=1&buvid=&build=0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30216.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1746788232&gen=playurlv3&os=bdbv&og=hw&uipk=5&mid=3305808&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&nbs=1&oi=3078979014&platform=pc&upsig=8a3dd54ce45c010bb86e523be09600e8&uparams=e,deadline,gen,os,og,uipk,mid,trid,tag,nbs,oi,platform&bvc=vod&nettype=0&bw=36613&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirrorbd.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30216.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&tag=&nbs=1&uipk=5&oi=3078979014&os=bdbv&og=hw&deadline=1746788232&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&gen=playurlv3&platform=pc&upsig=69b53af89154b69ac70b4be78d76d419&uparams=e,tag,nbs,uipk,oi,os,og,deadline,trid,mid,gen,platform&bvc=vod&nettype=0&bw=36613&f=u_0_0&agrr=1&buvid=&build=0&dl=0&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-943",
+                        "index_range": "944-5391"
+                    },
+                    "frame_rate": "",
+                    "codecid": 0,
+                    "size": 8402706,
+                    "mime_type": "audio/mp4",
+                    "width": 0,
+                    "id": 30216,
+                    "noRexcode": 0,
+                    "height": 0,
+                    "md5": "7330725cd3b0f331c181680b119c7b6b"
+                },
+                {
+                    "start_with_sap": 0,
+                    "bandwidth": 90918,
+                    "sar": "",
+                    "codecs": "mp4a.40.2",
+                    "base_url": "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30232.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&og=cos&uipk=5&oi=3078979014&platform=pc&deadline=1746788232&os=cosbv&nbs=1&trid=6fe4c8d0a3194130ba559c5d74c6bccu&mid=3305808&tag=&gen=playurlv3&upsig=87a196d0eaeabe7cc9afeefdd8e9c608&uparams=e,og,uipk,oi,platform,deadline,os,nbs,trid,mid,tag,gen&bvc=vod&nettype=0&bw=90966&agrr=1&buvid=&build=0&dl=0&f=u_0_0&orderid=0,3",
+                    "backup_url": [
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30232.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&nbs=1&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&os=cosbv&og=cos&deadline=1746788232&tag=&mid=3305808&gen=playurlv3&uipk=5&oi=3078979014&upsig=f2efd625b7e1cab0144179aa1905b9a1&uparams=e,nbs,platform,trid,os,og,deadline,tag,mid,gen,uipk,oi&bvc=vod&nettype=0&bw=90966&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=1,3",
+                        "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/66/18/1357501866/1357501866-1-30232.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&oi=3078979014&mid=3305808&deadline=1746788232&og=cos&nbs=1&platform=pc&trid=6fe4c8d0a3194130ba559c5d74c6bccu&tag=&gen=playurlv3&os=cosbv&upsig=59079a21ecadcc7a4a1f37466de15016&uparams=e,uipk,oi,mid,deadline,og,nbs,platform,trid,tag,gen,os&bvc=vod&nettype=0&bw=90966&buvid=&build=0&dl=0&f=u_0_0&agrr=1&orderid=2,3"
+                    ],
+                    "segment_base": {
+                        "initialization": "0-933",
+                        "index_range": "934-5381"
+                    },
+                    "frame_rate": "",
+                    "codecid": 0,
+                    "size": 20865370,
+                    "mime_type": "audio/mp4",
+                    "width": 0,
+                    "id": 30232,
+                    "noRexcode": 0,
+                    "height": 0,
+                    "md5": "ffd621ccc51be5c9ba846f667da3e51e"
+                }
+            ]
+        },
+        "fragment_videos": [],
+        "accept_description": [
+            "超清 4K",
+            "高清 1080P60",
+            "高清 1080P",
+            "高清 720P",
+            "清晰 480P",
+            "流畅 360P"
+        ],
+        "status": 0
+    },
+    "message": "success"
+}
