@@ -26,7 +26,17 @@ def get_video_info(url: str, header: dict):
     video_url = url
     video_title = parse_res['title']
     if parse_res.get('playurl_ssr_data'):
-        video_info = parse_res.get('playurl_ssr_data').get('result').get('video_info')
+        result = parse_res.get('playurl_ssr_data').get('result')
+        raw = parse_res.get('playurl_ssr_data').get('raw')
+
+        if result:
+            video_info = result.get('video_info')
+        elif raw:
+            video_info = raw.get('data').get('video_info')
+        else:
+            app_logger.error(f"无法获取该 URL : {url} 的 video_info")
+            raise typer.Exit(code=1)
+
         accept_quality = video_info['accept_quality']
         accept_description = video_info['accept_description']
     elif parse_res.get('playinfo'):
@@ -49,6 +59,18 @@ def get_video_info(url: str, header: dict):
 
     for key, value in qualities.items():
         text.append(f"{key} - {value}\n", style="bold white")
+
+    if parse_res.get('initial_state'):
+        pages_info = parse_res.get('initial_state').get('videoData').get('pages')
+        text.append("\n选集信息：\n", style="bold yellow")
+        for page in pages_info:
+            # 转换时长格式（秒 -> 分:秒）
+            minutes, seconds = divmod(page['duration'], 60)
+            duration_str = f"{minutes:02d}:{seconds:02d}"
+            text.append(
+                f"第{page['page']}集: <{page['part']}> 时长: {duration_str}\n",
+                style="bold white"
+            )
 
     # 使用 Panel 包裹内容
     panel = Panel(
