@@ -4,9 +4,12 @@
 
 一个简单的 Bilibili 命令行视频下载器
 
-![](https://img.shields.io/badge/Python-3.11.2-green.svg)
-![](https://img.shields.io/badge/license-GPLv3-red.svg)
-![](https://img.shields.io/badge/release-v1.0.0-blue.svg)
+<p align="center">
+  <a href="https://github.com/Koril33/bilix/stargazers"><img src="https://img.shields.io/github/stars/Koril33/bilix.svg?style=for-the-badge" alt="Stargazers"></a>
+  <a href="https://github.com/Koril33/bilix/releases/latest"><img src="https://img.shields.io/github/v/release/Koril33/bilix?style=for-the-badge" alt="Latest Release"></a>  
+  <a href="https://github.com/Koril33/bilix/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Koril33/bilix.svg?style=for-the-badge" alt="License"></a>
+  <a href="https://www.python.org/downloads/release/python-3110/"><img src="https://img.shields.io/badge/Python-3.11.0-green.svg?style=for-the-badge" alt="Python Version"></a>
+</p>
 
 项目主页: https://djhx.site/project/bilix.html
 
@@ -54,6 +57,47 @@ bilix.exe "https://www.bilibili.com/video/BV1j4411W7F7"
 ```shell
 bilix.exe -s "videos" "https://www.bilibili.com/video/BV1j4411W7F7"
 ```
+
+### 视频选集下载
+
+下载所有视频选集
+```shell
+bilix.exe --page "all" --save "世界通史" "https://www.bilibili.com/video/BV12R4y1J75d"
+```
+下载第 1 和 3 集
+
+```shell
+bilix.exe --page "1,3" --save "世界通史" "https://www.bilibili.com/video/BV12R4y1J75d"
+```
+下载第 4-6 集
+
+```shell
+bilix.exe --page "4-6" --save "世界通史" "https://www.bilibili.com/video/BV12R4y1J75d"
+```
+
+### 多个视频下载
+
+方式一: 命令行中指定多个 URL
+```shell
+bilix.exe "https://www.bilibili.com/video/BV1j4411W7F7" "https://www.bilibili.com/video/BV1yt4y1Q7SS"
+```
+
+方式二: 把多个 URL 存储到文本文件中，例如，当前目录下建立一个 video.txt，内容如下
+```text
+https://www.bilibili.com/video/BV1j4411W7F7
+https://www.bilibili.com/video/BV1yt4y1Q7SS
+```
+然后 -o 选项，指定该文件
+```shell
+bilix.exe -o "video.txt"
+```
+
+## 待实现
+
+1. 下载课程（/cheese）
+2. 切换 CDN
+3. 下载弹幕/评论
+4. 完善 --user 的返回信息
 
 ## 依赖
 
