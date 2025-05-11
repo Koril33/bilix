@@ -17,6 +17,30 @@ Github: https://github.com/Koril33/bilix
 
 Gitee: https://gitee.com/ding_jing_hui/bilix
 
+## 声明
+
+本项目仅用于学习、研究与技术交流目的，严禁用于任何商业用途或违反中国大陆及其他国家和地区相关法律法规的行为。
+
+请注意以下几点：
+
+* 本项目不提供任何盗版内容，也不鼓励用户下载、传播受版权保护的内容；
+
+* 使用本工具所造成的一切后果，由使用者本人承担；
+
+* 请在下载前获得原作者授权，尊重原创和内容版权；
+
+* 若您不同意本声明，请不要使用或传播本项目中的任何内容。
+
+* 开发者对任何由于使用本项目所引起的直接或间接损失不承担任何法律责任。
+
+## 演示
+
+Windows
+![](doc/bilix-demo-win.gif)
+
+Ubuntu
+![](doc/bilix-demo-ubuntu.gif)
+
 ## 功能
 
 ### 登录
@@ -97,7 +121,12 @@ bilix.exe -o "video.txt"
 1. 下载课程（/cheese）
 2. 切换 CDN
 3. 下载弹幕/评论
-4. 完善 --user 的返回信息
+4. 完善 --user 和 --info 的返回信息
+5. 下载视频封面
+6. 可以选择视频的编码
+7. 支持设置本地 ffmpeg 路径
+8. 收藏夹/个人空间解析和批量下载
+9. 自定义格式化文件名
 
 ## 依赖
 
@@ -115,3 +144,4 @@ bilix.exe -o "video.txt"
 
 1. https://blog.csdn.net/weixin_47481982/article/details/127666941
 2. https://socialsisteryi.github.io/bilibili-API-collect/
+3. https://github.com/nilaoda/BBDown
