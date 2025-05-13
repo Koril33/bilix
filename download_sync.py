@@ -1,6 +1,6 @@
 import math
 import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
@@ -19,6 +19,12 @@ from log_config import app_logger
 from tool import extract_title, extract_playinfo_json, merge_m4s_ffmpeg, extract_initial_state_json, \
     extract_playurl_ssr_data
 
+# B 站视频编码
+codec_dict = {
+    7: 'AVC(H.264)',
+    12: 'HEVC(H.265)',
+    13: 'AV1',
+}
 
 def get_video_info(url: str, header: dict):
     parse_res = parse(url, header)
@@ -38,6 +44,11 @@ def get_video_info(url: str, header: dict):
             app_logger.error(f"无法获取该 URL : {url} 的 video_info")
             raise typer.Exit(code=1)
 
+        dash_video = video_info['dash']['video']
+        codecid_dict = defaultdict(list)
+        for v in dash_video:
+            codecid_dict[v['id']].append(codec_dict.get(v['codecid']))
+
         accept_quality = video_info['accept_quality']
         accept_description = video_info['accept_description']
 
@@ -50,11 +61,16 @@ def get_video_info(url: str, header: dict):
         accept_description = data['accept_description']
         timelength = data['timelength']
         video_format = data['format']
+
+        dash_video = data['dash']['video']
+        codecid_dict = defaultdict(list)
+        for v in dash_video:
+            codecid_dict[v['id']].append(codec_dict.get(v['codecid']))
     else:
         app_logger.error("无法找到视频信息")
         return
 
-    qualities = OrderedDict(zip(accept_description, accept_quality))
+    qualities = OrderedDict(zip(accept_quality, accept_description))
 
     # 视频时长毫秒转分钟秒的字符串格式
     total_seconds = math.ceil(timelength / 1000)
@@ -74,7 +90,7 @@ def get_video_info(url: str, header: dict):
     text.append("可选择清晰度：\n", style="bold yellow")
 
     for key, value in qualities.items():
-        text.append(f"{key} - {value}\n", style="bold white")
+        text.append(f"{key} - {value} - 支持编码: {codecid_dict.get(key)}\n", style="bold white")
 
     if parse_res.get('initial_state'):
         pages_info = parse_res.get('initial_state').get('videoData').get('pages')
