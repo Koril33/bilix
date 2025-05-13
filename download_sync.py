@@ -60,8 +60,16 @@ def get_video_info(url: str, header: dict):
 
         if result:
             video_info = result.get('video_info')
+            episode_info = result.get('play_view_business_info').get('episode_info')
+            aid = episode_info.get('aid')
+            bvid = episode_info.get('bvid')
+            cid = episode_info.get('cid')
         elif raw:
             video_info = raw.get('data').get('video_info')
+            arc = raw.get('data').get('arc')
+            aid = arc.get('aid')
+            bvid = arc.get('bvid')
+            cid = arc.get('cid')
         else:
             app_logger.error(f"无法获取该 URL : {url} 的 video_info")
             raise typer.Exit(code=1)
@@ -96,6 +104,11 @@ def get_video_info(url: str, header: dict):
         app_logger.error("无法找到视频信息")
         return
 
+    if parse_res.get('initial_state'):
+        aid = parse_res.get('initial_state').get('aid')
+        bvid = parse_res.get('initial_state').get('bvid')
+        cid = parse_res.get('initial_state').get('cid')
+
     qualities = OrderedDict(zip(accept_quality, accept_description))
 
     # 视频时长毫秒转分钟秒的字符串格式
@@ -110,6 +123,12 @@ def get_video_info(url: str, header: dict):
     text.append(video_title + "\n", style="bold magenta")
     text.append("视频格式：", style="bold cyan")
     text.append(str(video_format) + "\n", style="bold magenta")
+    text.append("aid：", style="bold cyan")
+    text.append(str(aid) + "\n", style="bold magenta")
+    text.append("bvid：", style="bold cyan")
+    text.append(str(bvid) + "\n", style="bold magenta")
+    text.append("cid：", style="bold cyan")
+    text.append(str(cid) + "\n", style="bold magenta")
     text.append("视频时长：", style="bold cyan")
     text.append(f'{minutes} 分 {seconds} 秒' + "\n\n", style="bold magenta")
 
