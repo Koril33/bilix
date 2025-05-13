@@ -2,6 +2,7 @@ import math
 import time
 from collections import OrderedDict, defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -51,7 +52,7 @@ quality_id_name_map = {
 def get_video_info(url: str, header: dict):
     parse_res = parse(url, header)
     console = Console()
-
+    aid = bvid = cid = -1
     video_url = url
     video_title = parse_res['title']
     if parse_res.get('playurl_ssr_data'):
@@ -131,6 +132,34 @@ def get_video_info(url: str, header: dict):
     text.append(str(cid) + "\n", style="bold magenta")
     text.append("视频时长：", style="bold cyan")
     text.append(f'{minutes} 分 {seconds} 秒' + "\n\n", style="bold magenta")
+
+    if bvid != -1:
+        bvid_resp = requests.get('https://api.bilibili.com/x/web-interface/wbi/view', params={'bvid': bvid}, headers=header, timeout=5)
+        bvid_resp_json = bvid_resp.json()
+        bvid_data = bvid_resp_json['data']
+        tname = bvid_data['tname']
+        tname_v2 = bvid_data['tname_v2']
+        pubdate = bvid_data['pubdate']
+        ctime = bvid_data['ctime']
+        desc = bvid_data['desc']
+        owner = bvid_data['owner']
+
+        text.append("子分区信息：", style="bold cyan")
+        text.append(tname + "\n", style="bold magenta")
+        text.append("子分区信息_v2：", style="bold cyan")
+        text.append(tname_v2 + "\n", style="bold magenta")
+        text.append("稿件发布时间：", style="bold cyan")
+        text.append(datetime.fromtimestamp(pubdate).strftime('%Y-%m-%dT%H:%M:%S') + "\n", style="bold magenta")
+        text.append("用户投稿时间：", style="bold cyan")
+        text.append(datetime.fromtimestamp(ctime).strftime('%Y-%m-%dT%H:%M:%S') + "\n", style="bold magenta")
+        text.append("视频简介：", style="bold cyan")
+        text.append(desc + "\n", style="bold magenta")
+
+        text.append("视频UP主信息-mid：", style="bold cyan")
+        text.append(str(owner.get('mid')) + "\n", style="bold magenta")
+
+        text.append("视频UP主信息-用户名：", style="bold cyan")
+        text.append(owner.get('name') + "\n\n", style="bold magenta")
 
     text.append("可选择清晰度：\n", style="bold yellow")
 
