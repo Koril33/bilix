@@ -7,6 +7,7 @@ from typing import Optional, Union, List
 from urllib.parse import urlunsplit, urlsplit
 
 import typer
+from curl_cffi import requests
 
 from log_config import app_logger
 
@@ -180,3 +181,35 @@ def clean_bili_url(url: str):
     parsed = urlsplit(url)
     clean_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
     return clean_url
+
+def format_bytes(size):
+    power = 1024
+    n = 0
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    while size >= power and n < len(units) - 1:
+        size /= power
+        n += 1
+    return f"{size:.2f} {units[n]}"
+
+
+def get_url_size(url, headers):
+    response = requests.get(url, headers=headers, timeout=5)
+    size = int(response.headers.get('Content-Length', 0))
+    return size
+
+def estimate_size(bandwidth, duration):
+    # bandwidth 是比特率（bps），duration 是秒
+    total_bits = bandwidth * duration
+    total_bytes = total_bits / 8
+    return total_bytes
+
+
+def shrink_title(title):
+    """
+    如果 title 超过10个字符，保留开头前4个和结尾后4个字符，中间用省略号替代。
+    例如：'1234567890abcd' => '1234...abcd'
+    """
+    max_title_length = 20
+    if len(title) <= max_title_length:
+        return title
+    return f"{title[:4]}...{title[-12:]}"

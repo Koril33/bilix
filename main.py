@@ -26,14 +26,15 @@ download_headers = {
 }
 
 class BiliTask:
-    def __init__(self, url: str, headers: dict, quality: int, save: str):
+    def __init__(self, url: str, headers: dict, quality: int, codec:str, save: str):
         self.url = url
         self.headers = headers
         self.quality = quality
+        self.codec = codec
         self.save = save
 
     def download(self):
-        download_sync(self.url, self.headers, self.quality, self.save)
+        download_sync(self.url, self.headers, self.quality, self.codec, self.save)
 
 
 @app.command()
@@ -47,6 +48,7 @@ def download(
         login:   bool          = Option(False, "-l", "--login", is_flag=True, help="登录账号"),
         logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
         user:    bool          = Option(False, "-u", "--user", is_flag=True, help="当前账号信息"),
+        codec:   Optional[str] = Option(None, "--codec", help="指定下载视频的编码格式 | AVC | HEVC | AV1 |"),
         version: Annotated[Optional[bool], typer.Option("-v", "--version", callback=version_callback, is_eager=True, help="查看软件版本信息"),] = None,
 ) -> None:
     """
@@ -119,13 +121,13 @@ def download(
                 download_page_nums = page_nums if page_parsed == 'all' else page_parsed
                 app_logger.info(f'检测到视频集合, 待下载总数: {len(download_page_nums)}, 集数: {download_page_nums}')
                 for page in download_page_nums:
-                    BiliTask(url=f'{url}?p={page}', headers=h, quality=quality, save=save).download()
+                    BiliTask(url=f'{url}?p={page}', headers=h, quality=quality, codec=codec, save=save).download()
         else:
             for url in urls:
                 clean_url = clean_bili_url(url)
                 h = copy.deepcopy(download_headers)
                 h['Referer'] = clean_url
-                BiliTask(url=clean_url, headers=h, quality=quality, save=save).download()
+                BiliTask(url=clean_url, headers=h, quality=quality, codec=codec, save=save).download()
 
     except Exception:
         app_logger.exception(f"下载过程中出现错误")
