@@ -58,8 +58,7 @@ def get_video_info(url: str, header: dict):
 
     # 视频时长毫秒转分钟秒的字符串格式
     total_seconds = math.ceil(timelength / 1000)
-    minutes = total_seconds // 60
-    seconds = total_seconds % 60
+    minutes, seconds = divmod(total_seconds, 60)
 
     # 构造内容
     text = Text()
@@ -85,7 +84,7 @@ def get_video_info(url: str, header: dict):
             minutes, seconds = divmod(page['duration'], 60)
             duration_str = f"{minutes:02d}:{seconds:02d}"
             text.append(
-                f"第{page['page']}集: <{page['part']}> 时长: {duration_str}\n",
+                f"第{page['page']}集 - 时长: {duration_str} - <{page['part']}>\n",
                 style="bold white"
             )
 
