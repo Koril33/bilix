@@ -82,7 +82,7 @@ def download(
         return
 
     if not urls and not origin:
-        app_logger.error('请提供 urls 或 --origin 中的一个')
+        app_logger.error('请提供一个视频 URL 进行下载，或者查看 --help 帮助信息')
         raise typer.Exit(code=1)
 
     if Path('cookie.txt').is_file():
