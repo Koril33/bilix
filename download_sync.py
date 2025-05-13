@@ -1,3 +1,4 @@
+import math
 import time
 from collections import OrderedDict
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -39,22 +40,38 @@ def get_video_info(url: str, header: dict):
 
         accept_quality = video_info['accept_quality']
         accept_description = video_info['accept_description']
+
+        timelength = video_info['timelength']
+        video_format = video_info['format']
+
     elif parse_res.get('playinfo'):
         data = parse_res.get('playinfo').get('data')
         accept_quality = data['accept_quality']
         accept_description = data['accept_description']
+        timelength = data['timelength']
+        video_format = data['format']
     else:
         app_logger.error("无法找到视频信息")
         return
 
     qualities = OrderedDict(zip(accept_description, accept_quality))
 
+    # 视频时长毫秒转分钟秒的字符串格式
+    total_seconds = math.ceil(timelength / 1000)
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+
     # 构造内容
     text = Text()
     text.append("视频 URL：", style="bold cyan")
     text.append(video_url + "\n", style="bold green")
     text.append("视频标题：", style="bold cyan")
-    text.append(video_title + "\n\n", style="bold magenta")
+    text.append(video_title + "\n", style="bold magenta")
+    text.append("视频格式：", style="bold cyan")
+    text.append(str(video_format) + "\n", style="bold magenta")
+    text.append("视频时长：", style="bold cyan")
+    text.append(f'{minutes} 分 {seconds} 秒' + "\n\n", style="bold magenta")
+
     text.append("可选择清晰度：\n", style="bold yellow")
 
     for key, value in qualities.items():
