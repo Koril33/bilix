@@ -13,7 +13,7 @@ from tool import load_urls_from_file, clean_bili_url, parse_page_input
 from update import update_exe
 from user import get_user_info
 
-__version__ = "v1.1.0"
+__version__ = "v1.2.0"
 
 def version_callback(value: bool):
     if value:
