@@ -66,6 +66,7 @@ def get_bangumi_episode(md_id: str):
 def get_video_info(url: str, header: dict):
     parse_res = parse(url, header)
     console = Console()
+    text = Text()
     aid = bvid = cid = -1
     video_url = url
     video_title = parse_res['title']
@@ -116,13 +117,44 @@ def get_video_info(url: str, header: dict):
             # video_size = format_bytes(get_url_size(v['baseUrl'], header))
             codecid_dict[v['id']].append(codec_dict.get(v['codecid']))
     else:
-        app_logger.error("无法找到视频信息")
-        return
+        if 'bangumi/media' not in url:
+            app_logger.error("无法找到视频信息")
+            return
 
     if parse_res.get('initial_state'):
         aid = parse_res.get('initial_state').get('aid')
         bvid = parse_res.get('initial_state').get('bvid')
         cid = parse_res.get('initial_state').get('cid')
+
+    if 'bangumi/media' in url:
+        media_info = parse_res.get('initial_state').get('mediaInfo')
+        text.append("番剧 URL：", style="bold cyan")
+        text.append(video_url + "\n", style="bold green")
+        text.append("番剧标题：", style="bold cyan")
+        text.append(media_info['title'] + "\n", style="bold magenta")
+        text.append("番剧描述：", style="bold cyan")
+        text.append(media_info['evaluate'] + "\n", style="bold magenta")
+        media_id = str(media_info['media_id'])
+        episodes = get_bangumi_episode(media_id)
+        text.append("\n选集信息：\n", style="bold yellow")
+        for episode in episodes:
+            text.append(
+                f"第{episode['title']}集 - <{episode['long_title']}>\n",
+                style="bold white"
+            )
+        # 使用 Panel 包裹内容
+        panel = Panel(
+            text,
+            title="👓 番剧信息",
+            title_align="left",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+
+        console.print(panel)
+        return
+
+
 
     qualities = OrderedDict(zip(accept_quality, accept_description))
 
@@ -130,8 +162,7 @@ def get_video_info(url: str, header: dict):
     total_seconds = math.ceil(timelength / 1000)
     minutes, seconds = divmod(total_seconds, 60)
 
-    # 构造内容
-    text = Text()
+
     text.append("视频 URL：", style="bold cyan")
     text.append(video_url + "\n", style="bold green")
     text.append("视频标题：", style="bold cyan")
