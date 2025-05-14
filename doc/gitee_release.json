@@ -1,0 +1,42 @@
+{
+  "id": 493363,
+  "tag_name": "v1.1.0",
+  "target_commitish": "c15c1295eb9fdfa6104aa997505dc7a014c09b82",
+  "prerelease": false,
+  "name": "v1.1.0",
+  "body": "## 🎉新增以下功能：\r\n\r\n1. --info 选项的展示结果，增加视频合集的信息，包含集数，标题和时长\r\n2. --page 选项支持选择下载功能，--page \"all\" 表示下载合集视频的全部内容，--page \"1,3\" 表示下载第 1 集和第 3 集，--page \"3-5\" 表示下载第 3、4、5 集",
+  "author": {
+    "id": 5715834,
+    "login": "ding_jing_hui",
+    "name": "Koril",
+    "avatar_url": "https://foruda.gitee.com/avatar/1677065503076583311/5715834_ding_jing_hui_1604537299.png",
+    "url": "https://gitee.com/api/v5/users/ding_jing_hui",
+    "html_url": "https://gitee.com/ding_jing_hui",
+    "remark": "",
+    "followers_url": "https://gitee.com/api/v5/users/ding_jing_hui/followers",
+    "following_url": "https://gitee.com/api/v5/users/ding_jing_hui/following_url{/other_user}",
+    "gists_url": "https://gitee.com/api/v5/users/ding_jing_hui/gists{/gist_id}",
+    "starred_url": "https://gitee.com/api/v5/users/ding_jing_hui/starred{/owner}{/repo}",
+    "subscriptions_url": "https://gitee.com/api/v5/users/ding_jing_hui/subscriptions",
+    "organizations_url": "https://gitee.com/api/v5/users/ding_jing_hui/orgs",
+    "repos_url": "https://gitee.com/api/v5/users/ding_jing_hui/repos",
+    "events_url": "https://gitee.com/api/v5/users/ding_jing_hui/events{/privacy}",
+    "received_events_url": "https://gitee.com/api/v5/users/ding_jing_hui/received_events",
+    "type": "User"
+  },
+  "created_at": "2025-05-09T15:51:45+08:00",
+  "assets": [
+    {
+      "browser_download_url": "https://gitee.com/ding_jing_hui/bilix/releases/download/v1.1.0/bilix-v1.1.0.zip",
+      "name": "bilix-v1.1.0.zip"
+    },
+    {
+      "browser_download_url": "https://gitee.com/ding_jing_hui/bilix/archive/refs/tags/v1.1.0.zip",
+      "name": "v1.1.0.zip"
+    },
+    {
+      "browser_download_url": "https://gitee.com/ding_jing_hui/bilix/archive/refs/tags/v1.1.0.tar.gz",
+      "name": "v1.1.0.tar.gz"
+    }
+  ]
+}

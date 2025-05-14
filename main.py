@@ -10,6 +10,7 @@ from download_sync import download_sync, parse, get_video_info, get_bangumi_epis
 from log_config import app_logger, log_init
 from login import qrcode_img, get_cookie
 from tool import load_urls_from_file, clean_bili_url, parse_page_input
+from update import update_exe
 from user import get_user_info
 
 __version__ = "v1.1.0"
@@ -49,11 +50,16 @@ def download(
         logout:  bool          = Option(False, "--logout", is_flag=True, help="退出账号"),
         user:    bool          = Option(False, "-u", "--user", is_flag=True, help="当前账号信息"),
         codec:   Optional[str] = Option(None, "--codec", help="指定下载视频的编码格式 | AVC | HEVC | AV1 |"),
+        update:  bool          = Option(False, "--update", is_flag=True, help="更新程序"),
         version: Annotated[Optional[bool], typer.Option("-v", "--version", callback=version_callback, is_eager=True, help="查看软件版本信息"),] = None,
 ) -> None:
     """
     下载 Bilibili 视频的命令行工具，支持账号登陆，下载视频，选择清晰度下载等功能
     """
+
+    if update:
+        update_exe(__version__)
+        return
 
     if user:
         cookie_file = Path('cookie.txt')
