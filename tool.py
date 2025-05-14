@@ -55,6 +55,10 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     name = re.sub(r'\s+', ' ', name)  # 连续空格变单空格
     name = name.strip(" .")  # 去除结尾的点和空格（Windows 不允许）
     name = name.replace("-电影-高清正版在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-高清独家在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清独家在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清正版在线观看-bilibili-哔哩哔哩", "")
     name = name.replace("正片", "")
     name = name.replace(" ", replacement)
     # 限制长度（通常 255 是安全最大长度）
