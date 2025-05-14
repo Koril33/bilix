@@ -1,0 +1,214 @@
+{
+    "code": 0,
+    "message": "success",
+    "result": {
+        "main_section": {
+            "episodes": [
+                {
+                    "aid": 2187399,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566723,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/87b46137b7a19694c2bb33034ee63ba3d6731b56.jpg",
+                    "from": "bangumi",
+                    "id": 29006,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Stands Alone 前篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep29006",
+                    "status": 2,
+                    "title": "1",
+                    "vid": "vupload_10566723"
+                },
+                {
+                    "aid": 2213890,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566727,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/87b46137b7a19694c2bb33034ee63ba3d6731b56.jpg",
+                    "from": "bangumi",
+                    "id": 29116,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Stands Alone 后篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep29116",
+                    "status": 2,
+                    "title": "2",
+                    "vid": "vupload_10566727"
+                },
+                {
+                    "aid": 2236594,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566732,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/87b46137b7a19694c2bb33034ee63ba3d6731b56.jpg",
+                    "from": "bangumi",
+                    "id": 29988,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Pain 前篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep29988",
+                    "status": 2,
+                    "title": "3",
+                    "vid": "vupload_10566732"
+                },
+                {
+                    "aid": 2260396,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566740,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/87b46137b7a19694c2bb33034ee63ba3d6731b56.jpg",
+                    "from": "bangumi",
+                    "id": 35265,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Pain 后篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep35265",
+                    "status": 2,
+                    "title": "4",
+                    "vid": "vupload_10566740"
+                },
+                {
+                    "aid": 2286479,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566742,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/9a684c54b6947ceaba2487b03a001bdff4c69705.jpg",
+                    "from": "bangumi",
+                    "id": 36422,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Whispers 前篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep36422",
+                    "status": 2,
+                    "title": "5",
+                    "vid": "vupload_10566742"
+                },
+                {
+                    "aid": 2312425,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566747,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/8f83ee01e6cb47368dabea5382686ed41cd58d2b.jpg",
+                    "from": "bangumi",
+                    "id": 45752,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Whispers 后篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep45752",
+                    "status": 2,
+                    "title": "6",
+                    "vid": "vupload_10566747"
+                },
+                {
+                    "aid": 2336514,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566757,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/394d262c7473765e486bd315b0b24bd84cfb70eb.jpg",
+                    "from": "bangumi",
+                    "id": 54275,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Tears 前篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep54275",
+                    "status": 2,
+                    "title": "7",
+                    "vid": "vupload_10566757"
+                },
+                {
+                    "aid": 2360923,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566765,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/e5ad4a0fc3a68721d20f7122d9e4f474eeb72488.jpg",
+                    "from": "bangumi",
+                    "id": 62417,
+                    "is_premiere": 0,
+                    "long_title": "Ghost Tears 后篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep62417",
+                    "status": 2,
+                    "title": "8",
+                    "vid": "vupload_10566765"
+                },
+                {
+                    "aid": 2412464,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566770,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/5effc2fa2e72908c041ad259046b9da86d822ebf.jpg",
+                    "from": "bangumi",
+                    "id": 62754,
+                    "is_premiere": 0,
+                    "long_title": "PYROPHORIC CULT 前篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep62754",
+                    "status": 2,
+                    "title": "9",
+                    "vid": "vupload_10566770"
+                },
+                {
+                    "aid": 2439427,
+                    "badge": "",
+                    "badge_info": {
+                        "bg_color": "#FB7299",
+                        "bg_color_night": "#D44E7D",
+                        "text": ""
+                    },
+                    "badge_type": 0,
+                    "cid": 10566771,
+                    "cover": "http://i0.hdslb.com/bfs/bangumi/c26b6297aeab95c3aff3f2416aba35e6d67f5bd3.jpg",
+                    "from": "bangumi",
+                    "id": 62862,
+                    "is_premiere": 0,
+                    "long_title": "PYROPHORIC CULT 后篇",
+                    "share_url": "https://www.bilibili.com/bangumi/play/ep62862",
+                    "status": 2,
+                    "title": "10",
+                    "vid": "vupload_10566771"
+                }
+            ],
+            "id": 18569,
+            "title": "正片",
+            "type": 0
+        },
+        "section": []
+    }
+}

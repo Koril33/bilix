@@ -40,6 +40,7 @@ quality_id_name_map = {
     64: '720P',
     74: '720P60',
     80: '1080P',
+    100: '智能修复',
     112: '1080P+',
     116: '1080P60',
     120: '4K',
@@ -47,6 +48,19 @@ quality_id_name_map = {
     126: '杜比视界',
     127: '8K'
 }
+
+def get_bangumi_episode(md_id: str):
+    md_id = md_id.replace("md", "")
+    url1 = f'https://api.bilibili.com/pgc/review/user?media_id={md_id}'
+    resp1 = requests.get(url1, timeout=5)
+    resp1.raise_for_status()
+    season_id = resp1.json()['result']['media']['season_id']
+
+    url2 = f'https://api.bilibili.com/pgc/web/season/section?season_id={season_id}'
+    resp2 = requests.get(url2, timeout=5)
+    resp2.raise_for_status()
+    episodes = resp2.json()['result']['main_section']['episodes']
+    return episodes
 
 
 def get_video_info(url: str, header: dict):
@@ -243,9 +257,16 @@ def download_sync(
     playurl_info = parse_res.get('playurl_ssr_data')
 
     if playurl_info:
-        dash = playurl_info['result'].get('video_info').get('dash')
-        videos = dash.get('video', [])
-        audios = dash.get('audio', [])
+        playurl_info_result = playurl_info.get('result')
+        playurl_info_raw = playurl_info.get('raw')
+        if playurl_info_result:
+            dash = playurl_info_result.get('video_info').get('dash')
+            videos = dash.get('video', [])
+            audios = dash.get('audio', [])
+        if playurl_info_raw:
+            dash = playurl_info_raw['data']['video_info']['dash']
+            videos = dash.get('video', [])
+            audios = dash.get('audio', [])
     else:
         if not playinfo or 'data' not in playinfo:
             app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")

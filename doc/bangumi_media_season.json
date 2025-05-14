@@ -1,0 +1,31 @@
+{
+  "code": 0,
+  "message": "success",
+  "result": {
+    "media": {
+      "areas": [
+        {
+          "id": 2,
+          "name": "日本"
+        }
+      ],
+      "cover": "http://i0.hdslb.com/bfs/bangumi/aec3cd84c4dc5b49520780e1566933a326015f94.jpg",
+      "horizontal_picture": "http://i0.hdslb.com/bfs/bangumi/aec3cd84c4dc5b49520780e1566933a326015f94.jpg",
+      "media_id": 1568,
+      "new_ep": {
+        "id": 62862,
+        "index": "10",
+        "index_show": "全10话"
+      },
+      "rating": {
+        "count": 492,
+        "score": 8.7
+      },
+      "season_id": 1568,
+      "share_url": "https://www.bilibili.com/bangumi/media/md1568",
+      "title": "攻壳机动队ARISE ALTERNATIVE ARCHITECTURE",
+      "type": 1,
+      "type_name": "番剧"
+    }
+  }
+}

@@ -6,7 +6,7 @@ from typing import Annotated, Optional, List
 import typer
 from typer import Option, Argument
 
-from download_sync import download_sync, parse, get_video_info
+from download_sync import download_sync, parse, get_video_info, get_bangumi_episode
 from log_config import app_logger, log_init
 from login import qrcode_img, get_cookie
 from tool import load_urls_from_file, clean_bili_url, parse_page_input
@@ -110,18 +110,35 @@ def download(
 
         if len(urls) == 1 and page:
             page_parsed = parse_page_input(page)
-            app_logger.info(f'准备下载视频集合, page={page_parsed}')
-            h = copy.deepcopy(download_headers)
             url = clean_bili_url(urls[0])
+            h = copy.deepcopy(download_headers)
             h['Referer'] = url
-            initial_state = parse(url, headers=h).get('initial_state')
-            video_pages = initial_state['videoData']['pages']
-            page_nums = [p['page'] for p in video_pages]
-            if len(video_pages) > 1:
-                download_page_nums = page_nums if page_parsed == 'all' else page_parsed
-                app_logger.info(f'检测到视频集合, 待下载总数: {len(download_page_nums)}, 集数: {download_page_nums}')
-                for page in download_page_nums:
-                    BiliTask(url=f'{url}?p={page}', headers=h, quality=quality, codec=codec, save=save).download()
+
+            # 下载番剧
+            if 'bangumi/media' in url:
+                md_id = url.split('/')[-1]
+                app_logger.info(f'准备下载番剧, md_id: {md_id}')
+                episodes = get_bangumi_episode(md_id)
+
+                if page_parsed != "all":
+                    # 只保留索引在 page_parsed 中指定的集数（从 1 开始）
+                    episodes = [episodes[i - 1] for i in page_parsed if 1 <= i <= len(episodes)]
+
+                app_logger.info(f'检测到番剧集合, 待下载总数: {len(episodes)}')
+                for episode in episodes:
+                    BiliTask(url=episode['share_url'], headers=h, quality=quality, codec=codec, save=save).download()
+            # 下载普通多集视频
+            else:
+                app_logger.info(f'准备下载视频集合, page={page_parsed}')
+
+                initial_state = parse(url, headers=h).get('initial_state')
+                video_pages = initial_state['videoData']['pages']
+                page_nums = [p['page'] for p in video_pages]
+                if len(video_pages) > 1:
+                    download_page_nums = page_nums if page_parsed == 'all' else page_parsed
+                    app_logger.info(f'检测到视频集合, 待下载总数: {len(download_page_nums)}, 集数: {download_page_nums}')
+                    for page in download_page_nums:
+                        BiliTask(url=f'{url}?p={page}', headers=h, quality=quality, codec=codec, save=save).download()
         else:
             for url in urls:
                 clean_url = clean_bili_url(url)

@@ -72,7 +72,7 @@ def extract_playinfo_json(html_content: str):
             app_logger.exception(f"解析 JSON 出错")
             return None
     else:
-        app_logger.error("没有找到 window.__playinfo__ 的内容")
+        app_logger.warning("没有找到 window.__playinfo__ 的内容")
         return None
 
 
@@ -87,7 +87,7 @@ def extract_initial_state_json(html_content: str):
             app_logger.exception(f"解析 JSON 出错")
             return None
     else:
-        app_logger.error("没有找到 window.__INITIAL_STATE__ 的内容")
+        app_logger.warning("没有找到 window.__INITIAL_STATE__ 的内容")
         return None
 
 
