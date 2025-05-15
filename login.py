@@ -10,6 +10,7 @@ from pathlib import Path
 
 import qrcode
 from curl_cffi import requests
+from qrcode.image.pure import PyPNGImage
 
 from log_config import app_logger
 
@@ -41,9 +42,9 @@ def qrcode_img():
     qrcode_url = response.json()['data']['url']
 
     # 生成二维码图片
-    qr = qrcode.make(qrcode_url)
+    qr = qrcode.make(qrcode_url, image_factory=PyPNGImage)
     buffer = BytesIO()
-    qr.save(buffer, format="PNG")
+    qr.save(buffer)
 
     # 保存二维码图片到当前目录
     qr.save("login_qrcode.png")
@@ -213,8 +214,3 @@ def gen_web_ticket():
         'bili_ticket': resp['data']['ticket'],
         'bili_ticket_expires': resp['data']['created_at'] + resp['data']['ttl'],
     }
-
-
-if __name__ == '__main__':
-    res = gen_web_ticket()
-    print(res)
