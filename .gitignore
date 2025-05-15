@@ -1,10 +1,12 @@
 .venv
+venv
 main.build
 main.dist
 main.onefile-build
 bilix.exe
 bilix
 *.mp4
+*.m4s
 .idea
 __pycache__
 cookie.txt
