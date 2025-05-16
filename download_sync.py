@@ -12,7 +12,7 @@ from curl_cffi.requests.exceptions import HTTPError, RequestException
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn, \
-    MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn
+    MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn, TransferSpeedColumn
 from rich.text import Text
 
 from log_config import app_logger
@@ -364,6 +364,7 @@ def download_sync(
         FileSizeColumn(),
         TotalFileSizeColumn(),
         SpinnerColumn(),
+        TransferSpeedColumn(),
     ) as progress:
         with ThreadPoolExecutor(max_workers=2) as executor:
             executor.submit(download_stream, video_url, headers, video_file, progress)

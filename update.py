@@ -6,7 +6,7 @@ from pathlib import Path
 
 from curl_cffi import requests
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn, \
-    FileSizeColumn, TotalFileSizeColumn, SpinnerColumn
+    FileSizeColumn, TotalFileSizeColumn, SpinnerColumn, TransferSpeedColumn
 
 from download_sync import download_stream
 from log_config import app_logger
@@ -56,6 +56,7 @@ def download_latest_zip(latest_zip_url, zip_name):
             FileSizeColumn(),
             TotalFileSizeColumn(),
             SpinnerColumn(),
+            TransferSpeedColumn(),
     ) as progress:
         download_stream(latest_zip_url, update_headers, zip_name, progress)
 
