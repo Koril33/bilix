@@ -261,19 +261,6 @@ def parse(url: str, headers: dict):
     return None
 
 
-# def download_stream(url: str, headers, filename: str, progress):
-#     import httpx
-#     task = progress.add_task(f'{shrink_title(filename)}', start=False)
-#     with httpx.Client(proxy=None, trust_env=False, follow_redirects=True).stream("GET", url=url, headers=headers) as resp:
-#         resp.raise_for_status()
-#         total = int(resp.headers.get('Content-Length', 0))
-#         progress.update(task, total=total)
-#         progress.start_task(task)
-#         with open(filename, 'wb') as f:
-#             for chunk in resp.iter_bytes(chunk_size=1024 * 1024):
-#                 f.write(chunk)
-#                 progress.update(task, advance=len(chunk))
-
 def download_stream(url: str, headers, filename: str, progress):
     task = progress.add_task(f'{shrink_title(filename)}', start=False)
     with requests.Session() as session:
