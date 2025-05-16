@@ -1,0 +1,34 @@
+--info 选项，支持解析以下类型的视频
+
+普通视频
+https://www.bilibili.com/video/BV1yt4y1Q7SS/
+
+多集视频
+https://www.bilibili.com/video/BV12R4y1J75d/
+
+电影
+https://www.bilibili.com/bangumi/play/ep1656974
+https://www.bilibili.com/bangumi/play/ss12548
+https://www.bilibili.com/bangumi/media/md80952
+
+番剧
+https://www.bilibili.com/bangumi/play/ep1530745
+https://www.bilibili.com/bangumi/media/md25577961
+
+
+response text 解析结果:
+
+https://www.bilibili.com/video/BV1yt4y1Q7SS/
+playinfo-True | initial state-True | playurl-ssr-data False
+
+https://www.bilibili.com/video/BV12R4y1J75d
+playinfo-True | initial state-True | playurl-ssr-data False
+
+https://www.bilibili.com/bangumi/play/ep1656974
+playinfo-False | initial state-False | playurl-ssr-data True
+
+https://www.bilibili.com/bangumi/play/ss12548
+playinfo-False | initial state-False | playurl-ssr-data True
+
+https://www.bilibili.com/bangumi/media/md80952
+playinfo-False | initial state-True | playurl-ssr-data False
