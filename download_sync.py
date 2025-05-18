@@ -290,14 +290,16 @@ def download_sync(
     if playurl_info:
         playurl_info_result = playurl_info.get('result')
         playurl_info_raw = playurl_info.get('raw')
+        dash = None
         if playurl_info_result:
             dash = playurl_info_result.get('video_info').get('dash')
-            videos = dash.get('video', [])
-            audios = dash.get('audio', [])
         if playurl_info_raw:
-            dash = playurl_info_raw['data']['video_info']['dash']
-            videos = dash.get('video', [])
-            audios = dash.get('audio', [])
+            dash = playurl_info_raw.get('data').get('video_info').get('dash')
+        if not dash:
+            app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")
+            raise typer.Exit(code=1)
+        videos = dash.get('video', [])
+        audios = dash.get('audio', [])
     else:
         if not playinfo or 'data' not in playinfo:
             app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")
