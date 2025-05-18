@@ -1,4 +1,5 @@
 import math
+import sys
 import time
 from collections import OrderedDict, defaultdict
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -6,13 +7,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import typer
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError, RequestException
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn, \
-    MofNCompleteColumn, FileSizeColumn, TotalFileSizeColumn, SpinnerColumn, TransferSpeedColumn
+    FileSizeColumn, TotalFileSizeColumn, SpinnerColumn, TransferSpeedColumn
 from rich.text import Text
 
 from log_config import app_logger
@@ -87,7 +87,7 @@ def get_video_info(url: str, header: dict):
             cid = arc.get('cid')
         else:
             app_logger.error(f"无法获取该 URL : {url} 的 video_info")
-            raise typer.Exit(code=1)
+            sys.exit(1)
 
         codecid_dict = defaultdict(list)
         if video_info.get('dash'):
@@ -297,20 +297,20 @@ def download_sync(
             dash = playurl_info_raw.get('data').get('video_info').get('dash')
         if not dash:
             app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")
-            raise typer.Exit(code=1)
+            sys.exit(1)
         videos = dash.get('video', [])
         audios = dash.get('audio', [])
     else:
         if not playinfo or 'data' not in playinfo:
             app_logger.error(f"无法获取该 URL : {url} 的播放信息, 请检查该视频地址的正确性或者该视频的下载需要大会员账号权限")
-            raise typer.Exit(code=1)
+            sys.exit(1)
 
         dash = playinfo['data'].get('dash', {})
         videos = dash.get('video', [])
         audios = dash.get('audio', [])
         if not videos or not audios:
             app_logger.error("未检测到视频或音频流，退出。")
-            raise typer.Exit(code=1)
+            sys.exit(1)
 
     # 获取目标 codec 的 codecid，如果无效则默认使用 AVC
     target_codecid = codec_name_id_map.get(codec.upper(), 7) if codec else 7

@@ -1,4 +1,5 @@
 import copy
+import sys
 import time
 from pathlib import Path
 from typing import Annotated, Optional, List
@@ -6,14 +7,14 @@ from typing import Annotated, Optional, List
 import typer
 from typer import Option, Argument
 
-from download_sync import download_sync, parse, get_video_info, get_bangumi_episode
+from download_sync import download_sync, parse, get_bangumi_episode
 from log_config import app_logger, log_init
 from login import qrcode_img, get_cookie
 from tool import load_urls_from_file, clean_bili_url, parse_page_input
 from update import update_exe
 from user import get_user_info
 
-__version__ = "v1.2.1"
+__version__ = "v1.2.2"
 
 from video_info import create_bili_video
 
@@ -94,7 +95,7 @@ def download(
 
     if not urls and not origin:
         app_logger.error('请提供一个视频 URL 进行下载，或者查看 --help 帮助信息')
-        raise typer.Exit(code=1)
+        sys.exit(1)
 
     if Path('cookie.txt').is_file():
         app_logger.info(f'找到 cookie.txt 文件')
@@ -158,7 +159,7 @@ def download(
 
     except Exception:
         app_logger.exception(f"下载过程中出现错误")
-        raise typer.Exit(code=1)
+        sys.exit(1)
     finally:
         end = int(time.time() * 1000)
         app_logger.info(f'总耗时: {end - start} ms')
