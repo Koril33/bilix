@@ -25,10 +25,11 @@ class BiliVideoInfo:
     playurl_ssr_data_pattern = r'const\s+playurlSSRData\s*=\s*({.*?})\s'
     title_pattern = r'<title\b[^>]*>(.*?)</title>'
 
-    def __init__(self, url):
+    def __init__(self, url, headers):
         if not self.check_url_valid(url):
             raise ValueError(f"Invalid Bilibili URL: {url}")
         self.url = url
+        self.headers = headers
         self.playinfo = None
         self.initial_state = None
         self.playurl_ssr_data = None
@@ -56,8 +57,8 @@ class BiliVideoInfo:
         return None
 
     @classmethod
-    def from_url(cls, url: str):
-        instance = cls(url)
+    def from_url(cls, url: str, headers: dict):
+        instance = cls(url, headers)
         instance.parse()
         return instance
 
@@ -68,11 +69,22 @@ class BiliVideoInfo:
     def extract_video_time_length(self):
         return self.playinfo.get('data').get('timelength')
 
+    def get_video_bvid(self):
+        if self.initial_state:
+            return self.initial_state.get('bvid')
+        else:
+            result = self.playurl_ssr_data.get('result')
+            raw = self.playurl_ssr_data.get('raw')
+            if result:
+                return result.get('play_view_business_info').get('episode_info').get('bvid')
+            elif raw:
+                return raw.get('data').get('arc').get('bvid')
+        raise ValueError('无法获取 bvid')
 
     def get_bvid_info(self):
-        bvid = self.initial_state.get('bvid')
+        bvid = self.get_video_bvid()
         bvid_info_url = 'https://api.bilibili.com/x/web-interface/wbi/view'
-        bvid_resp = requests.get(bvid_info_url, params={'bvid': bvid}, timeout=5)
+        bvid_resp = requests.get(bvid_info_url, headers=self.headers, params={'bvid': bvid}, timeout=5)
         bvid_resp_json = bvid_resp.json()
         bvid_data = bvid_resp_json['data']
         return {
@@ -96,10 +108,9 @@ class BiliVideoInfo:
             if not self.title and self.initial_state:
                 self.title = sanitize_filename(self.initial_state.get('mediaInfo').get('title'))
 
-
     def parse(self):
         try:
-            resp = requests.get(self.url, timeout=5)
+            resp = requests.get(self.url, headers=self.headers, timeout=5)
             resp.raise_for_status()
             self.extract(resp.text)
         except HTTPError:
@@ -108,10 +119,9 @@ class BiliVideoInfo:
             app_logger.exception(f'Request error')
 
 
-
 class BiliNormalVideo(BiliVideoInfo):
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
         self.parse()
         self.time_length = self.extract_video_time_length()
         self.bvid_info = self.get_bvid_info()
@@ -183,8 +193,8 @@ class BiliNormalVideo(BiliVideoInfo):
 
 
 class BiliMultiPartVideo(BiliVideoInfo):
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
         self.parse()
         self.time_length = self.extract_video_time_length()
         self.bvid_info = self.get_bvid_info()
@@ -275,66 +285,224 @@ class BiliMultiPartVideo(BiliVideoInfo):
 
 
 class BiliMovie(BiliVideoInfo):
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
         self.parse()
 
+
     def show(self):
-        return "电影"
+        text = Text()
+        group = Group(text)
+        panel = Panel(group, title="电影信息", title_align="center", border_style="magenta", padding=(1, 2), expand=False)
+
+        basic_style = 'bold cyan'
+        desc_style = 'bold red'
+
+        info_style = 'bold green'
+
+        text.append('电影 URL: ', basic_style).append(f'{self.url}\n', info_style)
+        text.append('电影标题: ', basic_style).append(f'{self.title}\n', info_style)
+
+        if self.initial_state:
+            movie_desc = self.initial_state['mediaInfo']['evaluate']
+        else:
+            movie_desc = '暂无介绍'
+
+        text.append('电影简介: ', desc_style).append(f'{movie_desc}\n', info_style)
+
+        console.print(panel)
 
 
 class BiliBangumi(BiliVideoInfo):
-
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
         self.parse()
+        self.episodes = self.get_bangumi_episodes()
+
+    def get_bangumi_episodes(self):
+        md_id = self.url.split('/')[-1].replace('md', '')
+        if 'ep' in md_id:
+            return None
+        url1 = f'https://api.bilibili.com/pgc/review/user?media_id={md_id}'
+        resp1 = requests.get(url1, timeout=5)
+        resp1.raise_for_status()
+        season_id = resp1.json()['result']['media']['season_id']
+
+        url2 = f'https://api.bilibili.com/pgc/web/season/section?season_id={season_id}'
+        resp2 = requests.get(url2, timeout=5)
+        resp2.raise_for_status()
+        episodes = resp2.json()['result']['main_section']['episodes']
+        return episodes
 
     def show(self):
-        return "番剧"
+        text = Text()
+        pages_table = Table(title="选集信息")
+        group = Group(text, pages_table)
+        panel = Panel(group, title="番剧信息", title_align="center", border_style="bright_green", padding=(1, 2), expand=False)
+
+        basic_style = 'bold cyan'
+        desc_style = 'bold red'
+
+        info_style = 'bold green'
+
+        text.append('番剧 URL: ', basic_style).append(f'{self.url}\n', info_style)
+        text.append('番剧标题: ', basic_style).append(f'{self.title}\n', info_style)
+        text.append('番剧简介: ', desc_style).append(f'{self.initial_state['mediaInfo']['evaluate']}\n', info_style)
+
+        # 选集信息展示
+        pages_table.add_column("index", justify="center", style="cyan", no_wrap=True)
+        pages_table.add_column("name", style="blue")
+
+        for episode in self.episodes:
+            pages_table.add_row(str(episode['title']), episode['long_title'])
+
+        console.print(panel)
 
 
 class BiliOther(BiliVideoInfo):
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
         self.parse()
+        self.episodes = self.get_bangumi_episodes()
+
+    def get_bangumi_episodes(self):
+        md_id = self.url.split('/')[-1].replace('md', '')
+        if 'ep' in md_id:
+            return None
+        url1 = f'https://api.bilibili.com/pgc/review/user?media_id={md_id}'
+        resp1 = requests.get(url1, timeout=5)
+        resp1.raise_for_status()
+        season_id = resp1.json()['result']['media']['season_id']
+
+        url2 = f'https://api.bilibili.com/pgc/web/season/section?season_id={season_id}'
+        resp2 = requests.get(url2, timeout=5)
+        resp2.raise_for_status()
+        episodes = resp2.json()['result']['main_section']['episodes']
+        return episodes
 
     def show(self):
-        return "其他"
+        text = Text()
+        pages_table = Table(title="选集信息")
+        group = Group(text, pages_table)
+        panel = Panel(group, title="其他类型剧集信息", title_align="center", border_style="dark_red", padding=(1, 2), expand=False)
+
+        basic_style = 'bold cyan'
+        desc_style = 'bold red'
+
+        info_style = 'bold green'
+
+        text.append('剧集 URL: ', basic_style).append(f'{self.url}\n', info_style)
+        text.append('剧集标题: ', basic_style).append(f'{self.title}\n', info_style)
+        text.append('剧集简介: ', desc_style).append(f'{self.initial_state['mediaInfo']['evaluate']}\n', info_style)
+
+        # 选集信息展示
+        pages_table.add_column("index", justify="center", style="cyan", no_wrap=True)
+        pages_table.add_column("name", style="blue")
+
+        for episode in self.episodes:
+            pages_table.add_row(str(episode['title']), episode['long_title'])
+
+        console.print(panel)
 
 
-def create_bili_video(url: str) -> BiliVideoInfo:
+class BiliEpisode(BiliVideoInfo):
+    def __init__(self, url, headers):
+        super().__init__(url, headers)
+        self.parse()
+        self.bvid_info = self.get_bvid_info()
+
+
+    def show(self):
+        text = Text()
+        table = Table(title="可选择清晰度")
+        group = Group(text, table)
+
+        panel = Panel(group, title="剧集信息", title_align="center", border_style="bright_cyan", padding=(1, 2),
+                      expand=False)
+
+        basic_style = 'bold cyan'
+        section_style = 'bold magenta'
+        desc_style = 'bold red'
+        user_style = 'bold white'
+
+        date_style = 'orange1'
+
+        info_style = 'bold green'
+
+        text.append('单集 URL: ', basic_style).append(f'{self.url}\n', info_style)
+        text.append('单集标题: ', basic_style).append(f'{self.title}\n', info_style)
+
+        text.append('子分区信息: ', section_style).append(f'{self.bvid_info['tname']}\n', info_style)
+        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info['tname_v2']}\n\n', info_style)
+
+        text.append('稿件发布时间: ', date_style).append(
+            f'{datetime.fromtimestamp(self.bvid_info['pubdate']).strftime('%Y-%m-%d %H:%M:%S')}\n', info_style)
+        text.append('用户投稿时间: ', date_style).append(
+            f'{datetime.fromtimestamp(self.bvid_info['ctime']).strftime('%Y-%m-%d %H:%M:%S')}\n\n', info_style)
+
+        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info['owner']['mid']}\n', info_style)
+        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info['owner']['name']}\n\n', info_style)
+
+        text.append('单集简介: ', desc_style).append(f'{self.bvid_info['desc']}\n', info_style)
+
+        result = self.playurl_ssr_data.get('result')
+        raw = self.playurl_ssr_data.get('raw')
+
+        if result:
+            video_info = result.get('video_info')
+        elif raw:
+            video_info = raw.get('data').get('video_info')
+        else:
+            raise ValueError('无法找到 video_info')
+
+        accept_quality = video_info['accept_quality']
+        accept_description = video_info['accept_description']
+
+        qualities = OrderedDict(zip(accept_quality, accept_description))
+
+        codecid_dict = defaultdict(list)
+        if video_info.get('dash'):
+            dash_video = video_info['dash']['video']
+            for v in dash_video:
+                codecid_dict[v['id']].append(codec_id_name_map.get(v['codecid']))
+        elif video_info.get('durls'):
+            durls = video_info.get('durls')
+            for v in durls:
+                codecid_dict[v['quality']].append('empty')
+
+
+        table.add_column("id", justify="center", style="cyan", no_wrap=True)
+        table.add_column("name", style="blue")
+        table.add_column("codec", justify="center", style="green")
+
+        for resolution_id, resolution_name in qualities.items():
+            codec_list = codecid_dict.get(resolution_id)
+            if codec_list:
+                codec_str = '/'.join(codec_list)
+            else:
+                codec_str = '需登录相应权限的账号'
+            table.add_row(str(resolution_id), resolution_name, codec_str)
+
+        console.print(panel)
+
+
+def create_bili_video(url: str, headers: dict) -> BiliVideoInfo:
     clean_url = clean_bili_url(url)
-    bv = BiliVideoInfo.from_url(clean_url)
+    bv = BiliVideoInfo.from_url(clean_url, headers)
     if 'video/BV' in clean_url:
         if len(bv.initial_state['videoData']['pages']) > 1:
-            return BiliMultiPartVideo(url)
-        return BiliNormalVideo(url)
+            return BiliMultiPartVideo(url, headers)
+        return BiliNormalVideo(url, headers)
     elif '/bangumi/play/' in clean_url:
-        res = bv.playurl_ssr_data.get('result')
-        body = bv.playurl_ssr_data.get('body')
-        if res:
-            season_type = res.get('play_view_business_info').get('season_info').get('season_type')
-        elif body:
-            season_type = body.get('playViewBusinessInfo').get('seasonInfo').get('season_type')
-        else:
-            raise ValueError(f'{url} 中的 playurl_ssr_data 无法提取 result 或者 body 字段')
-
-        if season_type == 1:
-            return BiliBangumi(url)
-        elif season_type == 2:
-            return BiliMovie(url)
-        else:
-            # raise ValueError(f"{url} 中的 playurl_ssr_data 提取的 season_type: {season_type} 暂不支持")
-            return BiliOther(url)
+        return BiliEpisode(url, headers)
     elif '/bangumi/media/md' in clean_url:
         type_name = bv.initial_state.get('mediaInfo').get('type_name')
         if type_name == '电影':
-            return BiliMovie(url)
+            return BiliMovie(url, headers)
         elif type_name == '番剧':
-            return BiliBangumi(url)
+            return BiliBangumi(url, headers)
         else:
-            # raise ValueError(f"{url} 中的 initial_state 提取的 type_name: {type_name} 暂不支持")
-            return BiliOther(url)
+            return BiliOther(url, headers)
     else:
         raise ValueError(f"不支持的 URL: {url}")
 
@@ -343,38 +511,61 @@ def main():
     urls = [
         'https://www.bilibili.com/video/BV1yt4y1Q7SS/',
         'https://www.bilibili.com/video/BV12R4y1J75d',
-        # 'https://www.bilibili.com/bangumi/play/ep806232',
-        # 'https://www.bilibili.com/bangumi/play/ep1656974',
-        # 'https://www.bilibili.com/bangumi/play/ss12548',
-        # 'https://www.bilibili.com/bangumi/play/ss98687',
-        # 'https://www.bilibili.com/bangumi/play/ss90684',
-        # 'https://www.bilibili.com/bangumi/play/ep1562870',
-        # 'https://www.bilibili.com/bangumi/play/ss89626',
-        # 'https://www.bilibili.com/bangumi/play/ep332658',
-        # 'https://www.bilibili.com/bangumi/play/ep332611',
-        # 'https://www.bilibili.com/bangumi/media/md80952',
-        # 'https://www.bilibili.com/bangumi/media/md1568',
-        # 'https://www.bilibili.com/bangumi/media/md2014',
-        # 'https://www.bilibili.com/bangumi/media/md21174614',
-        # 'https://www.bilibili.com/bangumi/media/md27526419',
-        # 'https://www.bilibili.com/bangumi/play/ep131360',
-        # 'https://www.bilibili.com/bangumi/media/md20117',
-        # 'https://www.bilibili.com/bangumi/play/ep835824',
-        # 'https://www.bilibili.com/bangumi/media/md22825846',
-        # 'https://www.bilibili.com/bangumi/play/ss48056',
-        # 'https://www.bilibili.com/bangumi/media/md22149965',
-        # 'https://www.bilibili.com/bangumi/play/ep837088',
-        # 'https://www.bilibili.com/bangumi/play/ep1646110',
-        # 'https://www.bilibili.com/bangumi/play/ss38583',
+        'https://www.bilibili.com/bangumi/play/ep806232',
+        'https://www.bilibili.com/bangumi/play/ep1656974',
+        'https://www.bilibili.com/bangumi/play/ss12548',
+        'https://www.bilibili.com/bangumi/play/ss98687',
+        'https://www.bilibili.com/bangumi/play/ss90684',
+        'https://www.bilibili.com/bangumi/play/ep1562870',
+        'https://www.bilibili.com/bangumi/play/ss89626',
+        'https://www.bilibili.com/bangumi/play/ep332658',
+        'https://www.bilibili.com/bangumi/play/ep332611',
+        'https://www.bilibili.com/bangumi/media/md80952',
+        'https://www.bilibili.com/bangumi/media/md1568',
+        'https://www.bilibili.com/bangumi/media/md2014',
+        'https://www.bilibili.com/bangumi/media/md21174614',
+        'https://www.bilibili.com/bangumi/media/md27526419',
+        'https://www.bilibili.com/bangumi/play/ep131360',
+        'https://www.bilibili.com/bangumi/play/ep835824',
+        'https://www.bilibili.com/bangumi/media/md22825846',
+        'https://www.bilibili.com/bangumi/play/ss48056',
+        'https://www.bilibili.com/bangumi/media/md22149965',
+        'https://www.bilibili.com/bangumi/play/ep837088',
+        'https://www.bilibili.com/bangumi/play/ep1646110',
+        'https://www.bilibili.com/bangumi/play/ss38583',
+        'https://www.bilibili.com/bangumi/play/ss76849',
+        'https://www.bilibili.com/bangumi/play/ep1700499',
+        'https://www.bilibili.com/bangumi/play/ss27042',
+        'https://www.bilibili.com/bangumi/play/ep269127',
+        'https://www.bilibili.com/bangumi/play/ss33343',
+        'https://www.bilibili.com/bangumi/play/ep332658',
+        'https://www.bilibili.com/bangumi/play/ep1550696',
+        'https://www.bilibili.com/bangumi/media/md24078736',
+        'https://www.bilibili.com/bangumi/media/md25581765',
+        'https://www.bilibili.com/bangumi/play/ep1663133',
+        'https://www.bilibili.com/bangumi/media/md26181752',
+        'https://www.bilibili.com/bangumi/media/md23567884',
+        'https://www.bilibili.com/bangumi/media/md20117',
+        'https://www.bilibili.com/video/BV1zw68YsEP9',
+        'https://www.bilibili.com/bangumi/play/ss44473',
+        'https://www.bilibili.com/bangumi/media/md28480901',
+        'https://www.bilibili.com/bangumi/play/ep1646110',
+        'https://www.bilibili.com/bangumi/media/md25952272',
+        'https://www.bilibili.com/bangumi/play/ep1582342',
+        'https://www.bilibili.com/bangumi/media/md23432',
+        'https://www.bilibili.com/bangumi/play/ep836424',
+        'https://www.bilibili.com/bangumi/media/md22855584',
+        'https://www.bilibili.com/bangumi/play/ep1655820',
     ]
     for u in urls:
         # bv = BiliVideoInfo.from_url(u)
         try:
-            bv = create_bili_video(u)
+            bv = create_bili_video(u, {})
             # print(f'{u} title: {bv.title} show: {bv.show()} parsed res: playinfo-{bv.playinfo is not None} | initial state-{bv.initial_state is not None} | playurl-ssr-data {bv.playurl_ssr_data is not None}')
             bv.show()
         except Exception as e:
-            print(f'ex: {e}')
+            print(f'ex: {e}, url: {u}')
+
 
 if __name__ == '__main__':
     main()

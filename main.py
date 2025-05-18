@@ -15,6 +15,9 @@ from user import get_user_info
 
 __version__ = "v1.2.1"
 
+from video_info import create_bili_video
+
+
 def version_callback(value: bool):
     if value:
         app_logger.info(f"bilix version: {__version__}")
@@ -106,7 +109,8 @@ def download(
             for url in urls:
                 h = copy.deepcopy(download_headers)
                 h['Referer'] = url
-                get_video_info(url, h)
+                # get_video_info(url, h)
+                create_bili_video(url, h).show()
             return
 
         if origin:
