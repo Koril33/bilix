@@ -27,7 +27,7 @@ class BiliVideoInfo:
 
     def __init__(self, url, headers):
         if not self.check_url_valid(url):
-            raise ValueError(f"Invalid Bilibili URL: {url}")
+            raise ValueError(f"Bilibili URL: {url} 异常, 暂不支持该格式的 URL")
         self.url = url
         self.headers = headers
         self.playinfo = None
