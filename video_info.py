@@ -151,22 +151,22 @@ class BiliNormalVideo(BiliVideoInfo):
 
         text.append('视频 URL: ', basic_style).append(f'{self.url}\n', info_style)
         text.append('视频标题: ', basic_style).append(f'{self.title}\n', info_style)
-        text.append('视频格式: ', basic_style).append(f'{playinfo_data.get('format')}\n', info_style)
-        text.append('视频 aid: ', basic_style).append(f'{self.initial_state.get('aid')}\n', info_style)
-        text.append('视频 bvid: ', basic_style).append(f'{self.initial_state.get('bvid')}\n', info_style)
-        text.append('视频 cid: ', basic_style).append(f'{self.initial_state.get('cid')}\n', info_style)
+        text.append('视频格式: ', basic_style).append(f'{playinfo_data.get("format")}\n', info_style)
+        text.append('视频 aid: ', basic_style).append(f'{self.initial_state.get("aid")}\n', info_style)
+        text.append('视频 bvid: ', basic_style).append(f'{self.initial_state.get("bvid")}\n', info_style)
+        text.append('视频 cid: ', basic_style).append(f'{self.initial_state.get("cid")}\n', info_style)
         text.append('视频时长: ', basic_style).append(f'{video_minutes} 分 {video_seconds} 秒\n\n', info_style)
 
-        text.append('子分区信息: ', section_style).append(f'{self.bvid_info['tname']}\n', info_style)
-        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info['tname_v2']}\n\n', info_style)
+        text.append('子分区信息: ', section_style).append(f'{self.bvid_info["tname"]}\n', info_style)
+        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info["tname_v2"]}\n\n', info_style)
 
-        text.append('稿件发布时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info['pubdate']).strftime('%Y-%m-%d %H:%M:%S')}\n', info_style)
-        text.append('用户投稿时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info['ctime']).strftime('%Y-%m-%d %H:%M:%S')}\n\n', info_style)
+        text.append('稿件发布时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info["pubdate"]).strftime("%Y-%m-%d %H:%M:%S")}\n', info_style)
+        text.append('用户投稿时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info["ctime"]).strftime("%Y-%m-%d %H:%M:%S")}\n\n', info_style)
 
-        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info['owner']['mid']}\n', info_style)
-        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info['owner']['name']}\n\n', info_style)
+        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info["owner"]["mid"]}\n', info_style)
+        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info["owner"]["name"]}\n\n', info_style)
 
-        text.append('视频简介: ', desc_style).append(f'{self.bvid_info['desc']}\n', info_style)
+        text.append('视频简介: ', desc_style).append(f'{self.bvid_info["desc"]}\n', info_style)
 
         accept_quality = playinfo_data['accept_quality']
         accept_description = playinfo_data['accept_description']
@@ -232,22 +232,22 @@ class BiliMultiPartVideo(BiliVideoInfo):
 
         text.append('视频 URL: ', basic_style).append(f'{self.url}\n', info_style)
         text.append('视频标题: ', basic_style).append(f'{self.title}\n', info_style)
-        text.append('视频格式: ', basic_style).append(f'{playinfo_data.get('format')}\n', info_style)
-        text.append('视频 aid: ', basic_style).append(f'{self.initial_state.get('aid')}\n', info_style)
-        text.append('视频 bvid: ', basic_style).append(f'{self.initial_state.get('bvid')}\n', info_style)
-        text.append('视频 cid: ', basic_style).append(f'{self.initial_state.get('cid')}\n', info_style)
+        text.append('视频格式: ', basic_style).append(f'{playinfo_data.get("format")}\n', info_style)
+        text.append('视频 aid: ', basic_style).append(f'{self.initial_state.get("aid")}\n', info_style)
+        text.append('视频 bvid: ', basic_style).append(f'{self.initial_state.get("bvid")}\n', info_style)
+        text.append('视频 cid: ', basic_style).append(f'{self.initial_state.get("cid")}\n', info_style)
         text.append('视频时长: ', basic_style).append(f'{video_minutes} 分 {video_seconds} 秒\n\n', info_style)
 
-        text.append('子分区信息: ', section_style).append(f'{self.bvid_info['tname']}\n', info_style)
-        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info['tname_v2']}\n\n', info_style)
+        text.append('子分区信息: ', section_style).append(f'{self.bvid_info["tname"]}\n', info_style)
+        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info["tname_v2"]}\n\n', info_style)
 
-        text.append('稿件发布时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info['pubdate']).strftime('%Y-%m-%d %H:%M:%S')}\n', info_style)
-        text.append('用户投稿时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info['ctime']).strftime('%Y-%m-%d %H:%M:%S')}\n\n', info_style)
+        text.append('稿件发布时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info["pubdate"]).strftime("%Y-%m-%d %H:%M:%S")}\n', info_style)
+        text.append('用户投稿时间: ', date_style).append(f'{datetime.fromtimestamp(self.bvid_info["ctime"]).strftime("%Y-%m-%d %H:%M:%S")}\n\n', info_style)
 
-        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info['owner']['mid']}\n', info_style)
-        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info['owner']['name']}\n\n', info_style)
+        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info["owner"]["mid"]}\n', info_style)
+        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info["owner"]["name"]}\n\n', info_style)
 
-        text.append('视频简介: ', desc_style).append(f'{self.bvid_info['desc']}\n', info_style)
+        text.append('视频简介: ', desc_style).append(f'{self.bvid_info["desc"]}\n', info_style)
 
         accept_quality = playinfo_data['accept_quality']
         accept_description = playinfo_data['accept_description']
@@ -347,7 +347,7 @@ class BiliBangumi(BiliVideoInfo):
 
         text.append('番剧 URL: ', basic_style).append(f'{self.url}\n', info_style)
         text.append('番剧标题: ', basic_style).append(f'{self.title}\n', info_style)
-        text.append('番剧简介: ', desc_style).append(f'{self.initial_state['mediaInfo']['evaluate']}\n', info_style)
+        text.append('番剧简介: ', desc_style).append(f'{self.initial_state["mediaInfo"]["evaluate"]}\n', info_style)
 
         # 选集信息展示
         pages_table.add_column("index", justify="center", style="cyan", no_wrap=True)
@@ -393,7 +393,7 @@ class BiliOther(BiliVideoInfo):
 
         text.append('剧集 URL: ', basic_style).append(f'{self.url}\n', info_style)
         text.append('剧集标题: ', basic_style).append(f'{self.title}\n', info_style)
-        text.append('剧集简介: ', desc_style).append(f'{self.initial_state['mediaInfo']['evaluate']}\n', info_style)
+        text.append('剧集简介: ', desc_style).append(f'{self.initial_state["mediaInfo"]["evaluate"]}\n', info_style)
 
         # 选集信息展示
         pages_table.add_column("index", justify="center", style="cyan", no_wrap=True)
@@ -432,18 +432,18 @@ class BiliEpisode(BiliVideoInfo):
         text.append('单集 URL: ', basic_style).append(f'{self.url}\n', info_style)
         text.append('单集标题: ', basic_style).append(f'{self.title}\n', info_style)
 
-        text.append('子分区信息: ', section_style).append(f'{self.bvid_info['tname']}\n', info_style)
-        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info['tname_v2']}\n\n', info_style)
+        text.append('子分区信息: ', section_style).append(f'{self.bvid_info["tname"]}\n', info_style)
+        text.append('子分区信息_v2: ', section_style).append(f'{self.bvid_info["tname_v2"]}\n\n', info_style)
 
         text.append('稿件发布时间: ', date_style).append(
-            f'{datetime.fromtimestamp(self.bvid_info['pubdate']).strftime('%Y-%m-%d %H:%M:%S')}\n', info_style)
+            f'{datetime.fromtimestamp(self.bvid_info["pubdate"]).strftime("%Y-%m-%d %H:%M:%S")}\n', info_style)
         text.append('用户投稿时间: ', date_style).append(
-            f'{datetime.fromtimestamp(self.bvid_info['ctime']).strftime('%Y-%m-%d %H:%M:%S')}\n\n', info_style)
+            f'{datetime.fromtimestamp(self.bvid_info["ctime"]).strftime("%Y-%m-%d %H:%M:%S")}\n\n', info_style)
 
-        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info['owner']['mid']}\n', info_style)
-        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info['owner']['name']}\n\n', info_style)
+        text.append('视频 UP 主 mid: ', user_style).append(f'{self.bvid_info["owner"]["mid"]}\n', info_style)
+        text.append('视频 UP 主用户名: ', user_style).append(f'{self.bvid_info["owner"]["name"]}\n\n', info_style)
 
-        text.append('单集简介: ', desc_style).append(f'{self.bvid_info['desc']}\n', info_style)
+        text.append('单集简介: ', desc_style).append(f'{self.bvid_info["desc"]}\n', info_style)
 
         result = self.playurl_ssr_data.get('result')
         raw = self.playurl_ssr_data.get('raw')
