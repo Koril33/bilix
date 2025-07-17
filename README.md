@@ -17,6 +17,8 @@ Github: https://github.com/Koril33/bilix
 
 Gitee: https://gitee.com/ding_jing_hui/bilix
 
+Gitea: http://git.djhx.site/koril/bilix
+
 ## 声明
 
 本项目仅用于学习、研究与技术交流目的，严禁用于任何商业用途或违反中国大陆及其他国家和地区相关法律法规的行为。
