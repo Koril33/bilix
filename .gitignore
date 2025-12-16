@@ -13,3 +13,4 @@ cookie.txt
 login_qrcode.png
 build
 dist
+*.egg-info
