@@ -1,0 +1,215 @@
+import json
+import re
+import subprocess
+from importlib import resources
+from pathlib import Path
+from typing import Optional, Union, List
+from urllib.parse import urlunsplit, urlsplit
+
+import typer
+from curl_cffi import requests
+
+
+def parse_page_input(value: Optional[str]) -> Union[str, List[int]]:
+    """
+    解析下载多 p 视频的传参
+    """
+
+    if value is None or value == "" or value == "all":
+        return "all"
+    elif '-' in value:
+        try:
+            start, end = map(int, value.split('-'))
+            return list(range(start, end + 1))
+        except Exception:
+            raise typer.BadParameter("范围格式应为 起始-结束，例如 3-7")
+    elif ',' in value:
+        try:
+            return [int(v.strip()) for v in value.split(',')]
+        except Exception:
+            raise typer.BadParameter("多个值应为英文逗号分隔，例如 1,4,9")
+    else:
+        try:
+            return [int(value)]
+        except Exception:
+            raise typer.BadParameter("必须是整数、范围或英文逗号分隔的整数")
+
+
+def sanitize_filename(name: str, replacement: str = "_") -> str:
+    """
+    清理视频名称中的非法字符，使其可以安全作为文件名。
+
+    参数:
+        name: 原始视频标题。
+        replacement: 用于替换非法字符的字符（默认下划线）。
+
+    返回:
+        清理后的字符串，可作为安全文件名使用。
+    """
+    # Windows 文件名非法字符: \ / : * ? " < > |，以及控制字符和空白尾随
+    name = name.strip()  # 移除首尾空格
+    name = name.replace("_哔哩哔哩_bilibili", "")
+    name = re.sub(r'[\\/:*?"<>|]', replacement, name)  # 替换非法字符
+    name = re.sub(r'[\x00-\x1f]', replacement, name)  # 控制字符
+    name = re.sub(r'\s+', ' ', name)  # 连续空格变单空格
+    name = name.strip(" .")  # 去除结尾的点和空格（Windows 不允许）
+    name = name.replace("-电影-高清正版在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-电影-高清独家在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-电影-高清在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-高清独家在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-高清正版在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清独家在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("-番剧-全集-高清正版在线观看-bilibili-哔哩哔哩", "")
+    name = name.replace("正片", "")
+    name = name.replace(" ", replacement)
+    # 限制长度（通常 255 是安全最大长度）
+    return name[:240]  # 留一点空间给文件扩展名
+
+
+def extract_playinfo_json(html_content: str):
+    match = re.search(r'window\.__playinfo__\s*=\s*(\{.*?})\s*</script>', html_content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        try:
+            playinfo = json.loads(json_str)
+            return playinfo
+        except json.JSONDecodeError:
+            return None
+    else:
+        return None
+
+
+def extract_initial_state_json(html_content: str):
+    match = re.search(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?})\s*;', html_content, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        try:
+            initial_state = json.loads(json_str)
+            return initial_state
+        except json.JSONDecodeError:
+            return None
+    else:
+        return None
+
+
+def extract_title(html_content: str) -> str | None:
+    match = re.search(r'<title\b[^>]*>(.*?)</title>', html_content, re.IGNORECASE | re.DOTALL)
+    if match:
+        title = match.group(1).strip()
+        return sanitize_filename(title)
+    return None
+
+
+def extract_playurl_ssr_data(html_content: str) -> dict | None:
+    pattern = r'const\s+playurlSSRData\s*=\s*({.*?})\s'
+    match = re.search(pattern, html_content, re.DOTALL)
+
+    if match:
+        json_str = match.group(1)
+        try:
+            data = json.loads(json_str)
+            return data
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+    return None
+
+
+
+def merge_m4s_ffmpeg(video_file, audio_file, output_file):
+    """
+    使用 ffmpeg 合并视频和音频 m4s 文件到 mp4。
+
+    Args:
+        video_file (str): 视频 m4s 文件路径。
+        audio_file (str): 音频 m4s 文件路径。
+        output_file (str): 输出 mp4 文件路径。
+
+    Returns:
+        bool: True 如果合并成功，False 如果失败。
+    """
+    import platform
+
+    if not Path(video_file).exists():
+        return None
+    if not Path(audio_file).exists():
+        return None
+
+    if platform.system() == 'Windows':
+        ffmpeg_path = resources.files('djhx_bilix').joinpath('ffmpeg.exe')
+    else:
+        ffmpeg_path = '/usr/bin/ffmpeg'
+
+    command = [ffmpeg_path, '-i', video_file, '-i', audio_file, '-c', 'copy', output_file]
+    typer.echo(f'合并命令: {command}')
+    try:
+        # 执行命令并等待完成
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+    except FileNotFoundError as e:
+        typer.echo(f'文件找不到: {e}')
+        return False
+    except Exception as e:
+        typer.echo(f'合并异常: {e}')
+        return False
+    else:
+        if result.returncode == 0:
+            typer.echo(f'ffmpeg 命令执行成功, 下载文件地址: {output_file}')
+            return True
+        else:
+            typer.echo(f'ffmpeg 命令执行失败')
+            return False
+
+
+def load_urls_from_file(file_path: str) -> list[str]:
+    path = Path(file_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"文件不存在: {file_path}")
+
+    with path.open("r", encoding="utf-8") as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    return urls
+
+
+def clean_bili_url(url: str):
+    parsed = urlsplit(url)
+    clean_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+    return clean_url
+
+def format_bytes(size):
+    power = 1024
+    n = 0
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    while size >= power and n < len(units) - 1:
+        size /= power
+        n += 1
+    return f"{size:.2f} {units[n]}"
+
+
+def get_url_size(url, headers):
+    response = requests.get(url, headers=headers, timeout=5)
+    size = int(response.headers.get('Content-Length', 0))
+    return size
+
+def estimate_size(bandwidth, duration):
+    # bandwidth 是比特率（bps），duration 是秒
+    total_bits = bandwidth * duration
+    total_bytes = total_bits / 8
+    return total_bytes
+
+
+def shrink_title(title):
+    """
+    如果 title 超过10个字符，保留开头前4个和结尾后4个字符，中间用省略号替代。
+    例如：'1234567890abcd' => '1234...abcd'
+    """
+    max_title_length = 20
+    if len(title) <= max_title_length:
+        return title
+    return f"{title[:4]}...{title[-12:]}"
