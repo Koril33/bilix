@@ -1,0 +1,50 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.11'
+      - run: uv sync --locked --group build
+      - name: Check tag matches source version
+        shell: pwsh
+        run: |
+          $sourceVersion = uv run python -c 'from djhx_bilix import __version__; print(__version__)'
+          if ($LASTEXITCODE -ne 0 -or $env:GITHUB_REF_NAME -ne "v$sourceVersion") {
+            throw 'Release tag must match the package version'
+          }
+      - run: uv run --group build python scripts/build_windows.py
+      - name: Publish verified executable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $digest = (Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe').Hash.ToLowerInvariant()
+          "$digest  bilix.exe" | Set-Content 'build/windows/SHA256SUMS.txt' -Encoding utf8NoBOM
+          $notes = "Windows x64 单文件版，包含 FFmpeg。构建已通过中文/空格路径、最小 PATH 和 CLI 启动检查。`n`n[发行说明与迁移](https://github.com/$env:GH_REPO/blob/$env:GITHUB_REF_NAME/docs/releases.md)"
+          $notes | Set-Content 'build/windows/release-notes.md' -Encoding utf8NoBOM
+          gh release create $env:GITHUB_REF_NAME 'build/windows/bilix.exe' 'build/windows/SHA256SUMS.txt' --verify-tag --title "BiliX $env:GITHUB_REF_NAME" --notes-file 'build/windows/release-notes.md'
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-release-diagnostics
+          path: |
+            build/windows/build.log
+            build/windows/compilation-report.xml
+            build/windows/独立 发布/smoke.json

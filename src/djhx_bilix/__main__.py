@@ -1,4 +1,4 @@
-from .cli import app
+from djhx_bilix.cli import main
 
-if __name__ == '__main__':
-    app()
+if __name__ == "__main__":
+    main()
