@@ -27,6 +27,11 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $env:GITHUB_REF_NAME -ne "v$sourceVersion") {
             throw 'Release tag must match the package version'
           }
+      - uses: actions/cache@v4
+        with:
+          path: build/nuitka-cache
+          key: ${{ runner.os }}-nuitka-4.2.2-py311-utf8-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-nuitka-4.2.2-py311-utf8-
       - run: uv run --group build python scripts/build_windows.py
       - name: Publish verified executable
         shell: pwsh

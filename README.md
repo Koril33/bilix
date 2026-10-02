@@ -20,7 +20,7 @@ blx --version
 
 Windows exe 使用相同的命令和功能，将下文的 `blx` 替换为 `bilix.exe`。Windows 包内附 FFmpeg；Linux/macOS 需要安装 FFmpeg 并加入 PATH，或使用 `--ffmpeg` 指定路径。
 
-1.4.0 使用统一的 `src` 实现，支持 Python 3.11–3.14。旧版迁移及变更见 [发行说明](https://github.com/Koril33/bilix/blob/main/docs/releases.md)。开发时使用 `uv sync --locked`、`uv run blx`；本地 wheel/exe 的构建方法见 [打包与验证](https://github.com/Koril33/bilix/blob/main/docs/build.md)。
+1.4.1 使用统一的 `src` 实现，支持 Python 3.11–3.14，并修复英文 Windows 下中文输出的编码问题。旧版迁移及变更见 [发行说明](https://github.com/Koril33/bilix/blob/main/docs/releases.md)。开发时使用 `uv sync --locked`、`uv run blx`；本地 wheel/exe 的构建方法见 [打包与验证](https://github.com/Koril33/bilix/blob/main/docs/build.md)。
 
 ## 使用
 

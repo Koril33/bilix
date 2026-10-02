@@ -17,14 +17,14 @@ wheel 包括 `src` 中的实现与 Windows FFmpeg。版本只在 `src/djhx_bilix
 验证本地 wheel 的独立工具安装：
 
 ```shell
-uv tool install --force dist/djhx_bilix-1.4.0-py3-none-any.whl
+uv tool install --force dist/djhx_bilix-1.4.1-py3-none-any.whl
 blx --version
 blx doctor
 ```
 
 也可使用 `uvx --from <wheel路径> blx --version`。`uv tool install` 接收 wheel 路径作为位置参数；`uvx` 使用 `--from` 指定提供 `blx`/`bilix` 命令的发行包。
 
-本地 wheel 安装会记录该文件来源。切换回 PyPI 发行版时使用 `uv tool install --force --upgrade djhx-bilix==1.4.0`；随后可通过 `uv tool upgrade djhx-bilix` 更新。
+本地 wheel 安装会记录该文件来源。切换回 PyPI 发行版时使用 `uv tool install --force --upgrade djhx-bilix==1.4.1`；随后可通过 `uv tool upgrade djhx-bilix` 更新。
 
 ## Windows exe
 
@@ -35,9 +35,11 @@ uv sync --python 3.11 --locked --group build
 uv run --group build python scripts/build_windows.py
 ```
 
-脚本编译 `src/djhx_bilix/__main__.py`，显式包含包内 FFmpeg 和 Windows runtime DLL。默认 onefile 输出为 `build/windows/bilix.exe`，不依赖目标电脑安装 Python 或 FFmpeg。不启用 LTO，缩短重复构建时间；Nuitka 缓存在 `build/nuitka-cache`。
+脚本编译 `src/djhx_bilix/__main__.py`，显式包含包内 FFmpeg 和 Windows runtime DLL。默认 onefile 输出为 `build/windows/bilix.exe`，不依赖目标电脑安装 Python 或 FFmpeg。不启用 LTO，缩短重复构建时间；Nuitka 缓存在 `build/nuitka-cache`。编译通过 `python -X utf8 -m nuitka` 启动，Nuitka 使用 `--python-flag=isolated`；CLI 入口将标准输出和错误输出设置为 UTF-8，支持中文/emoji 帮助及重定向输出。
 
-构建后自动复制 exe 到中文和空格目录，在仅含 Windows 系统目录的 PATH 下验证 `--help`、`--version`、`doctor` 和无效参数退出码。只有产物通过这些检查，脚本才报告成功。构建日志、编译报告和 `smoke.json` 保存在输出目录。
+构建后自动复制 exe 到中文和空格目录，在仅含 Windows 系统目录的 PATH 下验证 `--help`、`--version`、`doctor` 和无效参数退出码。检查设置 `PYTHONUTF8=0`、`PYTHONIOENCODING=cp1252`，捕获标准输出和错误输出，覆盖非 UTF-8 编码设置与重定向场景。只有产物通过这些检查，脚本才报告成功。构建日志、编译报告和 `smoke.json` 保存在输出目录。
+
+1.4.0 的本地中文 Windows exe 检查通过，但远端英文 Windows 的首次 `--help` 检查触发 cp1252 `UnicodeEncodeError`，因此没有发布该版 exe。Nuitka isolated 模式忽略 `PYTHONUTF8` 环境变量，不能仅靠环境变量启用 UTF-8；1.4.1 使用编译解释器的 `-X utf8` 和 CLI 标准流处理修复该问题，保留 1.4.0 的发行文件和标签。
 
 `--mode standalone` 可以生成便于排查动态库和资源问题的目录产物。必须分发整个 `__main__.dist`，不能只复制其中的 exe。
 
@@ -56,6 +58,8 @@ uv run --group build python scripts/build_windows.py
 
 `.github/workflows/checks.yml` 提供 Windows/Linux、Python 3.11–3.14 的检查矩阵和 Windows 构建任务。两种系统均安装用于合成媒体的完整 FFmpeg，并检查 libx264、libx265 和 ffprobe；Windows 实际扫描/合并仍使用包内 FFmpeg，避免把系统 FFmpeg 的通过误当作内置版本通过。Windows 安装使用 [Gyan 构建方公开的 Chocolatey 命令](https://www.gyan.dev/ffmpeg/builds/)，该构建方也列在 [FFmpeg 官方下载页](https://ffmpeg.org/download.html)。exe 构建固定使用 `windows-2022`，保持 Visual Studio 2022 基线；测试矩阵仍使用最新稳定镜像。工作流需要在 GitHub 执行后才能确认远端矩阵结果。
 
+Windows 检查和发行工作流通过 GitHub Actions 缓存 `build/nuitka-cache`，缓存键包含系统、Nuitka/Python 基线、UTF-8 构建配置和锁文件哈希。缓存用于减少重复编译时间，每次仍重新构建并执行 exe 启动检查。
+
 ## 发布
 
 版本只改 `src/djhx_bilix/__init__.py`，同步锁文件及发布说明。每个版本必须使用新的版本号，PyPI 不允许替换已有文件。运行以上检查、验证独立 wheel 和 Windows exe 后，再提交并推送到远程仓库。
@@ -64,14 +68,14 @@ uv run --group build python scripts/build_windows.py
 
 ```shell
 uv build
-uvx twine check dist/djhx_bilix-1.4.0-py3-none-any.whl dist/djhx_bilix-1.4.0.tar.gz
+uvx twine check dist/djhx_bilix-1.4.1-py3-none-any.whl dist/djhx_bilix-1.4.1.tar.gz
 ```
 
 使用 [uv 的发布命令](https://docs.astral.sh/uv/guides/package/#publishing-your-package) 上传已验证的文件，明确列出文件名，避免混入 `dist` 中的旧版本。发布凭据通过发布环境的 `UV_PUBLISH_TOKEN` 提供；不要把 token 放入仓库、命令参数或日志。CI 也可以配置 [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/)，由 PyPI 项目管理员登记仓库和工作流后使用。
 
 ```shell
-uv publish dist/djhx_bilix-1.4.0-py3-none-any.whl dist/djhx_bilix-1.4.0.tar.gz
-uv tool install --force --upgrade djhx-bilix==1.4.0
+uv publish dist/djhx_bilix-1.4.1-py3-none-any.whl dist/djhx_bilix-1.4.1.tar.gz
+uv tool install --force --upgrade djhx-bilix==1.4.1
 blx --version
 blx doctor
 blx auth status
@@ -79,4 +83,4 @@ blx auth status
 
 从 PyPI 重新安装验证时保留用户配置目录；程序更新不会注销现有账号。最后核对 PyPI 上的版本及文件哈希、仓库提交与 exe 来源，记录发行结果。
 
-推送与源码版本一致的 `v1.4.0` 标签时，`.github/workflows/release.yml` 会在 Windows 2022 上重新构建、验证 exe，再创建 GitHub Release，附带 `bilix.exe` 和 SHA256SUMS。工作流使用仓库自带的临时 GitHub token，不需要保存个人 GitHub 发布令牌；PyPI 凭据不进入这个工作流。
+推送与源码版本一致的 `v1.4.1` 标签时，`.github/workflows/release.yml` 会在 Windows 2022 上重新构建、验证 exe，再创建 GitHub Release，附带 `bilix.exe` 和 SHA256SUMS。工作流使用仓库自带的临时 GitHub token，不需要保存个人 GitHub 发布令牌；PyPI 凭据不进入这个工作流。

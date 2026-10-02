@@ -306,6 +306,16 @@ def legacy_user(
 
 
 def main():
+    # Isolated Windows executables may start with a legacy ANSI output encoding.
+    # Configure the actual streams before Typer/Rich render Chinese help or paths.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, TypeError, ValueError):
+                # Capture streams and embedded callers may not support reconfiguration.
+                pass
     arguments = sys.argv[1:]
     commands = {"download", "video", "info", "auth", "user", "config", "doctor"}
     if (

@@ -1,5 +1,22 @@
 # 版本与迁移
 
+## 1.4.1
+
+修复英文 Windows 和重定向输出使用 cp1252 等编码时，中文或 emoji 帮助触发 `UnicodeEncodeError`、导致 exe 无法启动的问题。CLI 入口将标准输出和错误输出设置为 UTF-8；通过 `python -X utf8 -m nuitka` 编译，避免 isolated 模式忽略 `PYTHONUTF8` 环境变量。
+
+新增非 UTF-8 编码环境和重定向输出的回归检查，将同样的检查纳入 exe 构建。1.4.0 已发布的 Python 包和标签保留，Windows exe 使用通过修复后检查的 1.4.1 产物。
+
+更新本地 uv tool：
+
+```shell
+uv tool install --force --upgrade djhx-bilix==1.4.1
+blx --version
+blx doctor
+blx auth status
+```
+
+Windows exe 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载。此次更新保留已有登录配置和下载文件。1.4.0 的完整迁移说明仍适用于 1.4.1。
+
 ## 1.4.0
 
 本次更新将命令行、Python 包和 Windows exe 收拢到 `src/djhx_bilix` 的同一实现，恢复长期未更新的下载、登录和打包流程。

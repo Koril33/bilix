@@ -69,6 +69,11 @@ jobs:
         with:
           python-version: '3.11'
       - run: uv sync --locked --group build
+      - uses: actions/cache@v4
+        with:
+          path: build/nuitka-cache
+          key: ${{ runner.os }}-nuitka-4.2.2-py311-utf8-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-nuitka-4.2.2-py311-utf8-
       - run: uv run --group build python scripts/build_windows.py
       - uses: actions/upload-artifact@v4
         with:

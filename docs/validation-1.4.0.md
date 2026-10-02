@@ -10,7 +10,7 @@
 | 独立 wheel / Python 3.12 / 最新允许依赖 | 130 项通过；curl-cffi 0.16.3、Typer 0.27.2、Rich 15.0.0 |
 | Ruff 检查与格式、uv 锁文件检查 | 通过 |
 | wheel / sdist 的 Twine 元数据检查 | 通过 |
-| Windows onefile exe | 独立 CPython 3.11 + Nuitka 4.2.2 + MSVC 14.3 构建并通过启动检查 |
+| 本地中文 Windows onefile exe | 独立 CPython 3.11 + Nuitka 4.2.2 + MSVC 14.3 构建并通过启动检查；英文 Windows 的后续远端失败见下文 |
 | wheel 与 exe 的普通账号在线测试 | 状态识别、电影正片试看信息、4K strict 拒绝、完整 HEVC 下载及解码通过 |
 
 exe 在中文和空格目录、仅有 Windows 系统目录的 PATH 下检查帮助、版本、doctor、隔离账号状态与无效参数。在线账号测试保留原 token，登录/退出/异常响应测试使用虚构凭据和隔离配置。
@@ -49,3 +49,20 @@ ep29006 的 AVC 使用可变时间戳，默认 FFmpeg null 校验输出时间基
 ## 发布检查
 
 发布前核对构建产物中的 Python 源码与工作区一致，并确认归档中没有 token、下载媒体和旧根目录实现。PyPI 上传使用本机发布凭据；本地 uv tool 从已发布的版本重新安装，保留登录配置。远端 Windows/Linux 矩阵由 GitHub Actions 执行，远端结果须以实际工作流状态为准。
+
+## 1.4.1 编码修复与补充验证
+
+1.4.0 推送后的 Windows/Linux、Python 3.11–3.14 共 8 个测试矩阵任务通过。远端 Windows exe 编译成功，但英文 Windows 在重定向输出的首次 `--help` 检查中使用 cp1252，输出中文/emoji 时抛出 `UnicodeEncodeError`。exe 启动检查失败，因此没有发布 1.4.0 Windows exe。
+
+本地中文 Windows 的原启动检查不能覆盖这一编码环境。Nuitka isolated 模式忽略 `PYTHONUTF8` 环境变量，仅在检查环境设置它不足以保证 UTF-8。1.4.1 在 CLI 入口设置标准输出和错误输出的 UTF-8 编码，通过 `python -X utf8 -m nuitka` 编译，并保留 Nuitka 的 `--python-flag=isolated`。新增 13 项编码回归，覆盖非 UTF-8 编码设置及重定向输出，exe 构建也执行对应场景。
+
+| 1.4.1 补充验证 | 结果 |
+| --- | --- |
+| 本地 Windows / Python 3.11、3.12、3.13、3.14 | 每个环境 143 项通过，包含新增 13 项编码回归 |
+| 本地 Windows onefile exe | 编译及 7 个启动场景通过；中文/空格路径、最小 PATH、cp1252 编码设置和重定向输出 |
+
+exe 检查使用 `PYTHONUTF8=0`、`PYTHONIOENCODING=cp1252`，捕获标准输出和错误输出，验证帮助、短帮助、账号短帮助、隔离账号 JSON、版本、doctor 和无效参数退出码。
+
+独立 1.4.1 wheel 使用最新允许的依赖通过全部 143 项测试；wheel 与 exe 的普通账号状态、影视正片权限、严格清晰度拒绝和完整 HEVC 下载均通过，成品完整解码无错误，登录凭据未改变。
+
+1.4.0 的 Python 发行文件和标签保留。最新 Python 包见 [PyPI](https://pypi.org/project/djhx-bilix/)，Windows 产物见 [GitHub Releases](https://github.com/Koril33/bilix/releases)，远端检查结果见 [GitHub Actions](https://github.com/Koril33/bilix/actions)。

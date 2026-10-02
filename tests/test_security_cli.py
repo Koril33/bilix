@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 from dataclasses import replace
+from io import StringIO
 from types import SimpleNamespace
 
 import pytest
@@ -236,3 +237,71 @@ def test_reported_output_path_remains_a_single_copyable_line(monkeypatch, video_
     result = runner.invoke(cli.app, ["download", "BV1j4411W7F7", "--quiet"])
     assert result.exit_code == 0
     assert f"跳过已有文件：{output}\n" in result.stdout
+
+
+@pytest.mark.parametrize("encoding", ["ascii", "cp1252"])
+@pytest.mark.parametrize(
+    "arguments,expected",
+    [
+        (["--help"], 0),
+        (["-h"], 0),
+        (["auth", "status", "-h"], 0),
+        (["auth", "status", "--json"], 0),
+        (["auth", "status"], 0),
+        (["download", "-q", "invalid", "BV1j4411W7F7"], 1),
+    ],
+)
+def test_isolated_cli_unicode_output_with_legacy_stream_encodings(
+    tmp_path, encoding, arguments, expected
+):
+    directory = tmp_path / "中文 空格"
+    directory.mkdir()
+    launcher = directory / "BiliX 测试.py"
+    launcher.write_text(
+        "import sys\n"
+        f"sys.stdout.reconfigure(encoding={encoding!r}, errors='strict')\n"
+        f"sys.stderr.reconfigure(encoding={encoding!r}, errors='strict')\n"
+        "from djhx_bilix import auth\n"
+        "from djhx_bilix.cli import main\n"
+        "auth.status = lambda client: {'logged_in': True, 'name': '普通测试用户', "
+        "'uid': 1, 'level': 6, 'vip': False}\n"
+        "main()\n",
+        encoding="utf-8",
+    )
+    environment = {
+        **os.environ,
+        "PYTHONIOENCODING": encoding + ":strict",
+        "PYTHONUTF8": "0",
+        "BILIX_CONFIG_DIR": str(directory / "profile"),
+    }
+    result = subprocess.run(
+        [sys.executable, "-I", str(launcher), *arguments],
+        cwd=directory,
+        env=environment,
+        capture_output=True,
+        timeout=30,
+    )
+    stdout, stderr = result.stdout.decode("utf-8"), result.stderr.decode("utf-8")
+    assert result.returncode == expected, stderr
+    assert "UnicodeEncodeError" not in stderr and "Traceback" not in stderr
+    if arguments[-1] == "--json":
+        assert json.loads(stdout)["name"] == "普通测试用户"
+    elif "-h" in arguments or "--help" in arguments:
+        assert "Usage:" in stdout and "BiliX 测试.py" in stdout
+        assert "视频下载器" in stdout or "查看登录状态" in stdout
+    elif expected == 1:
+        assert "错误：未知清晰度" in stderr
+    else:
+        assert "普通测试用户" in stdout and "普通账号" in stdout
+
+
+def test_main_supports_capture_streams_without_reconfigure(monkeypatch):
+    stdout, stderr = StringIO(), StringIO()
+    invocations = []
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stderr", stderr)
+    monkeypatch.setattr(sys, "argv", ["blx", "--version"])
+    monkeypatch.setattr(cli, "app", lambda **kwargs: invocations.append(kwargs["args"]))
+    cli.main()
+    assert invocations == [["--version"]]
+    assert not stdout.closed and not stderr.closed

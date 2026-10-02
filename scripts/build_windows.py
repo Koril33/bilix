@@ -22,7 +22,9 @@ def smoke(executable: Path, directory: Path) -> None:
     shutil.copy2(executable, copied)
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
-    environment["PYTHONUTF8"] = "1"
+    # Exercise redirected output on an English Windows code page, without env UTF-8 mode.
+    environment["PYTHONUTF8"] = "0"
+    environment["PYTHONIOENCODING"] = "cp1252"
     environment["PATH"] = os.pathsep.join(
         (str(Path(os.environ["SystemRoot"]) / "System32"), os.environ["SystemRoot"])
     )
@@ -78,6 +80,8 @@ def main():
     environment["NUITKA_CACHE_DIR"] = str(ROOT / "build" / "nuitka-cache")
     command = [
         sys.executable,
+        "-X",
+        "utf8",
         "-m",
         "nuitka",
         f"--mode={arguments.mode}",
