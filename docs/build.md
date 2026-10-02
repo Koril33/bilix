@@ -1,5 +1,7 @@
 # 本地开发、打包与验证
 
+项目不使用 GitHub/Gitea Actions，仓库不保留工作流文件。检查、构建和发行文件上传均由维护者在本地完成，推送提交或版本标签不会自动执行这些步骤。
+
 ## Python 包
 
 ```shell
@@ -51,14 +53,14 @@ uv run --group build python scripts/build_windows.py
 - 下载故障测试使用本地 HTTP 服务器，覆盖截断连接、503 和备用地址。
 - 事务测试覆盖下载、校验、合并和提交失败时的旧文件保护、临时材料保留及并发提交。
 - 凭据测试仅使用虚构 Cookie，覆盖登录响应、请求异常和终端错误输出。
-- 会员回归使用合成页面/API 响应，覆盖新版影视 SSR、Next.js 元数据、播放接口补查、普通/有效会员/过期会员状态、失效登录、试看/DRM 拒绝和旧 token 格式兼容。不会要求 CI 登录个人账号。
+- 会员回归使用合成页面/API 响应，覆盖新版影视 SSR、Next.js 元数据、播放接口补查、普通/有效会员/过期会员状态、失效登录、试看/DRM 拒绝和旧 token 格式兼容，不需要登录个人账号。
 - 媒体集成测试使用完整 FFmpeg 的 lavfi/libx264 生成合成媒体，再用运行时选择的 FFmpeg 扫描和合并。缺少编码器会明确 skip。可以通过 `BILIX_TEST_FFMPEG` 指定用于生成样本的完整 FFmpeg。
 - 会员音轨集成测试合成 FLAC/E-AC-3 媒体；杜比视界元数据回归使用 libx265 生成的小视频和合成配置记录，验证包扫描与最终合并两个阶段均保留该记录，不把实际电影存入测试仓库。
-- 公开视频在线测试单独进行，避免日常 CI 依赖 Bilibili 服务、账号和变化的权限。
+- 公开视频在线测试单独进行，避免日常本地检查依赖 Bilibili 服务、账号和变化的权限。
 
-`.github/workflows/checks.yml` 提供 Windows/Linux、Python 3.11–3.14 的检查矩阵和 Windows 构建任务。两种系统均安装用于合成媒体的完整 FFmpeg，并检查 libx264、libx265 和 ffprobe；Windows 实际扫描/合并仍使用包内 FFmpeg，避免把系统 FFmpeg 的通过误当作内置版本通过。Windows 安装使用 [Gyan 构建方公开的 Chocolatey 命令](https://www.gyan.dev/ffmpeg/builds/)，该构建方也列在 [FFmpeg 官方下载页](https://ffmpeg.org/download.html)。exe 构建固定使用 `windows-2022`，保持 Visual Studio 2022 基线；测试矩阵仍使用最新稳定镜像。工作流需要在 GitHub 执行后才能确认远端矩阵结果。
+需要验证 Windows/Linux、Python 3.11–3.14 兼容性时，在对应系统与解释器环境中分别运行上述检查，并记录实际环境和结果。媒体测试需要安装用于合成媒体的完整 FFmpeg，包含 libx264、libx265 和 ffprobe；Windows 实际扫描/合并仍使用包内 FFmpeg，避免把系统 FFmpeg 的通过误当作内置版本通过。Windows 可使用 [Gyan 构建方公开的 Chocolatey 命令](https://www.gyan.dev/ffmpeg/builds/) 安装完整 FFmpeg，该构建方也列在 [FFmpeg 官方下载页](https://ffmpeg.org/download.html)。Windows exe 继续使用上述本地 CPython 3.11、Visual Studio 2022 基线构建。
 
-Windows 检查和发行工作流通过 GitHub Actions 缓存 `build/nuitka-cache`，缓存键包含系统、Nuitka/Python 基线、UTF-8 构建配置和锁文件哈希。缓存用于减少重复编译时间，每次仍重新构建并执行 exe 启动检查。
+本地构建保留 `build/nuitka-cache` 以减少重复编译时间，每次仍重新构建并执行 exe 启动检查。
 
 ## 发布
 
@@ -71,7 +73,7 @@ uv build
 uvx twine check dist/djhx_bilix-1.4.1-py3-none-any.whl dist/djhx_bilix-1.4.1.tar.gz
 ```
 
-使用 [uv 的发布命令](https://docs.astral.sh/uv/guides/package/#publishing-your-package) 上传已验证的文件，明确列出文件名，避免混入 `dist` 中的旧版本。发布凭据通过发布环境的 `UV_PUBLISH_TOKEN` 提供；不要把 token 放入仓库、命令参数或日志。CI 也可以配置 [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/)，由 PyPI 项目管理员登记仓库和工作流后使用。
+使用 [uv 的发布命令](https://docs.astral.sh/uv/guides/package/#publishing-your-package) 从本地上传已验证的文件，明确列出文件名，避免混入 `dist` 中的旧版本。发布凭据通过发布环境的 `UV_PUBLISH_TOKEN` 提供；不要把 token 放入仓库、命令参数或日志。
 
 ```shell
 uv publish dist/djhx_bilix-1.4.1-py3-none-any.whl dist/djhx_bilix-1.4.1.tar.gz
@@ -83,4 +85,11 @@ blx auth status
 
 从 PyPI 重新安装验证时保留用户配置目录；程序更新不会注销现有账号。最后核对 PyPI 上的版本及文件哈希、仓库提交与 exe 来源，记录发行结果。
 
-推送与源码版本一致的 `v1.4.1` 标签时，`.github/workflows/release.yml` 会在 Windows 2022 上重新构建、验证 exe，再创建 GitHub Release，附带 `bilix.exe` 和 SHA256SUMS。工作流使用仓库自带的临时 GitHub token，不需要保存个人 GitHub 发布令牌；PyPI 凭据不进入这个工作流。
+Windows 发行前，在本地运行上面的 exe 构建命令并确认检查通过，再生成校验文件：
+
+```powershell
+$digest = (Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe').Hash.ToLowerInvariant()
+"$digest  bilix.exe" | Set-Content 'build/windows/SHA256SUMS.txt' -Encoding ascii
+```
+
+推送与源码版本一致的版本标签（例如 `v1.4.1`）后，在 GitHub/Gitea 发行页面手动选择该标签、填写发行说明，并上传本地验证过的 `build/windows/bilix.exe` 和 `build/windows/SHA256SUMS.txt`。上传完成后核对下载文件的 SHA256 与本地记录一致。

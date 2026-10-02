@@ -1,5 +1,7 @@
 # 版本与迁移
 
+项目现已停用 GitHub/Gitea Actions，检查和打包在本地执行，发行文件手动上传。下文涉及 1.4.0 的 CI 内容为当时的验证记录，当前流程见 [打包与验证](build.md)。
+
 ## 1.4.1
 
 修复英文 Windows 和重定向输出使用 cp1252 等编码时，中文或 emoji 帮助触发 `UnicodeEncodeError`、导致 exe 无法启动的问题。CLI 入口将标准输出和错误输出设置为 UTF-8；通过 `python -X utf8 -m nuitka` 编译，避免 isolated 模式忽略 `PYTHONUTF8` 环境变量。
@@ -43,7 +45,7 @@ Windows exe 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下
 - 支持 `-h` 和根入口补全命令；结果路径保持完整一行，便于复制。同名目录明确报错并保护内容。
 - `blx`、`bilix`、`python -m djhx_bilix` 和 exe 进入同一 CLI。运行时不安装 Nuitka，不在模块导入时创建用户目录或访问网络。
 - Windows 包含 FFmpeg。exe 使用独立 CPython 3.11/Nuitka 4.2.2 环境构建，并自动检查中文/空格路径、最小 PATH、帮助和错误退出码。
-- CI 覆盖 Windows/Linux、Python 3.11–3.14，以及合成媒体和 Windows exe 构建。媒体测试分别检查传输完整性、FLAC/E-AC-3 和杜比视界元数据。
+- 1.4.0 发布时的 CI 覆盖 Windows/Linux、Python 3.11–3.14，以及合成媒体和 Windows exe 构建。媒体测试分别检查传输完整性、FLAC/E-AC-3 和杜比视界元数据；当前改为本地执行。
 
 ### 从旧版本升级
 

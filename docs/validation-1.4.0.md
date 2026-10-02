@@ -2,6 +2,8 @@
 
 验证日期：2026-10-02。在线测试使用授权的匿名、普通账号和大会员会话；这里不记录账号标识或凭据。视频权限会变化，结果仅代表测试时的账号与样本。
 
+本页保留当时的本地和远端验证记录。项目现已停用 GitHub/Gitea Actions，后续检查、打包和发布按 [本地流程](build.md) 执行。
+
 ## 自动化与发行包
 
 | 环境 | 结果 |
@@ -48,7 +50,7 @@ ep29006 的 AVC 使用可变时间戳，默认 FFmpeg null 校验输出时间基
 
 ## 发布检查
 
-发布前核对构建产物中的 Python 源码与工作区一致，并确认归档中没有 token、下载媒体和旧根目录实现。PyPI 上传使用本机发布凭据；本地 uv tool 从已发布的版本重新安装，保留登录配置。远端 Windows/Linux 矩阵由 GitHub Actions 执行，远端结果须以实际工作流状态为准。
+发布前核对构建产物中的 Python 源码与工作区一致，并确认归档中没有 token、下载媒体和旧根目录实现。PyPI 上传使用本机发布凭据；本地 uv tool 从已发布的版本重新安装，保留登录配置。当时的远端 Windows/Linux 矩阵由 GitHub Actions 执行，结果记录在下文。
 
 ## 1.4.1 编码修复与补充验证
 
@@ -65,4 +67,4 @@ exe 检查使用 `PYTHONUTF8=0`、`PYTHONIOENCODING=cp1252`，捕获标准输出
 
 独立 1.4.1 wheel 使用最新允许的依赖通过全部 143 项测试；wheel 与 exe 的普通账号状态、影视正片权限、严格清晰度拒绝和完整 HEVC 下载均通过，成品完整解码无错误，登录凭据未改变。
 
-1.4.0 的 Python 发行文件和标签保留。最新 Python 包见 [PyPI](https://pypi.org/project/djhx-bilix/)，Windows 产物见 [GitHub Releases](https://github.com/Koril33/bilix/releases)，远端检查结果见 [GitHub Actions](https://github.com/Koril33/bilix/actions)。
+1.4.0 的 Python 发行文件和标签保留。最新 Python 包见 [PyPI](https://pypi.org/project/djhx-bilix/)，Windows 产物见 [GitHub Releases](https://github.com/Koril33/bilix/releases)。

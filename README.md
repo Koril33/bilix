@@ -104,6 +104,8 @@ ffmpeg = "C:/Tools/ffmpeg/bin/ffmpeg.exe"
 
 唯一业务实现为 `src/djhx_bilix`。详见 [架构说明](https://github.com/Koril33/bilix/blob/main/docs/architecture.md)、[测试与 Windows 打包](https://github.com/Koril33/bilix/blob/main/docs/build.md)、[1.4.0 验证记录](https://github.com/Koril33/bilix/blob/main/docs/validation-1.4.0.md)。
 
+项目不使用 GitHub/Gitea Actions。检查和打包在本地执行，验证通过后手动上传发行文件；推送提交或版本标签不会自动检查、构建或发布。
+
 ```shell
 uv sync --locked
 uv run pytest -q
