@@ -1,0 +1,14 @@
+{
+  "version": "7.1.5",
+  "license": "GPL-2.0-or-later",
+  "source_url": "https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz",
+  "source_archive": "ffmpeg-7.1.5.tar.xz",
+  "source_sha256": "de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f",
+  "binary_sha256": "aae2a7c0dad7a96eac5fe06891d74ca475630a8efb268ab2161016907052db27",
+  "compiler": "GCC 12.2.0, x86_64-posix-seh-rev2, MinGW-w64",
+  "make": "GNU Make 4.2.1 (mingw32-make)",
+  "configuration": "--target-os=mingw32 --arch=x86_64 --enable-gpl --disable-everything --disable-autodetect --disable-network --enable-ffmpeg --enable-protocol=file --enable-demuxer=mov --enable-muxer=mp4 --enable-decoder=aac --enable-decoder=h264 --enable-parser=aac --enable-parser=h264 --enable-parser=hevc --enable-parser=av1 --enable-avformat --enable-avcodec --enable-avutil --enable-swresample --disable-doc --disable-ffplay --disable-ffprobe --disable-iconv --disable-zlib --disable-shared --enable-static --disable-x86asm --extra-cflags=-static --extra-ldflags=-static",
+  "source_patches": [],
+  "build_script": "scripts/build_ffmpeg.sh",
+  "build_date": "2026-10-03"
+}

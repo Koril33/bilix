@@ -1,0 +1,3 @@
+# Preserve the supplied upstream license text, including its whitespace.
+vendor/ffmpeg/toolchain-licenses/*.txt -whitespace
+*.sh text eol=lf

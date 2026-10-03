@@ -9,7 +9,10 @@ description = "Bilibili CLI downloader with QR login, quality selection and veri
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-only"
-license-files = ["LICENSE"]
+license-files = [
+    "LICENSE", "THIRD_PARTY_NOTICES.md", "vendor/ffmpeg/COPYING.*",
+    "vendor/ffmpeg/toolchain-licenses/*.txt",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -34,6 +37,8 @@ dependencies = [
 Homepage = "https://djhx.site/project/bilix.html"
 Repository = "https://github.com/Koril33/bilix"
 Issues = "https://github.com/Koril33/bilix/issues"
+Documentation = "https://github.com/Koril33/bilix/blob/main/README.md"
+Changelog = "https://github.com/Koril33/bilix/blob/main/CHANGELOG.md"
 
 [project.scripts]
 blx = "djhx_bilix.cli:main"
@@ -50,7 +55,12 @@ path = "src/djhx_bilix/__init__.py"
 packages = ["src/djhx_bilix"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/scripts", "/docs", "/README.md", "/LICENSE", "/pyproject.toml", "/uv.lock"]
+include = [
+    "/src", "/tests", "/scripts", "/docs", "/site", "/vendor", "/.gitleaks.toml",
+    "/.gitignore", "/.gitattributes", "/.github", "/.python-version",
+    "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md",
+    "/THIRD_PARTY_NOTICES.md", "/LICENSE", "/pyproject.toml", "/uv.lock",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -206,6 +206,26 @@ def test_middle_page_failure_does_not_skip_later_pages(monkeypatch, video_info):
     assert calls[-1].endswith("?p=3")
 
 
+def test_drm_language_versions_report_distinct_targets_without_transfer(monkeypatch, video_info):
+    season_url = "https://www.bilibili.com/bangumi/play/ss46055"
+    pages = (
+        Page(1, "原版", "https://www.bilibili.com/bangumi/play/ep777109", 4, "100"),
+        Page(2, "中文", "https://www.bilibili.com/bangumi/play/ep777157", 4, "200"),
+    )
+
+    def fetch(self, url):
+        return replace(video_info, url=url, pages=pages, is_drm=True, videos=(), audios=())
+
+    monkeypatch.setattr(BilibiliClient, "fetch", fetch)
+    monkeypatch.setattr(cli, "execute", lambda *a: pytest.fail("DRM must not transfer"))
+    result = runner.invoke(cli.app, ["download", season_url])
+    assert result.exit_code == 1
+    assert "完成 0 · 跳过 0 · 失败 2" in result.output
+    assert "P1 原版" in result.output and "P2 中文" in result.output
+    assert "ep777109" in result.output and "ep777157" in result.output
+    assert result.output.count("播放接口标记该媒体为 DRM") == 2
+
+
 def test_root_legacy_arguments_use_same_entry(monkeypatch):
     invocations = []
     monkeypatch.setattr(cli, "app", lambda **kwargs: invocations.append(kwargs["args"]))

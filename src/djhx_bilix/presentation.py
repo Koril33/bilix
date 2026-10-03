@@ -29,7 +29,9 @@ def show_info(info: VideoInfo) -> None:
     if info.is_preview:
         text.append("当前仅有试看权限，下载器不会将其当作正片\n", style="yellow")
     if info.is_drm:
-        text.append("该媒体使用 DRM 保护，当前不支持下载\n", style="yellow")
+        text.append(
+            "播放接口标记该媒体为 DRM 保护，当前不支持下载；请使用官方客户端播放\n", style="yellow"
+        )
     if info.description:
         text.append(info.description + "\n")
     table = Table(title="清晰度与当前账号可获取的编码", expand=False)

@@ -1,8 +1,10 @@
 """One CLI for console scripts, python -m and the Windows executable."""
 
 import json
+import os
 import sys
 from datetime import datetime
+from difflib import get_close_matches
 from enum import StrEnum
 from functools import wraps
 from pathlib import Path
@@ -12,6 +14,16 @@ import typer
 
 from . import __version__, auth
 from .bilibili.client import BilibiliClient
+from .completion import (
+    COMPLETE_VAR,
+    Shell,
+    complete_directory,
+    complete_file,
+    complete_page,
+    complete_quality,
+    prepare_powershell_input,
+    shell_script,
+)
 from .config import load_settings
 from .errors import BilixError, InputError
 from .media import FFmpeg, find_ffmpeg
@@ -26,12 +38,15 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
     help="BiliX · Bilibili 视频下载器",
     rich_markup_mode="rich",
+    suggest_commands=True,
+    epilog="Tab 补全：使用 blx completion SHELL 生成脚本，支持 bash/zsh/fish/powershell/pwsh。",
     context_settings={"help_option_names": ["--help", "-h"]},
 )
 auth_app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_enable=False,
     help="管理扫码登录与本地凭据",
+    suggest_commands=True,
     context_settings={"help_option_names": ["--help", "-h"]},
 )
 app.add_typer(auth_app, name="auth")
@@ -92,6 +107,22 @@ def root(
     pass
 
 
+@app.command("completion", help="生成 Tab 补全脚本；按终端类型选择 SHELL")
+def completion_command(ctx: typer.Context, shell: Shell):
+    name = ctx.find_root().info_name or "blx"
+    # A shell registers executables, rather than the multi-word module invocation.
+    if " -m " in name:
+        name = "blx"
+    if shell in (Shell.powershell, Shell.pwsh) and os.name == "nt":
+        launcher = Path(sys.argv[0])
+        # Python console-script launchers strip the .exe suffix from argv[0].
+        if launcher.suffix.lower() != ".exe":
+            launcher = Path(str(launcher) + ".exe")
+        if launcher.is_file():
+            name = str(launcher.resolve())
+    typer.echo(shell_script(name, shell))
+
+
 def sources(urls: list[str] | None, file: Path | None) -> list[str]:
     result = list(urls or []) + (load_urls(file) if file else [])
     if not result:
@@ -126,7 +157,10 @@ def run_info(urls: list[str] | None, file: Path | None, json_output: bool):
 @guarded
 def info_command(
     urls: Annotated[list[str] | None, typer.Argument(help="视频 URL 或 BV 号")] = None,
-    file: Annotated[Path | None, typer.Option("--file", "-o", help="UTF-8 URL 列表")] = None,
+    file: Annotated[
+        Path | None,
+        typer.Option("--file", "-o", help="UTF-8 URL 列表", autocompletion=complete_file),
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="输出 JSON，便于脚本处理")] = False,
 ):
     run_info(urls, file, json_output)
@@ -138,7 +172,13 @@ def info_command(
 def download_command(
     urls: Annotated[list[str] | None, typer.Argument(help="一个或多个 URL/BV 号")] = None,
     quality: Annotated[
-        str, typer.Option("--quality", "-q", help="auto / 1080p+ / 1080p60 / 4k / HDR / 8k / id")
+        str,
+        typer.Option(
+            "--quality",
+            "-q",
+            help="auto / 1080p+ / 1080p60 / 4k / HDR / 8k / id",
+            autocompletion=complete_quality,
+        ),
     ] = "auto",
     codec: Annotated[
         Codec, typer.Option("--codec", case_sensitive=False, help="视频编码；auto 按清晰度选择")
@@ -146,17 +186,28 @@ def download_command(
     audio: Annotated[
         Audio, typer.Option("--audio", case_sensitive=False, help="AAC / FLAC 无损 / Dolby / best")
     ] = Audio.aac,
-    save: Annotated[Path | None, typer.Option("--save", "-s", help="保存目录")] = None,
-    page: Annotated[str | None, typer.Option("--page", "-p", help="all / 1 / 1,3,5-7")] = None,
+    save: Annotated[
+        Path | None,
+        typer.Option("--save", "-s", help="保存目录", autocompletion=complete_directory),
+    ] = None,
+    page: Annotated[
+        str | None,
+        typer.Option("--page", "-p", help="all / 1 / 1,3,5-7", autocompletion=complete_page),
+    ] = None,
     file: Annotated[
-        Path | None, typer.Option("--file", "--origin", "-o", help="UTF-8 URL 列表")
+        Path | None,
+        typer.Option(
+            "--file", "--origin", "-o", help="UTF-8 URL 列表", autocompletion=complete_file
+        ),
     ] = None,
     overwrite: Annotated[bool, typer.Option("--overwrite", help="验证成功后替换已有文件")] = False,
     strict: Annotated[
         bool, typer.Option("--strict", help="指定清晰度/编码不可用时直接失败")
     ] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="显示计划，不下载媒体")] = False,
-    ffmpeg: Annotated[str | None, typer.Option("--ffmpeg", help="FFmpeg 路径")] = None,
+    ffmpeg: Annotated[
+        str | None, typer.Option("--ffmpeg", help="FFmpeg 路径", autocompletion=complete_file)
+    ] = None,
     quiet: Annotated[bool, typer.Option("--quiet", help="隐藏进度和计划，仅显示结果")] = False,
     info: Annotated[bool, typer.Option("--info", "-i", help="兼容旧版：仅查看视频信息")] = False,
 ):
@@ -176,8 +227,11 @@ def download_command(
             error_console.print(f"第 {index} 个地址失败：{error}", markup=False)
             continue
         for target in targets:
+            context = f"{target.label}（{target.url}）" if target.label else target.url
             try:
                 video = target.cached_info or client.fetch(target.url)
+                title = f"{video.title} · {target.label}" if target.label else video.title
+                context = f"{title}（{target.url}）"
                 plan = build_plan(
                     video,
                     save or settings.download_dir,
@@ -210,7 +264,7 @@ def download_command(
                     console.print(f"完成：{result.output}", markup=False, soft_wrap=True)
             except BilixError as error:
                 failed += 1
-                error_console.print(f"失败：{error}", markup=False, soft_wrap=True)
+                error_console.print(f"失败：{context}：{error}", markup=False, soft_wrap=True)
     console.print(
         f"{'计划 ' + str(planned) + ' 项；' if dry_run else ''}"
         f"完成 {completed} · 跳过 {skipped} · 失败 {failed}",
@@ -317,20 +371,12 @@ def main():
                 # Capture streams and embedded callers may not support reconfiguration.
                 pass
     arguments = sys.argv[1:]
-    commands = {"download", "video", "info", "auth", "user", "config", "doctor"}
-    if (
-        arguments
-        and arguments[0] not in commands
-        and arguments[0]
-        not in (
-            "--help",
-            "-h",
-            "--version",
-            "-v",
-            "--install-completion",
-            "--show-completion",
-        )
-    ):
+    if os.environ.get(COMPLETE_VAR):
+        if prepare_powershell_input():
+            app(args=[], complete_var=COMPLETE_VAR)
+        return
+    root_options = ("--help", "-h", "--version", "-v", "--install-completion", "--show-completion")
+    if arguments and arguments[0] not in root_options:
         account_flags = {
             "--login": "login",
             "-l": "login",
@@ -340,6 +386,9 @@ def main():
         }
         if arguments[0] in account_flags:
             arguments = ["auth", account_flags[arguments[0]], *arguments[1:]]
-        else:
+        elif arguments[0].strip().lower().startswith(("http://", "https://", "bv")) or (
+            arguments[0].startswith("-")
+            and not get_close_matches(arguments[0], root_options, cutoff=0.75)
+        ):
             arguments = ["download", *arguments]
     app(args=arguments)

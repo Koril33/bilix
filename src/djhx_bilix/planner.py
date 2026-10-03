@@ -43,7 +43,7 @@ def build_plan(
     audio: str = "aac",
 ) -> DownloadPlan:
     if info.is_drm:
-        raise InputError("该媒体使用 DRM 保护，当前下载器不支持")
+        raise InputError("播放接口标记该媒体为 DRM 保护，当前不支持下载；请使用官方客户端播放")
     if info.is_preview:
         raise InputError("当前会话仅能获取试看内容，未下载正片；请检查账号或影片购买权限")
     if not info.videos or not info.audios:

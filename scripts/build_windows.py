@@ -37,6 +37,10 @@ def smoke(executable: Path, directory: Path) -> None:
         (["auth", "status", "--json"], 0),
         (["--version"], 0),
         (["doctor"], 0),
+        (["donwload"], 2),
+        (["auth", "stats"], 2),
+        (["completion", "powershell"], 0),
+        (["completion", "bash"], 0),
         (["download", "--codec", "invalid", "BV1j4411W7F7"], 2),
     ]:
         result = subprocess.run(
@@ -125,6 +129,8 @@ def main():
         copied = output / "独立 发布" / "standalone"
         shutil.copytree(executable.parent, copied, dirs_exist_ok=True)
         smoke(copied / executable.name, copied)
+    for notice in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+        shutil.copy2(ROOT / notice, output / notice)
     print(f"Built and verified: {executable}")
 
 

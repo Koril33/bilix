@@ -103,6 +103,7 @@ class VideoInfo:
 class VideoTarget:
     url: str
     cached_info: VideoInfo | None = None
+    label: str = ""
 
 
 @dataclass(frozen=True)

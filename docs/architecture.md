@@ -5,6 +5,7 @@
 | 模块 | 职责 |
 | --- | --- |
 | `cli.py`、`presentation.py` | 参数、终端展示、批量汇总和退出码 |
+| `completion.py` | 离线参数/路径候选、shell 补全脚本与 PowerShell 参数传递 |
 | `models.py`、`errors.py` | 数据模型及可以安全展示的领域错误 |
 | `urls.py`、`filenames.py` | URL、选集及跨平台文件名校验 |
 | `config.py`、`auth.py`、`credentials.py` | 显式配置加载、扫码登录、凭据存储及旧凭据格式兼容 |
@@ -55,3 +56,5 @@ UGC、旧 PGC SSR、新版 `playurlSSRData.data.result` 共用 `apply_playback`�
 保留 `blx video ...`、`blx user --login/--logout/-i`，以及 exe/Python 入口直接传 URL、`-i`、`-o`、`--login`、`--logout`、`-u` 的常用写法。它们只将参数转入新 CLI，不保留第二套业务逻辑。
 
 旧版根目录 Python 模块、旧日志模块与旧自更新器已移除。`python main.py` 应改为 `uv run blx` 或 `python -m djhx_bilix`。exe 自更新不沿用删除/替换自身的旧脚本；通过发行页更新 exe，Python 安装通过 `uv tool upgrade djhx-bilix` 更新。
+
+未知命令交给 Typer 的相近指令提示；只有 URL/BV 输入和旧版参数会转入下载入口，避免拼错命令被当成下载地址。命令和选项的补全候选来自同一 Typer 命令树，清晰度候选来自 `QUALITY_NAMES`，补全过程不访问网络或配置凭据。PowerShell 脚本通过 AST/JSON 传入参数，保留中文、空格与引号，并在调用后恢复环境变量。

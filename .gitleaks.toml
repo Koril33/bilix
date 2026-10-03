@@ -1,0 +1,23 @@
+title = "BiliX secret detection"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "bilibili-session-cookie"
+description = "Bilibili authenticated session cookie"
+regex = '''(?i)SESSDATA\s*(?:=|["']?\s*:\s*["']?)\s*([^;\s"'}]{12,})'''
+secretGroup = 1
+keywords = ["SESSDATA"]
+
+[[rules.allowlists]]
+description = "Explicit synthetic test credentials"
+regexTarget = "secret"
+regexes = ['''^(?:FAKE_|AUDIT_DUMMY_|EXAMPLE_)''', '''^\{[A-Z_]+\}$''']
+
+[[rules]]
+id = "bilibili-csrf-cookie"
+description = "Bilibili authenticated CSRF cookie"
+regex = '''(?i)bili_jct\s*(?:=|["']?\s*:\s*["']?)\s*([a-f0-9]{32})'''
+secretGroup = 1
+keywords = ["bili_jct"]

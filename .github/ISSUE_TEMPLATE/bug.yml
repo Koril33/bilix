@@ -1,0 +1,31 @@
+name: 问题反馈
+description: 报告可以复现的程序问题（请勿粘贴凭据）
+body:
+  - type: markdown
+    attributes:
+      value: "安全问题请先阅读 SECURITY.md。不要提交 Cookie、token、二维码、账号信息或签名 CDN 地址。"
+  - type: textarea
+    id: environment
+    attributes:
+      label: 版本与环境
+      description: BiliX 版本、系统、安装方式、FFmpeg 版本
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤与命令
+      description: 使用可公开的视频地址或合成样本，并移除私密路径与参数
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: 已脱敏的错误信息
+      render: text

@@ -19,3 +19,23 @@ dist
 .ruff_cache
 .coverage
 htmlcov
+
+# Local credentials and authentication artifacts
+.env
+.env.*
+!.env.example
+token.txt
+*token*.txt
+*.pem
+*.key
+*.p12
+*.pfx
+login-*.png
+.bilix-*
+
+# Development and release caches
+*.pyc
+.DS_Store
+Thumbs.db
+*.log
+site-preview-*.png

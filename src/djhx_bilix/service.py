@@ -19,12 +19,13 @@ def discover(client: BilibiliClient, url: str, page: str | None) -> tuple[VideoT
     pages = select_pages(info, page)
     result = []
     for part in pages:
+        label = f"P{part.number} {part.title}" if len(info.pages) > 1 else ""
         if part.cid and part.cid == info.cid and info.videos:
-            result.append(VideoTarget(info.url, info))
+            result.append(VideoTarget(info.url, info, label))
         elif part.url == info.url:
-            result.append(VideoTarget(info.url, info))
+            result.append(VideoTarget(info.url, info, label))
         else:
-            result.append(VideoTarget(part.url))
+            result.append(VideoTarget(part.url, label=label))
     return tuple(result)
 
 
