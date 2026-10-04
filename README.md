@@ -84,6 +84,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 命令、下载参数、配置与退出码 | [使用说明](docs/usage.md) |
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
+| CLI/GUI 人机交互与产品体验评审 | [产品体验评审](docs/cli-gui-ux-review.md) |
 | 模块职责与下载事务 | [架构说明](docs/architecture.md) |
 | 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |
 | GUI 技术与版本选择 | [GUI 技术评估](docs/gui-technology-evaluation.md) |
