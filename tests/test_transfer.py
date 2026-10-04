@@ -5,8 +5,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from djhx_bilix.downloader import transfer
-from djhx_bilix.errors import NetworkError
+from djhx_bilix.errors import NetworkError, OperationCancelled
 from djhx_bilix.models import Stream
+from djhx_bilix.operations import CancellationToken
 
 
 @contextmanager
@@ -65,3 +66,26 @@ def test_failed_http_keeps_existing_result(tmp_path):
         with pytest.raises(NetworkError):
             transfer(Stream(32, 7, 100, (url + "/error",)), target, {}, attempts=1)
     assert target.read_bytes() == b"previous attempt"
+
+
+def test_cancelled_transfer_does_not_retry_or_claim_completion(tmp_path):
+    token = CancellationToken()
+    reports = []
+
+    def progress(stream, completed, expected):
+        reports.append((completed, expected))
+        if completed:
+            token.cancel()
+
+    with server(Handler) as url:
+        with pytest.raises(OperationCancelled):
+            transfer(
+                Stream(32, 7, 100, (url + "/ok",)),
+                tmp_path / "video.m4s",
+                {},
+                progress,
+                attempts=3,
+                cancel=token,
+            )
+    assert any(completed for completed, _ in reports)
+    assert (tmp_path / "video.m4s").stat().st_size <= 4

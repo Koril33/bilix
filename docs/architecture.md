@@ -1,10 +1,11 @@
 # 架构与下载事务
 
-项目的唯一业务实现位于 `src/djhx_bilix`。`blx`、`bilix`、`python -m djhx_bilix` 和 Windows exe 均进入 `cli.main`。构建脚本位于 `scripts`，测试位于 `tests`，根目录保留项目元数据和说明文件。
+项目的唯一业务实现位于 `src/djhx_bilix`。`blx`、`bilix`、`python -m djhx_bilix` 和已发行的 Windows CLI exe 均进入 `cli.main`；`bilix-gui` 和 `python -m djhx_bilix.gui` 进入独立的 Qt 展示层，共用下载内核。构建脚本位于 `scripts`，测试位于 `tests`，根目录保留项目元数据和说明文件。
 
 | 模块 | 职责 |
 | --- | --- |
 | `cli.py`、`presentation.py` | 参数、终端展示、批量汇总和退出码 |
+| `gui/` | Qt Widgets 窗口、后台任务与图形交互；Qt 为可选依赖 |
 | `completion.py` | 离线参数/路径候选、shell 补全脚本与 PowerShell 参数传递 |
 | `models.py`、`errors.py` | 数据模型及可以安全展示的领域错误 |
 | `urls.py`、`filenames.py` | URL、选集及跨平台文件名校验 |
@@ -15,6 +16,7 @@
 | `downloader.py` | 流传输、重试、备用 CDN 和字节数校验 |
 | `media.py` | FFmpeg 定位、包扫描、时长校验及合并 |
 | `service.py` | 编排下载事务及原子提交 |
+| `operations.py` | 前端共用的协作取消和阶段事件 |
 | `assets/ffmpeg.exe` | Windows 内置的 FFmpeg |
 
 业务模型构造和模块导入没有网络请求，也不创建用户目录。`info` 和下载共用页面解析器。选集发现只获取初始页面，随后逐集获取和下载；当前选集已获取播放数据时会复用。单集失败会记录错误并继续处理后续选集，整批最终返回非零退出码。
@@ -40,6 +42,14 @@ UGC、旧 PGC SSR、新版 `playurlSSRData.data.result` 共用 `apply_playback`�
 该参数要求可在 [FFmpeg 的 MOV 封装器源码](https://github.com/FFmpeg/FFmpeg/blob/n7.1/libavformat/movenc.c#L2615-L2623) 中核对。
 
 默认跳过已存在文件时不检查历史文件的完整性。如果旧版本生成过坏文件，需要使用 `--overwrite` 重新下载。残留 `.bilix-*` 可以手动检查或删除；目前不实现自动续传，也不自动删除失败材料。
+
+## GUI 的线程与取消边界
+
+Qt 主线程只更新界面。下载、信息查询、扫码登录、账号状态与 FFmpeg 诊断通过 `gui/worker.py` 在后台 QThread 执行，以信号传回结构化事件。每次操作只有一个活动 worker；批量项目串行，单项的音视频传输保持双线程并行。进度回调合并音视频字节数并限频发送，避免高频网络事件堵塞界面队列。
+
+`operations.CancellationToken` 提供线程安全的协作取消；网页请求之间、媒体流读取、二维码轮询和 FFmpeg 扫描/合并阶段检查取消。FFmpeg 子进程收到取消后先终止，必要时强制结束，并等待退出。下载事务在最终提交前再次检查取消；显式取消时清理本次 `.bilix-*` 临时目录，不覆盖旧输出。普通下载或校验错误仍保留临时材料供排查。取消无法撤回已经原子提交完成的文件，也不会把先前已完成的批量项目改为失败。
+
+GUI 只展示 `BilixError` 的安全消息；来自第三方网络库的异常和未知异常不会直接写入任务表、日志或弹窗，以免暴露 Cookie 或签名媒体 URL。二维码通过事件传入界面内存，登录用临时 PNG 在完成或取消时删除；账号凭据与 CLI 共用同一用户配置目录。
 
 ## 凭据边界
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="BiliX：支持扫码登录、批量下载和画质选择的 Bilibili 命令行下载器。">
+  <meta name="description" content="BiliX：支持扫码登录、批量下载和画质选择的 Bilibili 命令行与图形下载器。">
   <title>BiliX 下载页面</title>
   <style>
     /* 通用样式 */
@@ -220,13 +220,13 @@
     <div class="container">
       <div class="intro">
         <h1>BiliX</h1>
-        <p>一个简单的 Bilibili 命令行视频下载器</p>
+        <p>一个简单的 Bilibili 视频下载器，提供命令行与图形界面</p>
         <p>支持二维码登录，按账号权限下载电影、番剧等资源</p>
         <p>支持批量下载，多集视频下载，支持指定清晰度下载</p>
       </div>
       <div class="download-container">
         <a href="https://github.com/Koril33/bilix/releases/latest" class="download-button">立即下载</a>
-        <p class="version-info" aria-live="polite">适用于 Windows 10/11 · 最新版本见发行页</p>
+        <p class="version-info" aria-live="polite">各平台下载与校验文件见发行页</p>
       </div>
       <div class="repo">
         <a href="https://github.com/Koril33/bilix" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -265,6 +265,8 @@
         <p>列表使用 UTF-8 编码，每行一个 URL 或 BV 号，支持空行与 # 注释。已有同名文件默认跳过；<code>--overwrite</code> 在新文件完成下载、校验与合并后替换旧文件。失败保留临时材料，目前不支持自动续传。</p>
         <h3>先查看下载计划，再开始下载</h3>
         <pre><code>.\bilix.exe download BV1j4411W7F7 --dry-run</code></pre>
+        <h3>图形版安装与使用</h3>
+        <p>从发行页选择 Windows 10 x64 绿色版或安装版，或适用于 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 <code>.deb</code>。绿色版下载 EXE 时请同时保存许可证与源码 ZIP；Linux 可运行 <code>sudo apt install ./djhx-bilix-gui_版本_amd64.deb</code>。安装后启动 <code>bilix-gui</code>，在“账号”页扫码登录，在“下载”页输入视频链接并选择画质、编码与音轨。详细步骤见 <a href="https://github.com/Koril33/bilix/blob/main/docs/gui-usage.md">图形版说明</a>。</p>
         <h3>Python 版安装（Windows / macOS / Linux）</h3>
         <pre><code>uv tool install djhx-bilix
 blx --help
@@ -290,7 +292,6 @@ eval "$(blx completion bash)"</code></pre>
   <script>
     (() => {
       const versionInfo = document.querySelector('.version-info');
-      const downloadButton = document.querySelector('.download-button');
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 6000);
       fetch('https://api.github.com/repos/Koril33/bilix/releases/latest', {signal: controller.signal})
@@ -300,12 +301,7 @@ eval "$(blx completion bash)"</code></pre>
         })
         .then(release => {
           if (release.draft || release.prerelease || typeof release.tag_name !== 'string') return;
-          versionInfo.textContent = `版本 ${release.tag_name} | 适用于 Windows 10/11`;
-          const asset = (release.assets || []).find(item => /bilix.*\.(?:exe|zip)$/i.test(item.name || ''));
-          if (asset) {
-            const url = new URL(asset.browser_download_url);
-            if (url.protocol === 'https:' && url.hostname === 'github.com') downloadButton.href = url.href;
-          }
+          versionInfo.textContent = `版本 ${release.tag_name} | 各平台文件与 SHA256 校验见发行页`;
         })
         .catch(() => { /* Keep the usable release-page link and fallback text. */ })
         .finally(() => clearTimeout(timeout));

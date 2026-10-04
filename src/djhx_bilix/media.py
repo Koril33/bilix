@@ -3,10 +3,12 @@
 import os
 import shutil
 import subprocess
+import time
 from importlib import resources
 from pathlib import Path
 
 from .errors import MediaError
+from .operations import CancellationToken
 
 
 def find_ffmpeg(configured: str | None = None) -> Path:
@@ -29,8 +31,40 @@ class FFmpeg:
     def __init__(self, executable: Path):
         self.executable = executable
 
-    def _run(self, arguments: list[str]) -> str:
+    def _run(self, arguments: list[str], *, cancel: CancellationToken | None = None) -> str:
         command = [str(self.executable), "-hide_banner", "-nostdin", *arguments]
+        if cancel is not None:
+            # The GUI must be able to stop an active scan or mux. FFmpeg writes
+            # only to files here, so its output can be discarded without pipes
+            # that might fill while the worker polls for cancellation.
+            cancel.raise_if_cancelled()
+            try:
+                with subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+                ) as process:
+                    deadline = time.monotonic() + 600
+                    while process.poll() is None:
+                        if cancel.cancelled() or time.monotonic() >= deadline:
+                            process.terminate()
+                            try:
+                                process.wait(timeout=3)
+                            except subprocess.TimeoutExpired:
+                                process.kill()
+                                process.wait(timeout=3)
+                            if cancel.cancelled():
+                                cancel.raise_if_cancelled()
+                            raise MediaError("无法运行 FFmpeg，或媒体处理超过 10 分钟")
+                        cancel.wait(0.2)
+                    cancel.raise_if_cancelled()
+                    if process.returncode:
+                        raise MediaError("FFmpeg 检测到无效/残缺媒体，或处理失败；临时文件已保留")
+                    return ""
+            except OSError:
+                raise MediaError("无法运行 FFmpeg，或媒体处理超过 10 分钟") from None
         try:
             result = subprocess.run(
                 command,
@@ -48,7 +82,15 @@ class FFmpeg:
             raise MediaError("FFmpeg 检测到无效/残缺媒体，或处理失败；临时文件已保留")
         return result.stdout
 
-    def check_stream(self, source: Path, target: Path, kind: str, expected: float) -> float:
+    def check_stream(
+        self,
+        source: Path,
+        target: Path,
+        kind: str,
+        expected: float,
+        *,
+        cancel: CancellationToken | None = None,
+    ) -> float:
         """Read every packet into a checked MP4 and measure the last packet timestamp.
 
         Header duration alone is insufficient: a truncated MP4 can advertise full duration.
@@ -71,12 +113,15 @@ class FFmpeg:
                 "copy",
                 # MP4 otherwise silently drops Dolby Vision's dvcC/dvvC record.
                 "-strict",
-                "unofficial",
+                "experimental",
                 "-progress",
                 str(progress_file),
                 str(target),
-            ]
+            ],
+            cancel=cancel,
         )
+        if cancel:
+            cancel.raise_if_cancelled()
         times = []
         for line in progress_file.read_text(encoding="utf-8").splitlines():
             if line.startswith("out_time_us="):
@@ -91,7 +136,14 @@ class FFmpeg:
             raise MediaError(f"媒体流时长不完整（预期 {expected:.1f} 秒，实际 {duration:.1f} 秒）")
         return duration
 
-    def mux(self, video: Path, audio: Path, output: Path) -> None:
+    def mux(
+        self,
+        video: Path,
+        audio: Path,
+        output: Path,
+        *,
+        cancel: CancellationToken | None = None,
+    ) -> None:
         self._run(
             [
                 "-v",
@@ -111,12 +163,15 @@ class FFmpeg:
                 "-c",
                 "copy",
                 "-strict",
-                "unofficial",
+                "experimental",
                 "-movflags",
                 "+faststart",
                 str(output),
-            ]
+            ],
+            cancel=cancel,
         )
+        if cancel:
+            cancel.raise_if_cancelled()
         if not output.is_file() or output.stat().st_size == 0:
             raise MediaError("FFmpeg 未生成有效输出")
 

@@ -1,0 +1,245 @@
+# Windows PowerShell 5.1-compatible validation for release GUI artifacts.
+# Run in a disposable Windows 10 x64 VM. -Install writes an HKCU uninstall entry.
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)]
+    [string] $ArtifactDir,
+    [Parameter(Mandatory = $true)]
+    [string] $ResultDir,
+    [switch] $Install,
+    [switch] $RequireWindows10,
+    [string] $PriorSetup
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+function Assert-True {
+    param([bool] $Condition, [string] $Message)
+    if (-not $Condition) { throw $Message }
+}
+
+function Invoke-CheckedProcess {
+    param(
+        [string] $Executable,
+        [string] $Arguments,
+        [string] $WorkingDirectory,
+        [int] $TimeoutSeconds = 180,
+        [hashtable] $Overrides = @{}
+    )
+    $start = New-Object System.Diagnostics.ProcessStartInfo
+    $start.FileName = $Executable
+    $start.Arguments = $Arguments
+    $start.WorkingDirectory = $WorkingDirectory
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($name in @('PYTHONPATH', 'QT_PLUGIN_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH', 'QT_QPA_PLATFORM', 'BILIX_FFMPEG')) {
+        $start.EnvironmentVariables.Remove($name)
+    }
+    foreach ($name in $Overrides.Keys) {
+        $start.EnvironmentVariables[$name] = [string] $Overrides[$name]
+    }
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $start
+    try {
+        Assert-True $process.Start() "Could not start $Executable"
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+            & taskkill.exe /PID $process.Id /T /F *> $null
+            throw "Timed out after $TimeoutSeconds seconds: $Executable $Arguments"
+        }
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Stdout = $stdout.Result
+            Stderr = $stderr.Result
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
+function Assert-Success {
+    param($Result, [string] $Description)
+    Assert-True ($Result.ExitCode -eq 0) "$Description failed with exit code $($Result.ExitCode). stderr: $($Result.Stderr)"
+    $script:checks.Add($Description) | Out-Null
+}
+
+function Get-RequiredArtifact {
+    param($Manifest, [string] $Name, [string] $Directory)
+    $entry = @($Manifest.artifacts | Where-Object { $_.name -ceq $Name })
+    Assert-True ($entry.Count -eq 1) "Manifest must contain exactly one $Name"
+    Assert-True ($Name -cmatch '^[A-Za-z0-9._-]+$') "Unsafe artifact name: $Name"
+    $path = Join-Path $Directory $Name
+    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "Missing artifact: $path"
+    $file = Get-Item -LiteralPath $path
+    Assert-True ($file.Length -eq [long] $entry[0].bytes) "Incorrect size: $Name"
+    $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-True ($digest -ceq ([string] $entry[0].sha256).ToLowerInvariant()) "SHA-256 mismatch: $Name"
+    $script:checks.Add("sha256:$Name") | Out-Null
+    return $path
+}
+
+Assert-True ([Environment]::Is64BitOperatingSystem) 'Windows x64 is required'
+$artifactRoot = (Resolve-Path -LiteralPath $ArtifactDir).Path
+$resultRoot = [IO.Path]::GetFullPath($ResultDir)
+New-Item -ItemType Directory -Path $resultRoot -Force | Out-Null
+$runRoot = Join-Path $resultRoot ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
+$checks = New-Object 'System.Collections.Generic.List[string]'
+$failure = $null
+$installed = $false
+$installRoot = Join-Path $runRoot 'installed-app'
+$profileRoot = Join-Path $runRoot 'profile'
+$downloadRoot = Join-Path $runRoot 'downloads'
+$osInfo = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+$buildNumber = [int] $osInfo.CurrentBuildNumber
+$record = [ordered]@{
+    started_utc = [DateTime]::UtcNow.ToString('o')
+    os_product = [string] $osInfo.ProductName
+    os_build = $buildNumber
+    architecture = [string] $env:PROCESSOR_ARCHITECTURE
+    machine = [string] $env:COMPUTERNAME
+    artifact_dir = $artifactRoot
+    checks = @()
+    status = 'failed'
+    error = $null
+}
+
+try {
+    if ($RequireWindows10) {
+        Assert-True ($buildNumber -ge 19041 -and $buildNumber -lt 22000) "Expected Windows 10, found build $buildNumber"
+        $checks.Add('windows10-build') | Out-Null
+    }
+    $manifestPath = Join-Path $artifactRoot 'release-manifest-windows.json'
+    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Missing release-manifest-windows.json'
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $version = [string] $manifest.version
+    Assert-True ($version -cmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?$') "Unexpected version in manifest: $version"
+    $record['version'] = $version
+    $portableName = "BiliX-GUI-Portable-$version-windows-x64.exe"
+    $setupName = "BiliX-GUI-Setup-$version-windows-x64.exe"
+    $sourceName = "BiliX-GUI-licenses-and-source-$version-windows-x64.zip"
+    $portable = Get-RequiredArtifact $manifest $portableName $artifactRoot
+    $setup = Get-RequiredArtifact $manifest $setupName $artifactRoot
+    $source = Get-RequiredArtifact $manifest $sourceName $artifactRoot
+    Assert-True (@($manifest.artifacts).Count -eq 3) 'Windows manifest has unexpected artifacts'
+    $checksumsPath = Join-Path $artifactRoot 'SHA256SUMS-windows.txt'
+    Assert-True (Test-Path -LiteralPath $checksumsPath -PathType Leaf) 'Missing SHA256SUMS-windows.txt'
+    $actualSums = @(Get-Content -LiteralPath $checksumsPath -Encoding UTF8)
+    $expectedSums = @($manifest.artifacts | ForEach-Object {
+        ([string] $_.sha256).ToLowerInvariant() + '  ' + [string] $_.name
+    })
+    Assert-True ($actualSums.Count -eq $expectedSums.Count) 'Checksum line count differs from Windows manifest'
+    for ($line = 0; $line -lt $expectedSums.Count; $line++) {
+        Assert-True ($actualSums[$line] -ceq $expectedSums[$line]) "Checksum line $($line + 1) differs from Windows manifest"
+    }
+    $checks.Add('sha256sums-windows') | Out-Null
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [IO.Compression.ZipFile]::OpenRead($source)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $archivePath = $entry.FullName.Replace('\', '/')
+            Assert-True (-not ($archivePath -match '(^|/)(\.vagrant|\.git|\.aws|\.codex)(/|$)|(^|/)(private_key|id_rsa|id_ed25519)$')) "Source archive contains a private state path: $archivePath"
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+    $checks.Add('source-archive-excludes-private-state') | Out-Null
+
+    # A Unicode path and isolated profile catch missing Qt plugins, FFmpeg, and path handling.
+    $unicodeName = ([string][char]0x4E2D) + ([string][char]0x6587) + ' path'
+    $portableRoot = Join-Path $runRoot $unicodeName
+    New-Item -ItemType Directory -Path $portableRoot, $profileRoot, $downloadRoot -Force | Out-Null
+    $portableCopy = Join-Path $portableRoot $portableName
+    Copy-Item -LiteralPath $portable -Destination $portableCopy
+    $environment = @{
+        BILIX_CONFIG_DIR = $profileRoot
+        BILIX_DOWNLOAD_DIR = $downloadRoot
+    }
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $smoke = Invoke-CheckedProcess $portableCopy '--smoke-test' $portableRoot 180 $environment
+        Assert-Success $smoke "portable-smoke-$attempt"
+    }
+
+    if ($Install) {
+        Assert-True ($RequireWindows10.IsPresent) 'Installer validation requires -RequireWindows10 to avoid installing on the host'
+        $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        Assert-True (Test-Path -LiteralPath ("Registry::HKEY_USERS\" + $sid)) 'The current user registry hive is not loaded; run in an interactive logon or through run-guest-validation.ps1'
+        $checks.Add('profile-hive-loaded') | Out-Null
+        if ($PriorSetup) {
+            $prior = (Resolve-Path -LiteralPath $PriorSetup).Path
+            $priorName = Split-Path -Leaf $prior
+            Assert-True ($priorName -cmatch '^BiliX-GUI-Setup-(?<version>[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?)-windows-x64\.exe$') 'PriorSetup must be a versioned BiliX Windows installer'
+            $priorVersion = $Matches['version']
+            $currentPreview = $version -match '\.dev[0-9]+$'
+            $priorPreview = $priorName -match '\.dev[0-9]+-windows-x64\.exe$'
+            Assert-True ($currentPreview -eq $priorPreview) 'PriorSetup and target must be in the same preview or stable installer channel'
+            $priorParts = $priorVersion -split '\.dev'
+            $currentParts = $version -split '\.dev'
+            $priorCore = [version] $priorParts[0]
+            $currentCore = [version] $currentParts[0]
+            $isOlder = $priorCore -lt $currentCore
+            if ($priorCore -eq $currentCore -and $currentPreview) {
+                $isOlder = [int] $priorParts[1] -lt [int] $currentParts[1]
+            }
+            Assert-True $isOlder 'PriorSetup must be older than the target version'
+            $priorRun = Invoke-CheckedProcess $prior ('/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $installRoot + '"') $runRoot 600
+            Assert-Success $priorRun 'prior-setup-install'
+            $installed = $true
+        }
+        $setupLog = Join-Path $runRoot 'setup.log'
+        $arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $installRoot + '" /LOG="' + $setupLog + '"'
+        $installRun = Invoke-CheckedProcess $setup $arguments $runRoot 600
+        $installCheck = if ($PriorSetup) { 'setup-upgrade' } else { 'setup-install' }
+        Assert-Success $installRun $installCheck
+        $installed = $true
+        $installedExe = Join-Path $installRoot 'runtime\BiliX-GUI.exe'
+        Assert-True (Test-Path -LiteralPath $installedExe -PathType Leaf) 'Installed GUI executable is missing'
+        foreach ($name in @('LICENSE', 'THIRD_PARTY_NOTICES.md', 'LICENSES', 'SOURCES')) {
+            Assert-True (Test-Path -LiteralPath (Join-Path $installRoot $name)) "Missing installed material: $name"
+        }
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installRoot 'SOURCES\tests\vm\.vagrant'))) 'Installed sources include Vagrant state'
+        $checks.Add('installer-files-and-licenses') | Out-Null
+        $installedSmoke = Invoke-CheckedProcess $installedExe '--smoke-test' $installRoot 180 $environment
+        Assert-Success $installedSmoke 'installed-gui-smoke'
+        $sentinel = Join-Path $profileRoot 'keep-after-uninstall.txt'
+        Set-Content -LiteralPath $sentinel -Value 'BiliX validation data' -Encoding ASCII
+    }
+}
+catch {
+    $failure = $_.Exception.Message
+}
+finally {
+    if ($installed) {
+        try {
+            $uninstallers = @(Get-ChildItem -LiteralPath $installRoot -Filter 'unins*.exe' -File)
+            Assert-True ($uninstallers.Count -eq 1) 'Expected one Inno Setup uninstaller'
+            $uninstallLog = Join-Path $runRoot 'uninstall.log'
+            $uninstallArgs = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="' + $uninstallLog + '"'
+            $uninstallRun = Invoke-CheckedProcess $uninstallers[0].FullName $uninstallArgs $runRoot 600
+            Assert-Success $uninstallRun 'setup-uninstall'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $installRoot 'runtime\BiliX-GUI.exe'))) 'Uninstall left the GUI executable behind'
+            Assert-True (Test-Path -LiteralPath (Join-Path $profileRoot 'keep-after-uninstall.txt')) 'Uninstall removed user data'
+            $checks.Add('uninstall-preserves-profile') | Out-Null
+        }
+        catch {
+            if ($failure) { $failure += '; cleanup: ' + $_.Exception.Message }
+            else { $failure = 'cleanup: ' + $_.Exception.Message }
+        }
+    }
+    $record['checks'] = @($checks.ToArray())
+    $record['status'] = if ($failure) { 'failed' } else { 'passed' }
+    $record['error'] = $failure
+    $record['finished_utc'] = [DateTime]::UtcNow.ToString('o')
+    $report = Join-Path $runRoot 'result.json'
+    $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $report -Encoding UTF8
+    Write-Output "Validation report: $report"
+    Write-Output "Status: $($record['status'])"
+    foreach ($check in $checks) { Write-Output "PASS $check" }
+    if ($failure) { Write-Error $failure; exit 1 }
+}

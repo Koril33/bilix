@@ -1,6 +1,8 @@
 """Explicit configuration loading; importing the package never creates directories."""
 
+import json
 import os
+import tempfile
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,3 +51,27 @@ def load_settings() -> Settings:
     ).expanduser()
     ffmpeg = os.environ.get("BILIX_FFMPEG") or values.get("ffmpeg")
     return Settings(config_dir, download_dir, ffmpeg)
+
+
+def save_settings(settings: Settings, *, download_dir: Path, ffmpeg: str | None) -> Settings:
+    """Atomically persist user settings; environment overrides still take precedence."""
+    if not isinstance(download_dir, Path) or not str(download_dir).strip():
+        raise InputError("下载目录必须是有效路径")
+    if ffmpeg is not None and (not isinstance(ffmpeg, str) or not ffmpeg.strip()):
+        raise InputError("FFmpeg 路径必须是非空字符串，或留空使用自动查找")
+    values = f"download_dir = {json.dumps(str(download_dir), ensure_ascii=False)}\n"
+    if ffmpeg is not None:
+        values += f"ffmpeg = {json.dumps(ffmpeg, ensure_ascii=False)}\n"
+    settings.config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor, name = tempfile.mkstemp(prefix=".config-", dir=settings.config_dir)
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(values)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o600)
+        os.replace(temporary, settings.config_file)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return Settings(settings.config_dir, download_dir, ffmpeg)

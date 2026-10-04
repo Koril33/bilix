@@ -1,0 +1,35 @@
+# Isolated GUI release validation VMs. Run from this directory, one VM at a time.
+# Override a box with BILIX_BOX_<NAME> to use a privately mirrored/local .box.
+Vagrant.configure("2") do |config|
+  config.vm.synced_folder File.expand_path("../..", __dir__), "/bilix-host", type: "virtualbox"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.boot_timeout = 900
+  config.ssh.insert_key = false
+  # Windows OpenSSH rejects the bundled insecure RSA key if a sandbox/user
+  # group inherits read access. A private local copy may be supplied here.
+  local_key = File.expand_path(".vagrant/keys/vagrant.key.rsa", __dir__)
+  config.ssh.private_key_path = local_key if File.file?(local_key)
+
+  machines = {
+    "ubuntu2204" => ["ubuntu/jammy64", "20241002.0.0"],
+    "ubuntu2204clean" => ["ubuntu/jammy64", "20241002.0.0"],
+    "ubuntu2404" => ["bento/ubuntu-24.04", "202510.26.0"],
+    "debian12" => ["debian/bookworm64", "12.20250126.1"],
+    "debian13" => ["bento/debian-13", "202510.26.0"],
+  }
+
+  machines.each do |name, (box, version)|
+    config.vm.define name, primary: name == "ubuntu2204" do |vm|
+      box_key = name == "ubuntu2204clean" ? "BILIX_BOX_UBUNTU2204" : "BILIX_BOX_#{name.upcase}"
+      vm.vm.box = ENV.fetch(box_key, box)
+      vm.vm.box_version = version unless ENV.key?(box_key)
+      vm.vm.hostname = "bilix-#{name}"
+      vm.vm.provider "virtualbox" do |vb|
+        vb.name = "bilix-validation-#{name}"
+        vb.cpus = name == "ubuntu2204" ? 4 : 2
+        vb.memory = name == "ubuntu2204" ? 6144 : 4096
+      end
+      vm.vm.provision "shell", path: "provision.sh", args: [name]
+    end
+  end
+end

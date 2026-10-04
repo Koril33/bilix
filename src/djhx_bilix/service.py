@@ -3,22 +3,36 @@
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .bilibili.client import USER_AGENT, BilibiliClient
 from .downloader import ProgressCallback, transfer
-from .errors import BilixError, DownloadError, MediaError
+from .errors import BilixError, DownloadError, MediaError, OperationCancelled
 from .media import FFmpeg, find_ffmpeg
 from .models import DownloadPlan, DownloadResult, VideoTarget
+from .operations import CancellationToken, StageEvent
 from .planner import select_pages
 
 
-def discover(client: BilibiliClient, url: str, page: str | None) -> tuple[VideoTarget, ...]:
+def discover(
+    client: BilibiliClient,
+    url: str,
+    page: str | None,
+    *,
+    cancel: CancellationToken | None = None,
+) -> tuple[VideoTarget, ...]:
+    if cancel:
+        cancel.raise_if_cancelled()
     info = client.fetch(url)
+    if cancel:
+        cancel.raise_if_cancelled()
     pages = select_pages(info, page)
     result = []
     for part in pages:
+        if cancel:
+            cancel.raise_if_cancelled()
         label = f"P{part.number} {part.title}" if len(info.pages) > 1 else ""
         if part.cid and part.cid == info.cid and info.videos:
             result.append(VideoTarget(info.url, info, label))
@@ -54,23 +68,44 @@ def execute(
     ffmpeg_path: str | None = None,
     overwrite: bool = False,
     progress: ProgressCallback | None = None,
+    *,
+    cancel: CancellationToken | None = None,
+    stage: Callable[[StageEvent], None] | None = None,
 ) -> DownloadResult:
+    if cancel:
+        cancel.raise_if_cancelled()
     if plan.output.exists():
         if not plan.output.is_file():
             raise DownloadError("输出路径已存在但不是普通文件，请调整保存目录")
         if not overwrite:
+            if stage:
+                stage(StageEvent("skipped"))
             return DownloadResult(plan.output, skipped=True)
     media = FFmpeg(find_ffmpeg(ffmpeg_path))
-    plan.output.parent.mkdir(parents=True, exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix=".bilix-", dir=plan.output.parent))
+    if cancel:
+        cancel.raise_if_cancelled()
+    try:
+        plan.output.parent.mkdir(parents=True, exist_ok=True)
+        work = Path(tempfile.mkdtemp(prefix=".bilix-", dir=plan.output.parent))
+    except OSError:
+        raise DownloadError("无法创建下载临时目录，请检查保存路径、权限和剩余空间") from None
     video, audio = work / "video.m4s", work / "audio.m4s"
     checked_video, checked_audio = work / "video.checked.mp4", work / "audio.checked.mp4"
     output = work / "result.mp4"
     headers = {"User-Agent": USER_AGENT, "Referer": plan.info.url}
     try:
+        if stage:
+            stage(StageEvent("downloading"))
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
-                executor.submit(transfer, stream, target, headers, progress)
+                executor.submit(
+                    transfer,
+                    stream,
+                    target,
+                    headers,
+                    progress,
+                    **({"cancel": cancel} if cancel else {}),
+                )
                 for stream, target in ((plan.video, video), (plan.audio, audio))
             ]
             # Every result is consumed. Wait for both workers before leaving their work directory.
@@ -80,24 +115,52 @@ def execute(
                     future.result()
                 except Exception as error:
                     errors.append(error)
+            if cancel:
+                cancel.raise_if_cancelled()
             if errors:
                 error = errors[0]
                 if isinstance(error, BilixError):
                     raise error
                 raise DownloadError("媒体流写入失败")
-        video_duration = media.check_stream(video, checked_video, "v", plan.info.duration)
-        audio_duration = media.check_stream(audio, checked_audio, "a", plan.info.duration)
+        if stage:
+            stage(StageEvent("checking_video"))
+        video_duration = media.check_stream(
+            video, checked_video, "v", plan.info.duration, **({"cancel": cancel} if cancel else {})
+        )
+        if cancel:
+            cancel.raise_if_cancelled()
+        if stage:
+            stage(StageEvent("checking_audio"))
+        audio_duration = media.check_stream(
+            audio, checked_audio, "a", plan.info.duration, **({"cancel": cancel} if cancel else {})
+        )
         if abs(video_duration - audio_duration) > 2:
             raise MediaError("音视频时长不一致，未提交 MP4")
-        media.mux(checked_video, checked_audio, output)
+        if stage:
+            stage(StageEvent("muxing"))
+        media.mux(checked_video, checked_audio, output, **({"cancel": cancel} if cancel else {}))
         # Ensure buffers reach the filesystem before committing the new directory entry.
         with output.open("rb+") as handle:
             os.fsync(handle.fileno())
+        if cancel:
+            cancel.raise_if_cancelled()
+        if stage:
+            stage(StageEvent("committing"))
+        if cancel:
+            cancel.raise_if_cancelled()
         committed = commit_file(output, plan.output, overwrite)
+    except OperationCancelled:
+        shutil.rmtree(work, ignore_errors=True)
+        raise
     except (BilixError, OSError) as error:
+        if cancel and cancel.cancelled():
+            shutil.rmtree(work, ignore_errors=True)
+            raise OperationCancelled("操作已取消") from None
         message = str(error) if isinstance(error, BilixError) else "文件写入或提交失败"
         raise DownloadError(f"{message}；临时目录：{work}") from None
     except KeyboardInterrupt:
         raise DownloadError(f"下载已中断；临时目录：{work}") from None
     shutil.rmtree(work, ignore_errors=True)
+    if stage:
+        stage(StageEvent("completed" if committed else "skipped"))
     return DownloadResult(plan.output, skipped=not committed)

@@ -9,16 +9,26 @@ uv sync --locked
 uv run blx --help
 uv run ruff check src tests scripts
 uv run ruff format --check src tests scripts
-uv run pytest -q
+uv run python -m pytest -q
 ```
 
-Python 3.11–3.14 为支持范围，最低版本在 `pyproject.toml` 中定义。`.python-version` 是本地默认解释器，不缩小发行包的支持范围。uv 锁文件涵盖运行、开发与构建依赖；Nuitka 只在 `build` 依赖组中。
+Python 3.11–3.14 为支持范围，最低版本在 `pyproject.toml` 中定义。`.python-version` 固定本地默认解释器为 3.14.8，不缩小发行包的支持范围；旧版 uv 的 Python 下载索引可能找不到该补丁版，本轮构建使用 uv 0.12.22。uv 锁文件涵盖运行、开发与构建依赖；Nuitka 只在 `build` 依赖组中。
+
+GUI 使用可选的 `gui` extra，固定 PySide6-Essentials 与 Qt 6.11.2；开发测试另安装 `gui-test` 组：
+
+```shell
+uv sync --locked --extra gui --group gui-test
+uv run --locked --extra gui --group gui-test python -m pytest tests/gui -q
+uv run --locked --extra gui bilix-gui --smoke-test
+```
+
+Linux 无显示器的自动测试可设置 `QT_QPA_PLATFORM=offscreen`；完整交互测试还需在真实 Windows、Ubuntu/Debian 桌面验证。GUI 的 Windows 绿色 EXE、安装器和 Linux deb 构建流程见 [GUI 构建与发行](gui-build-and-release.md)。
 
 受限环境可把缓存与临时目录放进项目内：
 
 ```powershell
 $env:UV_CACHE_DIR = Join-Path $PWD 'build/uv-cache'
-uv run pytest --basetemp build/pytest-local -q
+uv run python -m pytest --basetemp build/pytest-local -q
 ```
 
 请为每轮验证使用明确的临时目录。`pytest --basetemp` 会清理指定目录，不要指向含个人数据的目录。
@@ -31,10 +41,11 @@ uv run pytest --basetemp build/pytest-local -q
 - 账号与会员使用虚构凭据，覆盖普通/有效/过期会员、失效登录与试看/DRM 拒绝。
 - 媒体集成用完整 FFmpeg 合成 H.264、FLAC、E-AC-3 与杜比视界测试数据。
 - CLI 覆盖中文输出、legacy 编码、旧入口、退出码、相近指令和 shell 补全。
+- GUI 覆盖窗口状态、输入校验、任务队列、账号事件、取消与失败重试，并复用内核的下载事务测试。
 
 媒体生成需要完整 FFmpeg（含 lavfi、libx264/libx265、ffprobe），可用 `BILIX_TEST_FFMPEG` 指定；缺少能力时明确 skip。Windows 扫描/合并使用包内 FFmpeg，避免把系统版本的成功当作内置版本成功。实际网络/权限检查与日常回归分开，使用账号前须获得授权。
 
-新版本应在需要支持的系统与解释器中实际执行检查；不能用 [历史验证记录](validation-1.4.0.md) 替代新版本验证。本轮已执行内容与限制见 [1.5.0 验证记录](validation-1.5.0.md)。
+新版本应在需要支持的系统与解释器中实际执行检查；不能用[历史验证记录](validation-1.4.0.md)替代新版本验证。图形版的 Windows 和 Linux 测试分别记录于[Windows 10 流程](gui-win10-validation.md)与[Linux VM 矩阵](gui-vm-validation.md)。
 
 ## Python 发行包
 
@@ -48,10 +59,10 @@ Hatchling 从 `src/djhx_bilix/__init__.py` 读取版本。wheel 包括统一实�
 
 ## Windows exe
 
-已验证的构建基线：CPython 3.11 x64、Nuitka 4.2.2、Visual Studio 2022 MSVC 14.3。使用独立环境构建，避免把全局库打入产物。
+1.6.0 Windows CLI 发行构建使用 CPython 3.14.8 x64、Nuitka 4.2.2、Visual Studio 2022 MSVC 14.3；Python 包仍支持 3.11 及更新版本。CLI 在独立、未安装 Qt 的环境构建，编译报告需确认没有 PySide6、shiboken6 或 `djhx_bilix.gui`。
 
 ```shell
-uv sync --python 3.11 --locked --group build
+uv sync --python 3.14.8 --locked --group build
 uv run --group build python scripts/build_windows.py
 ```
 

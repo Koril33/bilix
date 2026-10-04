@@ -4,8 +4,9 @@ from dataclasses import replace
 import pytest
 
 from djhx_bilix import service
-from djhx_bilix.errors import DownloadError, MediaError, NetworkError
+from djhx_bilix.errors import DownloadError, MediaError, NetworkError, OperationCancelled
 from djhx_bilix.models import Page
+from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import build_plan
 
 
@@ -13,11 +14,11 @@ class FakeMedia:
     def __init__(self, *args):
         pass
 
-    def check_stream(self, source, target, kind, expected):
+    def check_stream(self, source, target, kind, expected, *, cancel=None):
         target.write_bytes(source.read_bytes())
         return expected
 
-    def mux(self, video, audio, output):
+    def mux(self, video, audio, output, *, cancel=None):
         output.write_bytes(video.read_bytes() + audio.read_bytes())
 
 
@@ -26,7 +27,7 @@ def prepared(monkeypatch):
     monkeypatch.setattr(service, "find_ffmpeg", lambda _: "fake")
     monkeypatch.setattr(service, "FFmpeg", FakeMedia)
 
-    def transfer(stream, target, headers, progress):
+    def transfer(stream, target, headers, progress, *, cancel=None):
         assert "Cookie" not in headers
         target.write_bytes(target.stem.encode())
 
@@ -81,8 +82,10 @@ def test_skip_does_not_touch_file_or_transfer(monkeypatch, video_info, tmp_path)
     plan = build_plan(video_info, tmp_path)
     plan.output.write_bytes(b"old")
     monkeypatch.setattr(service, "find_ffmpeg", lambda _: pytest.fail("should skip before FFmpeg"))
-    assert service.execute(plan).skipped
+    events = []
+    assert service.execute(plan, stage=events.append).skipped
     assert plan.output.read_bytes() == b"old"
+    assert [event.stage for event in events] == ["skipped"]
 
 
 @pytest.mark.parametrize("overwrite", [False, True])
@@ -98,6 +101,21 @@ def test_existing_output_directory_is_an_error_before_transfer(
         service.execute(plan, overwrite=overwrite)
     assert protected.read_bytes() == b"valuable content"
     assert not list(tmp_path.glob(".bilix-*"))
+
+
+def test_unwritable_temporary_directory_is_task_failure(
+    prepared, monkeypatch, video_info, tmp_path
+):
+    plan = build_plan(video_info, tmp_path)
+
+    def denied(*args, **kwargs):
+        raise PermissionError("private local path")
+
+    monkeypatch.setattr(service.tempfile, "mkdtemp", denied)
+    with pytest.raises(DownloadError, match="无法创建下载临时目录") as error:
+        service.execute(plan)
+    assert "private local path" not in str(error.value)
+    assert not plan.output.exists()
 
 
 @pytest.mark.parametrize("overwrite", [False, True])
@@ -156,3 +174,71 @@ def test_discovery_does_not_prefetch_all_pages(video_info):
     assert len(targets) == 2
     assert targets[0].cached_info is info
     assert targets[1].cached_info is None
+
+
+def test_gui_stages_follow_validated_transaction(prepared, video_info, tmp_path):
+    events = []
+    result = service.execute(build_plan(video_info, tmp_path), stage=events.append)
+    assert result.output.is_file()
+    assert [event.stage for event in events] == [
+        "downloading",
+        "checking_video",
+        "checking_audio",
+        "muxing",
+        "committing",
+        "completed",
+    ]
+
+
+def test_cancel_during_transfer_preserves_previous_output_and_cleans_work(
+    prepared, monkeypatch, video_info, tmp_path
+):
+    plan = build_plan(video_info, tmp_path)
+    plan.output.write_bytes(b"previous successful download")
+    token = CancellationToken()
+    stages = []
+
+    def stop_transfer(stream, target, headers, progress, *, cancel):
+        target.write_bytes(b"incomplete media")
+        token.cancel()
+        cancel.raise_if_cancelled()
+
+    monkeypatch.setattr(service, "transfer", stop_transfer)
+    with pytest.raises(OperationCancelled):
+        service.execute(plan, overwrite=True, cancel=token, stage=stages.append)
+    assert plan.output.read_bytes() == b"previous successful download"
+    assert [event.stage for event in stages] == ["downloading"]
+    assert not list(tmp_path.glob(".bilix-*"))
+
+
+def test_cancel_before_commit_never_publishes_result(prepared, monkeypatch, video_info, tmp_path):
+    plan = build_plan(video_info, tmp_path)
+    token = CancellationToken()
+
+    def stop_at_commit(event):
+        if event.stage == "committing":
+            token.cancel()
+
+    monkeypatch.setattr(service, "commit_file", lambda *a: pytest.fail("must not commit"))
+    with pytest.raises(OperationCancelled):
+        service.execute(plan, cancel=token, stage=stop_at_commit)
+    assert not plan.output.exists()
+    assert not list(tmp_path.glob(".bilix-*"))
+
+
+def test_cancel_during_mux_preserves_old_output(prepared, monkeypatch, video_info, tmp_path):
+    plan = build_plan(video_info, tmp_path)
+    plan.output.write_bytes(b"previous successful download")
+    token = CancellationToken()
+
+    class CancelInMux(FakeMedia):
+        def mux(self, video, audio, output, *, cancel=None):
+            output.write_bytes(b"incomplete mux")
+            cancel.cancel()
+            cancel.raise_if_cancelled()
+
+    monkeypatch.setattr(service, "FFmpeg", CancelInMux)
+    with pytest.raises(OperationCancelled):
+        service.execute(plan, overwrite=True, cancel=token)
+    assert plan.output.read_bytes() == b"previous successful download"
+    assert not list(tmp_path.glob(".bilix-*"))

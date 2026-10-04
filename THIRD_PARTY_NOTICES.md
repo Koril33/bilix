@@ -10,7 +10,18 @@ BiliX 自身采用 GPL-3.0-only（见 `LICENSE`）。各第三方组件保留自
 | qrcode | BSD | https://github.com/lincolnloop/python-qrcode |
 | Typer | MIT | https://github.com/fastapi/typer |
 | Rich | MIT | https://github.com/Textualize/rich |
+| PySide6-Essentials（可选 GUI 依赖） | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only；本项目按 GPL-3.0-only 选项分发 | https://code.qt.io/cgit/pyside/pyside-setup.git/ |
+| shiboken6（PySide6 传递依赖） | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only；本项目按 GPL-3.0-only 选项分发 | https://code.qt.io/cgit/pyside/pyside-setup.git/ |
+| Qt 6 基础库、Widgets 及平台插件（GUI 二进制内含） | 按各实际模块的开源许可；本项目使用 GPL-3.0 可用的模块 | https://www.qt.io/licensing/ |
 | FFmpeg（Windows 内置工具） | GPL-2.0-or-later，由该二进制 `-L` 输出确认 | https://ffmpeg.org/ |
+
+## GUI 发行的许可材料
+
+PySide6-Essentials 6.11.2 与 shiboken6 6.11.2 的 wheel 元数据列出上述三选一许可；BiliX 自身为 GPL-3.0-only，GUI 发行选择 GPL-3.0-only。Qt for Python 的[许可说明](https://doc.qt.io/qtforpython-6/)及 [Qt 6 模块许可清单](https://doc.qt.io/qt-6/licensing.html)记录该选项与个别模块差异。仅使用 QtCore、QtGui、QtWidgets 及运行所需平台插件；增加其他 Qt 模块时须重新核对其许可。
+
+Linux 的上述两个 wheel 未附单独许可文件时，`.deb` 会保存其原始 METADATA 许可表达式与 GPL-3.0 全文，并在 `SOURCE-ACCESS.md` 中给出对应的 Qt/Qt for Python 源码地址；Windows wheel 自带的许可文件则随包复制。
+
+冻结构建会复制具体的 Qt 动态库、插件、shiboken6 和 Python 运行时。正式提供 Windows EXE、安装器或 Linux deb 前，维护者须检查最终产物实际包含的组件，并随产物提供对应版本的版权、许可及第三方声明，或满足其许可要求的源码获取方式；上游文档链接不能代替所需的发行材料。Qt 还包含[第三方代码与 SBOM](https://doc.qt.io/qt-6/licensing.html#third-party-code-in-qt)，应按实际打包的模块核对。
 
 ## 内置 FFmpeg
 

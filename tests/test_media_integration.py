@@ -10,6 +10,7 @@ import pytest
 
 from djhx_bilix.errors import MediaError
 from djhx_bilix.media import FFmpeg, find_ffmpeg
+from djhx_bilix.operations import CancellationToken
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +100,8 @@ def test_explicit_missing_ffmpeg():
 
 
 @pytest.mark.parametrize("codec", ["flac", "eac3"])
-def test_member_audio_survives_scan_and_mux(codec, encoder, media_files, tmp_path):
+@pytest.mark.parametrize("with_token", [False, True])
+def test_member_audio_survives_scan_and_mux(codec, with_token, encoder, media_files, tmp_path):
     video, _ = media_files
     audio = tmp_path / "member-audio.mp4"
     subprocess.run(
@@ -124,9 +126,10 @@ def test_member_audio_survives_scan_and_mux(codec, encoder, media_files, tmp_pat
     )
     media = FFmpeg(find_ffmpeg())
     checked = tmp_path / "checked.mp4"
-    media.check_stream(audio, checked, "a", 4)
+    token = CancellationToken() if with_token else None
+    media.check_stream(audio, checked, "a", 4, cancel=token)
     output = tmp_path / "result.mp4"
-    media.mux(video, checked, output)
+    media.mux(video, checked, output, cancel=token)
     # Decode the result, verifying both that the selected codec remains and its packets are valid.
     subprocess.run(
         [encoder, "-v", "error", "-xerror", "-i", str(output), "-map", "0:a:0", "-f", "null", "-"],

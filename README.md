@@ -1,18 +1,18 @@
 # BiliX
 
-Bilibili 命令行视频下载器，支持扫码登录、批量与多 P 下载、清晰度/编码/音轨选择，以及下载后的媒体校验。
+Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫码登录、批量与多 P 下载、清晰度/编码/音轨选择，以及下载后的媒体校验。
 
 [项目主页](https://djhx.site/project/bilix.html) · [GitHub](https://github.com/Koril33/bilix) · [PyPI](https://pypi.org/project/djhx-bilix/) · [Windows 下载](https://github.com/Koril33/bilix/releases) · [更新记录](CHANGELOG.md)
 
 ## 项目状态
 
-**1.5.0** 增加 Tab 补全与相近指令提示；源码、文档和项目页面统一在本仓库维护。发行文件以 PyPI 与 GitHub Releases 为准。
+**1.6.0** 是首个图形界面版本，提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。CLI 保留 1.5.0 增加的 Tab 补全与相近指令提示。下载文件与 SHA256 见 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
-Python 要求 3.11 或更新版本。Windows 独立程序无需安装 Python；Linux/macOS 使用 Python 包并自行提供 FFmpeg。
+Python 包要求 3.11 或更新版本。Windows GUI/CLI 独立程序和 Linux deb 无需安装 Python/Qt；Windows 包内置 FFmpeg，deb 自动安装系统 FFmpeg 依赖。macOS 暂提供 CLI Python 包，GUI 支持后续加入。
 
 ## 安装
 
-推荐安装已经发布的 Python 版本：
+安装命令行 Python 版本：
 
 ```shell
 uv tool install djhx-bilix
@@ -21,7 +21,25 @@ blx --help
 
 也可使用 `pip install djhx-bilix`。`blx` 与 `bilix` 为同一程序的两个命令名；模块入口为 `python -m djhx_bilix`。更新运行 `uv tool upgrade djhx-bilix`。
 
-Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载，并按发行页的 SHA256 校验文件。PowerShell 当前目录使用 `./bilix.exe`。Windows 包使用内置 FFmpeg；其他系统请安装 FFmpeg 并加入 PATH，或用 `--ffmpeg` 指定路径。
+Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载，并按发行页的 SHA256 校验文件。GUI 绿色版直接运行 EXE，同时保存配套许可证与源码 ZIP；安装版运行 Setup EXE。CLI 解压 ZIP 后，在 PowerShell 当前目录使用 `./bilix.exe`。
+
+Ubuntu/Debian GUI 安装下载的 deb：
+
+```shell
+sudo apt install ./djhx-bilix-gui_1.6.0-1_amd64.deb
+bilix-gui
+```
+
+也可使用 `uv tool install 'djhx-bilix[gui]'` 或 `pip install 'djhx-bilix[gui]'` 安装 GUI，然后运行 `bilix-gui`。Python 方式需自行安装 FFmpeg 并加入 PATH，或在 GUI 设置/CLI `--ffmpeg` 中指定路径。
+
+从源码开发或运行 GUI：
+
+```shell
+uv sync --locked --extra gui --group gui-test
+uv run --locked --extra gui bilix-gui
+```
+
+GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
 
 ## 快速开始
 
@@ -65,6 +83,12 @@ blx completion powershell | Out-String | Invoke-Expression
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
 | 模块职责与下载事务 | [架构说明](docs/architecture.md) |
+| 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |
+| GUI 技术与版本选择 | [GUI 技术评估](docs/gui-technology-evaluation.md) |
+| Windows/Linux 发行方式与升级方案 | [GUI 发行调研](docs/gui-distribution-and-updates.md) |
+| GUI 本地构建和打包 | [GUI 构建与发行](docs/gui-build-and-release.md) |
+| Ubuntu/Debian 虚拟机验收 | [Linux 测试矩阵](docs/gui-vm-validation.md) |
+| Windows 10 虚拟机验收 | [Windows 测试流程](docs/gui-win10-validation.md) |
 | 本地开发、测试与构建 | [构建说明](docs/build.md) |
 | 版本、产物、校验与发布 | [发布说明](docs/releasing.md) |
 | 旧版本与兼容入口 | [迁移说明](docs/releases.md) |
@@ -83,6 +107,8 @@ uv run ruff check src tests scripts
 uv run ruff format --check src tests scripts
 uv run pytest -q
 ```
+
+GUI 测试需要 `uv sync --locked --extra gui --group gui-test`；无桌面的环境可设置 `QT_QPA_PLATFORM=offscreen`。GUI 发行文件依目标平台分别构建，不把 Windows 编译结果当作 Linux 验证。
 
 唯一业务实现位于 `src/djhx_bilix`。项目使用本地检查与手动发布，不运行 GitHub/Gitea Actions。发布前须完成 [发布说明](docs/releasing.md) 中的凭据、源码与产物检查。
 

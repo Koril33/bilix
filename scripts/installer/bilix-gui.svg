@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BiliX">
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="#2d4153"/>
+  <path d="M32 13v28m0 0L21 30m11 11 11-11M18 48h28" fill="none" stroke="#e2c17d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

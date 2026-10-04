@@ -61,8 +61,24 @@ def collect_licenses(destination: Path) -> None:
             for index, path in enumerate(licenses):
                 shutil.copy2(distribution.locate_file(path), folder / f"{index}-{path.name}")
         records.append({"name": name, "version": distribution.version})
+    nuitka = importlib.metadata.distribution("Nuitka")
+    nuitka_notices = destination / "nuitka-runtime"
+    nuitka_notices.mkdir()
+    for filename in ("LICENSE-RUNTIME.txt", "NOTICE.txt"):
+        matches = [
+            path
+            for path in nuitka.files or ()
+            if path.name == filename and "dist-info" in str(path)
+        ]
+        if not matches:
+            raise RuntimeError(f"Missing Nuitka runtime notice: {filename}")
+        shutil.copy2(nuitka.locate_file(matches[0]), nuitka_notices / filename)
     (destination / "DISTRIBUTIONS.json").write_text(
-        json.dumps({"python": sys.version.split()[0], "packages": records}, indent=2) + "\n",
+        json.dumps(
+            {"python": sys.version.split()[0], "nuitka": nuitka.version, "packages": records},
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
 

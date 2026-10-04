@@ -3,6 +3,8 @@
 import os
 import tempfile
 import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from http.cookies import SimpleCookie
 from pathlib import Path
 
@@ -14,7 +16,16 @@ from qrcode.image.pure import PyPNGImage
 from .bilibili.client import USER_AGENT, BilibiliClient
 from .config import Settings
 from .credentials import normalize_cookie
-from .errors import APIError, BilixError, NetworkError
+from .errors import APIError, BilixError, NetworkError, OperationCancelled
+from .operations import CancellationToken
+
+
+@dataclass(frozen=True)
+class LoginEvent:
+    """QR login state. QR image bytes are deliberately omitted from repr/logs."""
+
+    state: str
+    qr_image: bytes | None = field(default=None, repr=False)
 
 
 def response_cookie(response) -> str:
@@ -48,16 +59,28 @@ def save_token(settings: Settings, cookie: str) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def login(settings: Settings, notify) -> None:
+def login(
+    settings: Settings,
+    notify: Callable[[str], None],
+    *,
+    cancel: CancellationToken | None = None,
+    event: Callable[[LoginEvent], None] | None = None,
+) -> None:
+    if cancel:
+        cancel.raise_if_cancelled()
     settings.config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor, name = tempfile.mkstemp(prefix="login-", suffix=".png", dir=settings.config_dir)
     os.close(descriptor)
     image_path = Path(name)
     try:
         with requests.Session(headers={"User-Agent": USER_AGENT}, impersonate="chrome") as session:
+            if cancel:
+                cancel.raise_if_cancelled()
             response = session.get(
                 "https://passport.bilibili.com/x/passport-login/web/qrcode/generate", timeout=15
             )
+            if cancel:
+                cancel.raise_if_cancelled()
             response.raise_for_status()
             data = response.json().get("data") or {}
             if not data.get("url") or not data.get("qrcode_key"):
@@ -65,31 +88,59 @@ def login(settings: Settings, notify) -> None:
             with image_path.open("wb") as image:
                 qrcode.make(data["url"], image_factory=PyPNGImage).save(image)
             notify(f"请使用哔哩哔哩手机 App 扫码：{image_path}")
+            if event:
+                event(LoginEvent("qr_ready", image_path.read_bytes()))
             deadline = time.monotonic() + 180
             scanned = False
             while time.monotonic() < deadline:
+                if cancel:
+                    cancel.raise_if_cancelled()
                 response = session.get(
                     "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
                     params={"qrcode_key": data["qrcode_key"]},
                     timeout=15,
                 )
+                if cancel:
+                    cancel.raise_if_cancelled()
                 response.raise_for_status()
                 state = response.json().get("data") or {}
                 code = state.get("code")
                 if code == 0:
                     save_token(settings, response_cookie(response))
                     notify("登录成功，凭据已保存在用户配置目录")
+                    if event:
+                        event(LoginEvent("success"))
                     return
                 if code == 86038:
+                    if event:
+                        event(LoginEvent("expired"))
                     raise BilixError("二维码已过期，请重新执行 blx auth login")
                 if code == 86090 and not scanned:
                     notify("已扫码，请在手机上确认登录")
+                    if event:
+                        event(LoginEvent("scanned"))
                     scanned = True
                 elif code not in (86101, 86090):
                     raise BilixError("登录接口返回未知状态，请重新扫码")
-                time.sleep(2)
+                if cancel:
+                    if cancel.wait(2):
+                        cancel.raise_if_cancelled()
+                else:
+                    time.sleep(2)
+        if cancel:
+            cancel.raise_if_cancelled()
+        if event:
+            event(LoginEvent("expired"))
         raise BilixError("等待扫码超过 3 分钟，请重试")
+    except OperationCancelled:
+        if event:
+            event(LoginEvent("cancelled"))
+        raise
     except (RequestException, ValueError):
+        if cancel and cancel.cancelled():
+            if event:
+                event(LoginEvent("cancelled"))
+            raise OperationCancelled("操作已取消") from None
         raise NetworkError("登录请求失败，请检查网络后重试") from None
     finally:
         image_path.unlink(missing_ok=True)

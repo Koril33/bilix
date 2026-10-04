@@ -21,6 +21,10 @@ class DownloadError(BilixError):
     """A download failed; its work directory is retained for inspection."""
 
 
+class OperationCancelled(BilixError):
+    """The user cancelled an operation before its result was committed."""
+
+
 class APIError(BilixError):
     """A numeric upstream status with a safe, locally defined message."""
 

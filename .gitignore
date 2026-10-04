@@ -28,10 +28,12 @@ token.txt
 *token*.txt
 *.pem
 *.key
+*.rsa
 *.p12
 *.pfx
 login-*.png
 .bilix-*
+.vagrant/
 
 # Development and release caches
 *.pyc

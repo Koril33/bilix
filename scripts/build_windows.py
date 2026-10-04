@@ -9,11 +9,25 @@ import os
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from djhx_bilix import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def verify_cli_report(report: Path) -> None:
+    """Keep the optional Qt front end out of the CLI-only executable."""
+    module_names = {module.get("name", "") for module in ET.parse(report).iter("module")}
+    forbidden = ("djhx_bilix.gui", "PySide6", "shiboken6")
+    included = sorted(
+        name
+        for name in module_names
+        if any(name == prefix or name.startswith(prefix + ".") for prefix in forbidden)
+    )
+    if included:
+        raise RuntimeError(f"CLI build includes GUI modules: {', '.join(included)}")
 
 
 def smoke(executable: Path, directory: Path) -> None:
@@ -94,6 +108,7 @@ def main():
         "--assume-yes-for-downloads",
         "--include-windows-runtime-dlls=yes",
         "--include-package=djhx_bilix",
+        "--nofollow-import-to=djhx_bilix.gui",
         "--python-flag=isolated",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets/ffmpeg.exe'}="
         "djhx_bilix/assets/ffmpeg.exe",
@@ -117,6 +132,7 @@ def main():
         )
     if result.returncode:
         raise SystemExit(f"Build failed; see {output / 'build.log'}")
+    verify_cli_report(output / "compilation-report.xml")
     executable = (
         output / "bilix.exe"
         if arguments.mode == "onefile"

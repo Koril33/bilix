@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "djhx-bilix"
 dynamic = ["version"]
-description = "Bilibili CLI downloader with QR login, quality selection and verified downloads."
+description = "Bilibili CLI and desktop downloader with QR login and verified downloads."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-only"
@@ -33,6 +33,9 @@ dependencies = [
     "rich>=14,<16",
 ]
 
+[project.optional-dependencies]
+gui = ["PySide6-Essentials==6.11.2"]
+
 [project.urls]
 Homepage = "https://djhx.site/project/bilix.html"
 Repository = "https://github.com/Koril33/bilix"
@@ -44,9 +47,13 @@ Changelog = "https://github.com/Koril33/bilix/blob/main/CHANGELOG.md"
 blx = "djhx_bilix.cli:main"
 bilix = "djhx_bilix.cli:main"
 
+[project.gui-scripts]
+bilix-gui = "djhx_bilix.gui:main"
+
 [dependency-groups]
 dev = ["pytest>=8,<10", "ruff>=0.14,<0.16"]
 build = ["nuitka==4.2.2", "zstandard>=0.23,<1", "ordered-set>=4.1,<5"]
+gui-test = ["pytest-qt==4.5.0"]
 
 [tool.hatch.version]
 path = "src/djhx_bilix/__init__.py"
@@ -60,6 +67,10 @@ include = [
     "/.gitignore", "/.gitattributes", "/.github", "/.python-version",
     "/README.md", "/CONTRIBUTING.md", "/SECURITY.md", "/CHANGELOG.md",
     "/THIRD_PARTY_NOTICES.md", "/LICENSE", "/pyproject.toml", "/uv.lock",
+]
+exclude = [
+    "**/.vagrant/**", "**/.venv/**", "**/__pycache__/**", "**/*.egg-info/**",
+    "**/*.key", "**/*.pem", "**/*.p12", "**/*.pfx", "**/*.rsa",
 ]
 
 [tool.pytest.ini_options]
