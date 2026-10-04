@@ -139,25 +139,33 @@ $record = [ordered]@{
 }
 
 try {
+    Assert-True (-not $PriorSetup -or $Install.IsPresent) '-PriorSetup requires -Install'
     if ($RequireWindows10) {
         Assert-True ($buildNumber -ge 19041 -and $buildNumber -lt 22000) "Expected Windows 10, found build $buildNumber"
         $checks.Add('windows10-build') | Out-Null
     }
     $manifestPath = Join-Path $artifactRoot 'release-manifest-windows.json'
-    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Missing release-manifest-windows.json'
+    $platformManifest = Test-Path -LiteralPath $manifestPath -PathType Leaf
+    if (-not $platformManifest) {
+        $manifestPath = Join-Path $artifactRoot 'release-manifest.json'
+    }
+    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Missing Windows or complete release manifest'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $version = [string] $manifest.version
     Assert-True ($version -cmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?$') "Unexpected version in manifest: $version"
     $record['version'] = $version
+    $record['manifest_sha256'] = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $portableName = "BiliX-GUI-Portable-$version-windows-x64.exe"
     $setupName = "BiliX-GUI-Setup-$version-windows-x64.exe"
     $sourceName = "BiliX-GUI-licenses-and-source-$version-windows-x64.zip"
     $portable = Get-RequiredArtifact $manifest $portableName $artifactRoot
     $setup = Get-RequiredArtifact $manifest $setupName $artifactRoot
     $source = Get-RequiredArtifact $manifest $sourceName $artifactRoot
-    Assert-True (@($manifest.artifacts).Count -eq 3) 'Windows manifest has unexpected artifacts'
-    $checksumsPath = Join-Path $artifactRoot 'SHA256SUMS-windows.txt'
-    Assert-True (Test-Path -LiteralPath $checksumsPath -PathType Leaf) 'Missing SHA256SUMS-windows.txt'
+    $expectedCount = if ($platformManifest) { 3 } else { 8 }
+    Assert-True (@($manifest.artifacts).Count -eq $expectedCount) 'Release manifest has unexpected artifacts'
+    $checksumsName = if ($platformManifest) { 'SHA256SUMS-windows.txt' } else { 'SHA256SUMS.txt' }
+    $checksumsPath = Join-Path $artifactRoot $checksumsName
+    Assert-True (Test-Path -LiteralPath $checksumsPath -PathType Leaf) "Missing $checksumsName"
     $actualSums = @(Get-Content -LiteralPath $checksumsPath -Encoding UTF8)
     $expectedSums = @($manifest.artifacts | ForEach-Object {
         ([string] $_.sha256).ToLowerInvariant() + '  ' + [string] $_.name
@@ -166,7 +174,7 @@ try {
     for ($line = 0; $line -lt $expectedSums.Count; $line++) {
         Assert-True ($actualSums[$line] -ceq $expectedSums[$line]) "Checksum line $($line + 1) differs from Windows manifest"
     }
-    $checks.Add('sha256sums-windows') | Out-Null
+    $checks.Add("sha256sums:$checksumsName") | Out-Null
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [IO.Compression.ZipFile]::OpenRead($source)
     try {
@@ -184,6 +192,15 @@ try {
     $unicodeName = ([string][char]0x4E2D) + ([string][char]0x6587) + ' path'
     $portableRoot = Join-Path $runRoot $unicodeName
     New-Item -ItemType Directory -Path $portableRoot, $profileRoot, $downloadRoot -Force | Out-Null
+    $profileSentinel = Join-Path $profileRoot 'keep-after-uninstall.txt'
+    $downloadSentinel = Join-Path $downloadRoot 'keep-after-uninstall.txt'
+    $configFile = Join-Path $profileRoot 'config.toml'
+    Set-Content -LiteralPath $profileSentinel -Value 'BiliX validation profile' -Encoding ASCII
+    Set-Content -LiteralPath $downloadSentinel -Value 'BiliX validation download' -Encoding ASCII
+    [IO.File]::WriteAllText($configFile,
+        ('download_dir = "' + $downloadRoot.Replace('\', '/') + '"') + [Environment]::NewLine,
+        (New-Object Text.UTF8Encoding($false)))
+    $configHash = (Get-FileHash -LiteralPath $configFile -Algorithm SHA256).Hash
     $portableCopy = Join-Path $portableRoot $portableName
     Copy-Item -LiteralPath $portable -Destination $portableCopy
     $environment = @{
@@ -205,6 +222,11 @@ try {
             $priorName = Split-Path -Leaf $prior
             Assert-True ($priorName -cmatch '^BiliX-GUI-Setup-(?<version>[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?)-windows-x64\.exe$') 'PriorSetup must be a versioned BiliX Windows installer'
             $priorVersion = $Matches['version']
+            $record['prior_setup'] = [ordered]@{
+                version = $priorVersion
+                name = $priorName
+                sha256 = (Get-FileHash -LiteralPath $prior -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
             $currentPreview = $version -match '\.dev[0-9]+$'
             $priorPreview = $priorName -match '\.dev[0-9]+-windows-x64\.exe$'
             Assert-True ($currentPreview -eq $priorPreview) 'PriorSetup and target must be in the same preview or stable installer channel'
@@ -220,6 +242,9 @@ try {
             $priorRun = Invoke-CheckedProcess $prior ('/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $installRoot + '"') $runRoot 600
             Assert-Success $priorRun 'prior-setup-install'
             $installed = $true
+            $priorExe = Join-Path $installRoot 'runtime\BiliX-GUI.exe'
+            Assert-Success (Invoke-CheckedProcess $priorExe '--smoke-test' $installRoot 180 $environment) 'prior-installed-gui-smoke'
+            Wait-ExecutableUnlocked $priorExe
         }
         $setupLog = Join-Path $runRoot 'setup.log'
         $arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $installRoot + '" /LOG="' + $setupLog + '"'
@@ -236,8 +261,10 @@ try {
         $checks.Add('installer-files-and-licenses') | Out-Null
         $installedSmoke = Invoke-CheckedProcess $installedExe '--smoke-test' $installRoot 180 $environment
         Assert-Success $installedSmoke 'installed-gui-smoke'
-        $sentinel = Join-Path $profileRoot 'keep-after-uninstall.txt'
-        Set-Content -LiteralPath $sentinel -Value 'BiliX validation data' -Encoding ASCII
+        Assert-True ((Get-FileHash -LiteralPath $configFile -Algorithm SHA256).Hash -ceq $configHash) 'Installation or upgrade changed shared configuration'
+        Assert-True ((Get-Content -LiteralPath $profileSentinel -Raw).Trim() -ceq 'BiliX validation profile') 'Installation or upgrade changed profile data'
+        Assert-True ((Get-Content -LiteralPath $downloadSentinel -Raw).Trim() -ceq 'BiliX validation download') 'Installation or upgrade changed download data'
+        $checks.Add('install-or-upgrade-preserves-config-and-downloads') | Out-Null
     }
 }
 catch {
@@ -256,6 +283,8 @@ finally {
             Assert-Success $uninstallRun 'setup-uninstall'
             Wait-PathRemoved (Join-Path $installRoot 'runtime\BiliX-GUI.exe')
             Assert-True (Test-Path -LiteralPath (Join-Path $profileRoot 'keep-after-uninstall.txt')) 'Uninstall removed user data'
+            Assert-True ((Get-FileHash -LiteralPath $configFile -Algorithm SHA256).Hash -ceq $configHash) 'Uninstall changed shared configuration'
+            Assert-True ((Get-Content -LiteralPath $downloadSentinel -Raw).Trim() -ceq 'BiliX validation download') 'Uninstall changed download data'
             $checks.Add('uninstall-preserves-profile') | Out-Null
         }
         catch {

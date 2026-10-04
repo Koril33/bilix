@@ -46,6 +46,8 @@ blx info --file videos.txt --json
 
 已有文件默认跳过。`--overwrite` 仅在新文件完成传输、媒体校验和合并后替换旧文件。失败返回非零退出码，并保留目标目录中的 `.bilix-*` 临时目录；错误消息会说明位置。旧版留下的坏文件需要用 `--overwrite` 重新下载。
 
+显式协作取消会尝试清理本次临时材料，已完成文件不回滚。当前没有暂停/续传、持久任务队列或机器可读的实时任务事件；新增能力的建议见[CLI/GUI 版本规划](roadmap.md)，首版实际验证范围见[1.6.0 记录](validation-1.6.0.md)。
+
 ```shell
 blx download BV1j4411W7F7 --overwrite
 blx download BV1j4411W7F7 --quiet

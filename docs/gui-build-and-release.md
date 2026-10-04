@@ -2,6 +2,8 @@
 
 GUI 与 CLI 共用 Python 下载内核。本文件说明首个图形界面版本 `1.6.0` 的构建方式；正式发行须完成下述跨平台安装验证并发布准确的哈希。1.5.0 不包含 GUI。
 
+后续版本沿用[持续测试规范](testing.md)和[验收模板](validation-template.md)，将结果保存在独立版本记录。1.6.0 已发布的文件不可重包/覆盖；最终证据与范围见[首版复核](validation-1.6.0.md)。工具链表是首版基线，升级 Qt/Python/Nuitka 后须重新验收完整平台矩阵。
+
 ## 版本与支持范围
 
 | 部件 | 首版构建基线 |
@@ -31,6 +33,8 @@ uv run --locked --extra gui bilix-gui
 ```
 
 无显示器的测试环境可设置 `QT_QPA_PLATFORM=offscreen`，但发行前仍应在真实桌面验证字体、缩放、输入法、文件选择器与二维码窗口。`--smoke-test` 只构造 GUI 并离线检查 FFmpeg；它不验证账号、真实下载或安装器行为。测试固定使用虚构凭据与本地模拟网络；需要 Bilibili 账号的在线验证应单独执行并保护凭据。
+
+自检还会验证内存中的测试二维码 PNG 可加载，这不代表真实登录已成功。完整离线回归使用 `scripts/validate.py --profile gui`，实际扫码与下载按测试规范单独记录。
 
 ## Windows：单文件绿色版与安装版
 
@@ -79,3 +83,5 @@ uv run --locked --extra gui --group build python scripts/package_gui_deb.py --ma
 ## 验证记录
 
 每次发行的实际检查结果分别记录于 [Windows 10 VM 流程](gui-win10-validation.md)与 [Ubuntu/Debian VM 矩阵](gui-vm-validation.md)。记录应标明测试系统、候选文件哈希、安装和卸载结果，以及可见桌面与真实账号检查的范围。离线回归使用虚构账号和本地服务，不能替代真实权限验证；首次稳定 GUI 版本也没有可供跨稳定版升级测试的旧 GUI 安装包。
+
+从下一版开始，实际结果统一另存 `validation-<版本>.md`，平台文件仅维护可重复操作与历史备注。旧版升级、降级策略、IME、完整 Wayland 和性能必须逐项填写，不能沿用首版的“未验证”说明作为永久豁免。

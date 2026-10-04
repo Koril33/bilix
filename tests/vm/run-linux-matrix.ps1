@@ -4,13 +4,17 @@
 param(
     [switch]$SkipBuild,
     [string]$Maintainer = '',
+    [string]$ArtifactDir = '',
     [ValidateSet('ubuntu2204', 'ubuntu2404', 'debian12', 'debian13')]
     [string[]]$Targets = @('ubuntu2204', 'ubuntu2404', 'debian12', 'debian13')
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
-$outRoot = Join-Path $repoRoot 'dist\gui'
+$outRoot = if ($ArtifactDir) { [IO.Path]::GetFullPath($ArtifactDir) } else { Join-Path $repoRoot 'dist\gui' }
+if ($ArtifactDir -and -not $SkipBuild) {
+    throw '-ArtifactDir requires -SkipBuild; native builds output to dist/gui.'
+}
 New-Item -ItemType Directory -Force -Path $outRoot | Out-Null
 if ($Maintainer -and $Maintainer -notmatch '^[A-Za-z0-9 ._-]+ <[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+>$') {
     throw 'Maintainer must be Name <email@example.org> with plain ASCII characters.'
@@ -91,15 +95,33 @@ try {
         Invoke-Vagrant @('halt', 'ubuntu2204')
     }
 
-    $packages = @(Get-ChildItem -LiteralPath $outRoot -Filter 'djhx-bilix-gui_*_amd64.deb' -File)
-    if ($packages.Count -ne 1) {
-        throw "Expected exactly one GUI .deb in $outRoot; found $($packages.Count)."
+    $resolvedArtifacts = (Resolve-Path -LiteralPath $outRoot).Path
+    $distRoot = Join-Path $repoRoot 'dist'
+    if (-not $resolvedArtifacts.StartsWith($distRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'ArtifactDir must be inside this repository dist directory for the VM shared folder.'
     }
+    $manifestPath = Join-Path $resolvedArtifacts 'release-manifest-linux.json'
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        $manifestPath = Join-Path $resolvedArtifacts 'release-manifest.json'
+    }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $packages = @($manifest.artifacts | Where-Object { $_.name -cmatch '^djhx-bilix-gui_[0-9][A-Za-z0-9.+~-]*_amd64\.deb$' })
+    if ($packages.Count -ne 1) {
+        throw 'The selected manifest must list exactly one amd64 GUI deb.'
+    }
+    $package = Join-Path $resolvedArtifacts $packages[0].name
+    if ((Get-Item -LiteralPath $package).Length -ne [long]$packages[0].bytes -or
+        (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant() -cne $packages[0].sha256) {
+        throw 'Selected deb differs from its manifest.'
+    }
+    $guestPackage = '/bilix-host/' + $package.Substring($repoRoot.Length + 1).Replace('\', '/')
+    # Quote the shared-folder path for the guest shell, including spaces/apostrophes.
+    $quotedPackage = "'" + $guestPackage.Replace("'", "'`"'`"'") + "'"
     foreach ($target in $Targets) {
         $machine = if ($target -eq 'ubuntu2204') { 'ubuntu2204clean' } else { $target }
         Remove-TestVM $machine
         Invoke-Vagrant @('up', $machine, '--provider=virtualbox')
-        Invoke-Vagrant @('ssh', $machine, '-c', "bash /bilix-host/tests/vm/accept-deb.sh $target")
+        Invoke-Vagrant @('ssh', $machine, '-c', "bash /bilix-host/tests/vm/accept-deb.sh $target $quotedPackage")
         Invoke-Vagrant @('halt', $machine)
     }
 }

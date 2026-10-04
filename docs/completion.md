@@ -41,3 +41,5 @@ blx completion fish | source
 - 光标在命令中间：PowerShell 仅使用光标之前的参数前缀。
 
 Tab 的循环/菜单显示由终端决定。新脚本不更改执行策略或 PSReadLine 按键。推荐使用 `completion SHELL`；`--install-completion` 保留 Typer 自带安装逻辑。
+
+维护补全时按[测试规范](testing.md)区分脚本生成与真实 shell 补全：PowerShell 5.1/7、Bash/Zsh/Fish 各自记录版本和结果。GUI 加入共享内核后这些 CLI 回归继续保留，不能用 GUI 启动成功代替终端测试。

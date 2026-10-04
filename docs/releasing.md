@@ -2,6 +2,8 @@
 
 本项目本地检查、构建并手动上传。推送提交或标签不自动发布。以下以首个 GUI 版本 1.6.0 为例说明流程；当前发行状态以 PyPI 与 GitHub Releases 为准。
 
+1.6.0 已经发布，本文的命令用于说明候选流程；后续版本必须替换版本号和目录，不重包或覆盖已公开的 1.6.0 文件/标签。实际完成情况见[首版复核](validation-1.6.0.md)。每轮新建[验收记录](validation-template.md)，按[持续测试规范](testing.md)执行并记录最终产物身份。
+
 ## 发布材料与凭据确认
 
 1. 2026-10-03 维护者确认历史 Bilibili 凭据已经失效，本地审计报告按要求删除。今后的泄露须先撤销相应凭据；仅删除文件或执行本地 logout 不足以证明服务器会话撤销。
@@ -58,6 +60,8 @@ Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe'
 
 包含 GUI 的版本应按 [GUI 构建与发行](gui-build-and-release.md) 及 [Linux VM 矩阵](gui-vm-validation.md)、[Windows 10 VM 流程](gui-win10-validation.md)分别构建和验收。Windows 绿色 EXE、安装器、配套源码 ZIP，Ubuntu 22.04 构建的 deb 与源码归档，以及 Python wheel/sdist、Windows CLI ZIP 均需用**同一源码版本**生成；运行 `scripts/assemble_gui_release.py` 与 `scripts/assemble_release.py` 取得跨平台完整哈希清单。真实未通过的平台不得在发行说明中称为支持。
 
+集合完最终候选后，用 `scripts/validate.py --profile gui --release-dir dist/release-<版本>` 只读核对哈希、归档和材料。集合脚本会写产物，不能用它复核公开包。文档/材料重包也改变哈希，需绑定新候选重验；源码改动则重新编译受影响的 CLI/GUI。下一版以原始 1.6.0 GUI 包做真实升级，Preview 不代替稳定渠道；Windows 降级保护尚需补实现和实测。
+
 ## 标签、镜像与页面
 
 只有最终代码与产物一致后才创建版本标签（例如 `v1.6.0`）。推送普通提交、标签和上传发行文件是发布步骤，历史清理与强制推送属于另行协调的维护操作。不要为了普通发布覆盖现有标签。
@@ -69,3 +73,5 @@ Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe'
 ## 发布记录
 
 本地记录保存于忽略的 `build`，公开发行说明只包含脱敏结果。实际未运行的系统、解释器、下载权限或二进制测试不得标为通过。当前资料缺口、尚未撤销的凭据或失败检查应阻止正式发布，而不是从记录中省略。
+
+发布前阻塞项与接受范围限制的规则见[结果判定](testing.md#结果判定与发布门槛)。为 GitHub、PyPI、实际维护的镜像及网站分别填写状态，公开上传后回下载核对 SHA256，再在隔离环境安装公开文件；一个渠道成功不能证明其余渠道完成。在线账号、IME、完整 Wayland、跨版升级与性能分别写明实际执行范围。

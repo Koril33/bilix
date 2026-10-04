@@ -41,6 +41,8 @@ uv run --locked --extra gui bilix-gui
 
 GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
 
+首版的完成情况、最终产物和未验证范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。真实账号下载、Linux 输入法、完整 Wayland 桌面与跨稳定版 GUI 升级仍需补测；后续改进见 [CLI/GUI 下一版建议](docs/roadmap.md)。
+
 ## 快速开始
 
 ```shell
@@ -90,6 +92,10 @@ blx completion powershell | Out-String | Invoke-Expression
 | Ubuntu/Debian 虚拟机验收 | [Linux 测试矩阵](docs/gui-vm-validation.md) |
 | Windows 10 虚拟机验收 | [Windows 测试流程](docs/gui-win10-validation.md) |
 | 本地开发、测试与构建 | [构建说明](docs/build.md) |
+| 持续测试、用例与验收门槛 | [测试规范](docs/testing.md) |
+| 每版验收记录格式 | [验收模板](docs/validation-template.md) |
+| 首个 GUI 版本的最终完成情况 | [1.6.0 复核](docs/validation-1.6.0.md) |
+| CLI/GUI 下一版功能与优化建议 | [版本规划](docs/roadmap.md) |
 | 版本、产物、校验与发布 | [发布说明](docs/releasing.md) |
 | 旧版本与兼容入口 | [迁移说明](docs/releases.md) |
 | 贡献代码或报告问题 | [贡献指南](CONTRIBUTING.md) |
@@ -109,6 +115,8 @@ uv run pytest -q
 ```
 
 GUI 测试需要 `uv sync --locked --extra gui --group gui-test`；无桌面的环境可设置 `QT_QPA_PLATFORM=offscreen`。GUI 发行文件依目标平台分别构建，不把 Windows 编译结果当作 Linux 验证。
+
+统一检查入口为 `uv run --locked python scripts/validate.py --profile cli`；GUI 环境使用 `uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui`。每轮生成独立日志与 JSON/XML 结果，缺少 GUI 测试依赖会失败；完整平台及发布验收按[测试规范](docs/testing.md)执行。
 
 唯一业务实现位于 `src/djhx_bilix`。项目使用本地检查与手动发布，不运行 GitHub/Gitea Actions。发布前须完成 [发布说明](docs/releasing.md) 中的凭据、源码与产物检查。
 

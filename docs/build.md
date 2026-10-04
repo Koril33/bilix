@@ -2,6 +2,8 @@
 
 项目不使用 GitHub/Gitea Actions。所有检查、构建与发行文件上传在本地进行；推送提交或标签不会自动执行它们。发布流程统一见 [releasing.md](releasing.md)。
 
+可持续执行的测试入口、分层用例、环境矩阵和结果判定见[测试规范](testing.md)；每版使用[验收模板](validation-template.md)，首版实际结果见[1.6.0 记录](validation-1.6.0.md)。本文的版本/工具链数值为 1.6.0 基线，后续修改依赖时同时更新锁文件与原生平台证据。
+
 ## Python 开发环境
 
 ```shell
@@ -23,6 +25,8 @@ uv run --locked --extra gui bilix-gui --smoke-test
 ```
 
 Linux 无显示器的自动测试可设置 `QT_QPA_PLATFORM=offscreen`；完整交互测试还需在真实 Windows、Ubuntu/Debian 桌面验证。GUI 的 Windows 绿色 EXE、安装器和 Linux deb 构建流程见 [GUI 构建与发行](gui-build-and-release.md)。
+
+统一离线验收：CLI 使用 `uv run --locked python scripts/validate.py --profile cli`；GUI 使用 `uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui`。结果按版本写入 `build/validation/`，缺少 GUI 测试依赖直接失败。发行时审查全部 skip；Windows 全能力环境可加 `--strict-skips`。
 
 受限环境可把缓存与临时目录放进项目内：
 

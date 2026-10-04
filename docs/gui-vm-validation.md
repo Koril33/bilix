@@ -2,6 +2,8 @@
 
 本流程使用仓库内的 [Vagrant 配置](../tests/vm/Vagrantfile)管理专用测试虚拟机，不读取或修改 `C:\Project\vagrant` 中已有的虚拟机。Linux 目标为 Ubuntu 22.04、Ubuntu 24.04、Debian 12 和 Debian 13 的 amd64 版本；Windows 10 的绿色版与安装版验收另行记录。Windows 11 暂不纳入首版验证范围。
 
+本文件维护平台操作；后续实际结果另存 `validation-<版本>.md`，沿用[测试规范](testing.md)和[模板](validation-template.md)。1.6.0 的最终文件与发布结果汇总于[首版复核](validation-1.6.0.md)，下方按日期记录保留首轮候选范围。
+
 ## 环境与构建原则
 
 - 宿主机需要 VirtualBox、Vagrant、PowerShell，以及能获取 Ubuntu/Debian 软件包和 Python 构建依赖的网络。一次只启动一个 VM。构建机 `ubuntu2204` 使用 4 vCPU、6 GiB 内存，其他 VM 使用 2 vCPU、4 GiB 内存；大约要为 Ubuntu 构建缓存和多个虚拟磁盘预留数十 GiB。
@@ -38,6 +40,16 @@ vagrant ssh debian12 -c "setsid -f env DISPLAY=:0 XAUTHORITY=/home/vagrant/.Xaut
 ./tests/vm/run-linux-matrix.ps1 -SkipBuild -Targets debian12
 ```
 
+重验已集合的版本化目录时可使用：
+
+```powershell
+./tests/vm/run-linux-matrix.ps1 -SkipBuild -ArtifactDir dist/release-1.6.0 -Targets debian12
+```
+
+替换为实际候选目录。脚本从 `release-manifest-linux.json`（或完整 `release-manifest.json`）选择唯一 GUI deb 并核对大小/哈希，目录中可以保留其他版本的包。目录必须在仓库 `dist` 内以供 VM 共享访问；默认构建仍输出 `dist/gui`。每次安装验收保存到 `dist/gui/validation/<目标>/<UTC时间>-<运行标识>/`，包含明确的包版本、哈希和退出码，失败不会覆盖上一轮通过结果。配置 TOML、用户标记和下载标记在独立目录中验证重装/卸载前后内容。
+
+完整清单可能由 Windows 写成 CRLF；guest 校验时只移除清单输入的行尾回车，再交给 `sha256sum`，不会改写原清单或任何产物。2026-10-04 的维护复验曾发现此问题，独立失败记录和修复后重跑均保留。
+
 手动分步执行时，在 `tests/vm` 目录中运行：
 
 ```powershell
@@ -47,10 +59,10 @@ vagrant up ubuntu2204 --provider=virtualbox
 vagrant ssh ubuntu2204 -c "bash /bilix-host/tests/vm/build-ubuntu2204.sh"
 vagrant halt ubuntu2204
 vagrant up ubuntu2204clean --provider=virtualbox
-vagrant ssh ubuntu2204clean -c "bash /bilix-host/tests/vm/accept-deb.sh ubuntu2204"
+vagrant ssh ubuntu2204clean -c "bash /bilix-host/tests/vm/accept-deb.sh ubuntu2204 /bilix-host/dist/gui/djhx-bilix-gui_1.6.0-1_amd64.deb"
 vagrant halt ubuntu2204clean
 vagrant up debian12 --provider=virtualbox
-vagrant ssh debian12 -c "bash /bilix-host/tests/vm/accept-deb.sh debian12"
+vagrant ssh debian12 -c "bash /bilix-host/tests/vm/accept-deb.sh debian12 /bilix-host/dist/gui/djhx-bilix-gui_1.6.0-1_amd64.deb"
 vagrant halt debian12
 ```
 
@@ -61,6 +73,8 @@ vagrant halt debian12
 ## 每次发布的验收记录
 
 每次候选版本在此文件或新的版本记录中填写具体版本、提交 SHA、`.deb` SHA256、box SHA256、系统版本、执行时间与结果。失败项记录错误日志和修复后重新运行的结果。没有执行的项目标成“未验证”，不能推断通过。
+
+后续统一使用新的版本记录，不改写下方历史表。需要跨版升级时先安装原始 1.6.0，再安装候选并验证配置/下载哈希；当前自动脚本覆盖安装和同版重装，不自动代表跨版升级已验收。可见桌面、IME、Weston 与完整 Wayland 各自填写。
 
 | 检查项 | Ubuntu 22.04 | Ubuntu 24.04 | Debian 12 | Debian 13 |
 | --- | --- | --- | --- | --- |
@@ -87,3 +101,5 @@ vagrant halt debian12
 Debian 13 的初始 box 使用旧 HTTP 重定向软件源，首次依赖下载很慢；测试时改用 Debian 官方 HTTPS CDN，仍由 apt 的已签名索引与包校验确定内容并执行安装。`provision.sh` 固定改用该官方入口，并跳过这些专用测试 VM 不需要的源码/翻译索引。此调整只用于仓库创建的测试 VM，不修改宿主机或用户已有虚拟机的软件源。
 
 中文路径是用系统剪贴板粘贴，或在文件选择器中用鼠标选择；这验证了路径显示和交互，**尚未验证中文输入法（IME）键入**。当前也尚未使用受保护的测试账号做真实登录/下载，且没有旧 GUI 正式发行包可做跨版本升级。box 的原始 `.box` 文件校验值本轮未保留；重建长期镜像缓存时应记录 SHA256。
+
+最终发布 deb 的 SHA256 为 `d6ba0f21662b924559eae4be045eeeb454866941c326601ae2e558419a500f26`，四目标重新安装/启动/重装/卸载/保留数据通过，证据为 `dist/gui/validation/final-matrix.json` 及各目标日志。它与前文 `af7e…` 首轮候选不同；最终结果见[1.6.0 版本记录](validation-1.6.0.md)。本次维护新增的独立日志/配置保留检查需按新增脚本另外留证，不继承旧脚本结果。

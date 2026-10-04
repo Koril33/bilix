@@ -8,21 +8,36 @@ if [ "$target" = ubuntu2204 ]; then
 else
     test "$expected" = "target=$target"
 fi
-record_root="/home/vagrant/bilix-records/$target"
-mkdir -p "$record_root"
-mkdir -p "/bilix-host/dist/gui/validation/$target"
-trap 'cp -a "$record_root/." "/bilix-host/dist/gui/validation/$target/" 2>/dev/null || true' EXIT
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+record_root="/home/vagrant/bilix-records/$target/$run_id"
+host_records="/bilix-host/dist/gui/validation/$target/$run_id"
+mkdir -p "$record_root" "$host_records"
+finish() {
+    code=$?
+    printf 'exit_code=%s\n' "$code" > "$record_root/exit-code.txt"
+    cp -a "$record_root/." "$host_records/" 2>/dev/null || true
+}
+trap finish EXIT
 cp /etc/os-release "$record_root/os-release.txt"
-mapfile -t packages < <(find /bilix-host/dist/gui -maxdepth 1 -name 'djhx-bilix-gui_*_amd64.deb' -type f)
-if [ "${#packages[@]}" -ne 1 ]; then
-    printf 'Expected exactly one GUI deb; found %s\n' "${#packages[@]}" >&2
-    exit 1
-fi
-deb="${packages[0]}"
+deb="$(realpath "${2:?pass the exact deb selected from its release manifest}")"
+case "$deb" in /bilix-host/dist/*/djhx-bilix-gui_*_amd64.deb) ;; *) exit 1 ;; esac
+test -f "$deb"
+artifact_root="$(dirname "$deb")"
+package_version="$(dpkg-deb -f "$deb" Version)"
+test "$(dpkg-deb -f "$deb" Package)" = djhx-bilix-gui
+test "$(dpkg-deb -f "$deb" Architecture)" = amd64
+printf '%s\n' "$package_version" > "$record_root/package-version.txt"
 sha256sum "$deb" | tee "$record_root/deb-sha256.txt"
 (
-    cd /bilix-host/dist/gui
-    sha256sum -c SHA256SUMS-linux.txt
+    cd "$artifact_root"
+    if [ -f SHA256SUMS-linux.txt ]; then
+        checksum_file=SHA256SUMS-linux.txt
+    else
+        checksum_file=SHA256SUMS.txt
+    fi
+    # The combined release list may be written on Windows. Normalize only the
+    # checksum input's CRLF, never the immutable artifacts or original list.
+    sed 's/\r$//' "$checksum_file" | sha256sum -c -
 ) 2>&1 | tee "$record_root/manifest-check.txt"
 
 # No build dependencies are preinstalled in acceptance VMs. apt must be able to
@@ -34,11 +49,15 @@ test -x /usr/bin/bilix-gui
 test -f /usr/share/applications/djhx-bilix-gui.desktop
 test -f /usr/share/icons/hicolor/scalable/apps/djhx-bilix-gui.svg
 
-profile="/home/vagrant/bilix-validation-profile-$target"
-mkdir -p "$profile" "/home/vagrant/bilix-downloads-$target"
+profile="$record_root/profile"
+downloads="$record_root/downloads"
+mkdir -p "$profile" "$downloads"
 printf 'retained-across-package-lifecycle\n' > "$profile/keep.txt"
+printf 'download-retained\n' > "$downloads/keep.txt"
+printf 'download_dir = "%s"\n' "$downloads" > "$profile/config.toml"
+config_digest="$(sha256sum "$profile/config.toml")"
 export BILIX_CONFIG_DIR="$profile"
-export BILIX_DOWNLOAD_DIR="/home/vagrant/bilix-downloads-$target"
+export BILIX_DOWNLOAD_DIR="$downloads"
 export QT_QPA_PLATFORM=offscreen
 /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/offscreen-smoke.txt"
 
@@ -51,10 +70,14 @@ xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/xvfb-smoke.
 # version upgrade requires a previously published GUI release package.
 sudo apt-get install -y --reinstall "$deb" 2>&1 | tee "$record_root/apt-reinstall.log"
 test "$(cat "$profile/keep.txt")" = retained-across-package-lifecycle
+test "$(cat "$downloads/keep.txt")" = download-retained
+test "$(sha256sum "$profile/config.toml")" = "$config_digest"
 xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/reinstall-smoke.txt"
 sudo apt-get remove -y djhx-bilix-gui 2>&1 | tee "$record_root/apt-remove.log"
 test ! -e /usr/bin/bilix-gui
 test "$(cat "$profile/keep.txt")" = retained-across-package-lifecycle
+test "$(cat "$downloads/keep.txt")" = download-retained
+test "$(sha256sum "$profile/config.toml")" = "$config_digest"
 dpkg-query -W -f='${Status}\n' djhx-bilix-gui 2>/dev/null \
     | tee "$record_root/dpkg-removed.txt" || true
 printf 'accept_success=1\n' | tee "$record_root/result.txt"

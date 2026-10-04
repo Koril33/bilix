@@ -20,5 +20,8 @@ python -m http.server 8765 --bind 127.0.0.1 --directory site
 - 用键盘访问下载与文档链接；减少动画偏好下不执行按钮过渡。
 - 核对 GitHub/Gitee、PyPI 与文档链接，以及当前 CLI 命令与实际支持范围。
 - 更新补全章节的最低支持版本。版本提示只显示已正式发布的最新版，不将开发版本标为已发布。
+- CLI/GUI 功能和支持范围对照[当前验收记录](../docs/validation-1.6.0.md)，待实现功能保持在[版本规划](../docs/roadmap.md)。仓库文件、GitHub/PyPI 发行与线上网站部署分别记录。
 
 只需将该 HTML 复制到现有网站的 `project/bilix.html` 并通过网站原有流程发布。仓库不自动部署线上页面。
+
+页面检查属于[持续测试](../docs/testing.md)的 T0；统一脚本仅检查本地 Markdown 文件链接，不能替代上述页面和远程链接检查。

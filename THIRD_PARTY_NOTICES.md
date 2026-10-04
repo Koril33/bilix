@@ -2,6 +2,8 @@
 
 BiliX 自身采用 GPL-3.0-only（见 `LICENSE`）。各第三方组件保留自己的许可证与版权。本声明列出直接运行依赖，不替代各发行包携带的许可证；发布者还应保留实际分发的传递依赖、Python runtime 与 Windows runtime 的许可材料。
 
+所列 GUI/FFmpeg 版本对应 1.6.0 发行基线。后续依赖或 Qt 模块变化时同步更新锁文件、实际组件清单、对应源码获取方式和许可材料，并按[测试规范](docs/testing.md)验收最终包。1.6.0 公开产物的完成情况见[版本记录](docs/validation-1.6.0.md)。
+
 | 组件 | 许可证 | 上游 |
 | --- | --- | --- |
 | curl-cffi | MIT | https://github.com/lexiforest/curl_cffi |

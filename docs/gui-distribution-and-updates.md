@@ -2,6 +2,8 @@
 
 调研日期：2026-10-03。范围：Windows、Ubuntu/Debian；macOS 留待后续。本文保留方案形成时的调研与后续升级建议。源码实现和实际验证状态以 [GUI 构建与发行](gui-build-and-release.md) 为准；调研中的“建议”不代表已有产物或已完成安装、升级实测。
 
+1.6.0 已交付绿色 EXE、Inno Setup 和 deb，采用手动升级；没有应用内检查/下载更新、MSI、APT 源或自动替换 helper。Inno 模板目前没有显式比较已安装版本的降级保护。实际完成情况见[首版复核](validation-1.6.0.md)，升级/更新优先级见[版本建议](roadmap.md)，新实现须按[测试规范](testing.md)补验。本文记录当时的工具/平台资料，依赖升级前重新核对官方来源。
+
 ## 调研结论
 
 PySide6 可以提供 Windows 单文件绿色 EXE，也可以提供 EXE 安装器、MSI 或 MSIX。GUI 框架、应用打包工具、安装器和更新源承担不同职责：
