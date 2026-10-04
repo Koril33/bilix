@@ -76,6 +76,8 @@ try {
 
 `VBoxManage guestcontrol copyto` 在这个 VirtualBox 版本中应指定每个文件的完整目标路径。`validate-gui.ps1` 核对 OS build、三个产物的大小/SHA-256 和 Windows 专用校验和；它把绿色版复制到中文路径，在隔离配置目录中启动两次，静默安装并检查许可/源码，运行已安装程序自检，再卸载并确认用户数据标记保留。可选 `-PriorSetup` 可验收同一安装渠道的旧版本升级，要求旧版号小于目标版本。`1.6.0.dev0` 与 `1.6.0` 的 Inno Setup AppId 不同，不能用二者的连续安装声称完成跨版本升级。
 
+程序自检退出后，验收脚本最多等待 15 秒确认 EXE 的文件锁释放，再启动卸载；卸载返回后再等待其清理助手删除 EXE，超过 15 秒仍残留会失败。这两个有界检查避免把进程退出信号当作全部文件已释放，也不把永久残留误记为通过。
+
 VM 未登录交互桌面时，Guest Control 即使指定 `--profile` 也可能没有加载用户的 `HKEY_USERS\<SID>` hive，无法写入 HKCU 卸载项。[run-guest-validation.ps1](../tests/platform/windows/run-guest-validation.ps1) 使用 `LoadUserProfile` 启动同一用户的子进程，并在启动前删除客体临时凭据文件。示例的用户名、域和客体路径应替换为实际测试 VM 的值；每次运行需重新提供凭据。
 
 验收脚本将每次结果写入 VM `results/<UTC时间>-<随机数>/result.json`。源码 ZIP 检查会拒绝 `.vagrant`、私钥等本地状态路径。出现失败时用 `guestcontrol copyfrom` 将 `result.json` 和安装日志复制回被忽略的 `dist/gui/validation/`，分析后保留证据。正常关机用 `controlvm Windows10 acpipowerbutton`，确认 `VMState="poweroff"`；需要重新打开窗口时再用 `startvm Windows10 --type gui`。不要强制断电。
@@ -100,3 +102,5 @@ VM 未登录交互桌面时，Guest Control 即使指定 `--profile` 也可能�
 早期通过 Guest Control 直接运行 Inno Setup 时，安装在创建 HKCU 卸载项时报 `RegCreateKeyEx` 错误 5，并回滚，退出码 4。诊断显示进程用户与 `USERPROFILE` 均为 `koril`，但其 SID hive 未加载；使用 `LoadUserProfile` 后 hive 存在，用户对卸载分支有完整权限，临时注册表项创建和删除成功。正式候选通过该方式完成实际安装、已安装程序自检、卸载和用户数据保留。该问题属于 VM 的 Guest Control 登录方式，不是安装包故障；未更改用户长期注册表 ACL。
 
 正式候选的可见桌面截图是 `main-window.png`、`chinese-ime.png`、`folder-chooser.png` 与 `folder-selected.png`，均位于本地忽略目录 `dist/gui/validation/win10/`。截图遮盖了 VM 用户名或文件选择器的个人位置导航栏。正式候选曾因源码 ZIP 误收本地 `.vagrant` 状态而重包；上述安装与桌面测试使用清理后的包，Manifest 的三项 SHA-256 检查通过。最终发布包若因文档或构建内容变化再打包，须以最终 `release-manifest-windows.json` 复跑脚本；此前候选测试不能直接替代最终哈希验收。
+
+2026-10-04 重编译后的候选曾在“自检退出后立即卸载”时出现 EXE 删除失败：安装与自检均通过，卸载日志记录 EXE 暂被占用，且初始卸载进程返回时清理助手仍在工作。后续诊断确认该 EXE 的运行进程数为零，文件锁已释放。验收脚本因此加入上述文件锁及清理完成等待；修复后必须重新运行完整验收，最终结果和文件哈希由本地 `final-result.json` 与公开发行说明记录。

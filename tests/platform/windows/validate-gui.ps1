@@ -68,6 +68,35 @@ function Assert-Success {
     $script:checks.Add($Description) | Out-Null
 }
 
+function Wait-ExecutableUnlocked {
+    param([string] $Path, [int] $TimeoutSeconds = 15)
+    # A signaled process handle can precede Windows releasing the executable's
+    # image/file lock. Do not race an immediate uninstall against that cleanup.
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $handle = $null
+        try {
+            $handle = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+            return
+        }
+        catch [IO.IOException] { }
+        catch [UnauthorizedAccessException] { }
+        finally { if ($handle) { $handle.Dispose() } }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'The exited GUI executable is still locked after 15 seconds'
+}
+
+function Wait-PathRemoved {
+    param([string] $Path, [int] $TimeoutSeconds = 15)
+    # Inno's initial uninstaller process may exit before its cleanup helper.
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    while (Test-Path -LiteralPath $Path) {
+        if ([DateTime]::UtcNow -ge $deadline) { throw 'Uninstall left the GUI executable behind' }
+        Start-Sleep -Milliseconds 100
+    }
+}
+
 function Get-RequiredArtifact {
     param($Manifest, [string] $Name, [string] $Directory)
     $entry = @($Manifest.artifacts | Where-Object { $_.name -ceq $Name })
@@ -221,9 +250,11 @@ finally {
             Assert-True ($uninstallers.Count -eq 1) 'Expected one Inno Setup uninstaller'
             $uninstallLog = Join-Path $runRoot 'uninstall.log'
             $uninstallArgs = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG="' + $uninstallLog + '"'
+            Wait-ExecutableUnlocked (Join-Path $installRoot 'runtime\BiliX-GUI.exe')
+            $checks.Add('installed-gui-exited-and-unlocked') | Out-Null
             $uninstallRun = Invoke-CheckedProcess $uninstallers[0].FullName $uninstallArgs $runRoot 600
             Assert-Success $uninstallRun 'setup-uninstall'
-            Assert-True (-not (Test-Path -LiteralPath (Join-Path $installRoot 'runtime\BiliX-GUI.exe'))) 'Uninstall left the GUI executable behind'
+            Wait-PathRemoved (Join-Path $installRoot 'runtime\BiliX-GUI.exe')
             Assert-True (Test-Path -LiteralPath (Join-Path $profileRoot 'keep-after-uninstall.txt')) 'Uninstall removed user data'
             $checks.Add('uninstall-preserves-profile') | Out-Null
         }
