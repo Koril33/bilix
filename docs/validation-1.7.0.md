@@ -1,6 +1,6 @@
 # 1.7.0 验收记录
 
-日期：2026-10-05（Asia/Shanghai）。状态：**发行材料冻结，维护者已授权按下列注明范围发布；公开渠道核验另记**。本记录区分产品源码、冻结程序、安装包与真实桌面的证据，未执行项目不继承 1.6.0 或设计原型的结果。发行归档保留冻结时的记录，发布后的实际状态继续在主分支及发行页更新。
+日期：2026-10-05（Asia/Shanghai）。状态：**1.7.0 已正式发布，GitHub/PyPI 公开文件回下载及隔离安装核验通过**。本记录区分产品源码、冻结程序、安装包与真实桌面的证据，未执行项目不继承 1.6.0 或设计原型的结果。发行归档保留冻结时的记录，发布后的实际状态在主分支及发行页更新；标签和公开文件保持不可变。
 
 实施范围为[开发指南](cli-gui-ux-review.md) A；B/C 未纳入冻结。没有运行中追加、单项取消、速度/ETA、公开 JSONL、持久化、暂停续传或自动更新。从 `7c48649a88e3ecacc999ca741c494df60ea5f812` 及此前未提交的指南修订继续，证据包含工作树修改。正式源码身份待最终提交/标签确定。八项产物最终哈希使用发行目录 `release-manifest.json`/`SHA256SUMS.txt`，不把包内文档自身哈希当作最终身份。
 
@@ -85,3 +85,18 @@ Windows 完整候选首轮 manifest SHA256 `245fb23bc83dc5859ce59eb3c6957d72875b
 Python 与上述原生包矩阵已经通过。最终材料重包后仍核对同源、许可、源码、安全路径及秘密扫描；不重复已通过且未改变代码/二进制的完整业务矩阵。关键失败不能以简化流程为由放行。GitHub 发布八项产物及清单，PyPI 发布 wheel/sdist；Gitea 沿用代码/标签镜像流程，不把代码镜像当作独立二进制发行。网站部署入口尚待维护者提供，仓库页面更新不当作线上部署完成。上传后分别记录公开回下载、哈希与安装检查结果。
 
 按 [持续测试规范](testing.md) 执行；关键失败先修复，环境缺失的范围必须维护者明确接受并同步发行说明，不能把未执行项改成通过或宣称指南 A 全部验收完成。
+
+## 最终材料与公开核验
+
+发布源码提交为 `181c73d526dca7ea8745f7d189a8c4eb4922887d`，GitHub/Gitea 注释标签 `v1.7.0` 均指向该提交。最终提交前工作树秘密扫描 0 发现，Ruff/格式和 28 份文档的 195 项相对文件链接通过。四份分发逐文件核对：Windows GUI 源码 121 项、Linux GUI 源码 110 项、sdist 128 项，以及 wheel 的 25 项生产源码，均无差异；只将 UTF-8 CRLF 规范为 LF，不忽略内容差异。八项最终产物的许可、源码、元数据、安全路径、大小与 SHA256 只读复核通过，记录 `build/release-1.7.0/source-audit-all.json`/`final-artifact-check.json`。
+
+最终 Windows manifest SHA256 `be430d005e6f88859e221a6d316c780cfc130ad6605195ed7618b695381cbc6c`，20 项复验通过，证据 `build/release-1.7.0/win10/runs/20261005T035716Z-5bc871cf/result.json`。最终 deb SHA256 `a54cd66389a3104321640b34f9fed4c358089bdc22e8b0bb4daf24f8d7fdb6f3`；Ubuntu 22.04/24.04、Debian 12/13 复验均通过，证据分别为 `dist/gui/validation/ubuntu2204/20261005T034915Z-1251/`、`ubuntu2404/20261005T035119Z-1512/`、`debian12/20261005T035316Z-873/`、`debian13/20261005T035457Z-1416/`。这些复验保留系统依赖，不称为重新创建的干净环境。最后仅更新 Linux 配套源码归档，确认 deb 字节不变。
+
+| 渠道 | 实际状态与证据 |
+| --- | --- |
+| [GitHub v1.7.0](https://github.com/Koril33/bilix/releases/tag/v1.7.0) | 正式版且为 latest；八项产物及两份清单共十个文件均从公开地址完整回下载，大小/SHA256 与冻结文件一致。`build/release-1.7.0/github-verification.json` |
+| [PyPI 1.7.0](https://pypi.org/project/djhx-bilix/1.7.0/) | wheel/sdist 均公开，元数据与两个回下载文件 SHA256 一致。上传后初次元数据尚未传播，后续只读复核通过，没有重复覆盖文件。`build/release-1.7.0/pypi-verification.json` |
+| Gitea | 已同步源码提交与 `v1.7.0` 标签；没有另建发行文件页面。发布后验收记录另随 main 同步，标签不移动 |
+| 项目网站 | 仓库 `site/bilix.html` 已更新，宽屏及 390/320px 布局检查完成；缺少既有网站部署入口，线上页面未部署。不把 Git 推送当作网站更新 |
+
+PyPI 公开 wheel 在独立 Python 3.11.2 CLI 环境安装，确认从 site-packages 加载、PySide6 不存在、版本为 1.7.0、curl-cffi 为 0.16.3；`bilix`/`blx`、模块帮助及 doctor 通过。原隔离 Python 3.11 GUI 环境改装同一公开 wheel，`bilix-gui --smoke-test` 通过，共六项入口检查，记录 `build/release-1.7.0/public-wheel-smoke.json`。没有重复执行未改变代码的完整媒体/账号矩阵。发布说明披露上节维护者接受的未验证范围，未将其改成通过。
