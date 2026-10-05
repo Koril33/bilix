@@ -56,6 +56,8 @@ printf 'retained-across-package-lifecycle\n' > "$profile/keep.txt"
 printf 'download-retained\n' > "$downloads/keep.txt"
 printf 'download_dir = "%s"\n' "$downloads" > "$profile/config.toml"
 config_digest="$(sha256sum "$profile/config.toml")"
+printf 'validation-placeholder-no-real-credentials\n' > "$profile/token.txt"
+token_digest="$(sha256sum "$profile/token.txt")"
 export BILIX_CONFIG_DIR="$profile"
 export BILIX_DOWNLOAD_DIR="$downloads"
 export QT_QPA_PLATFORM=offscreen
@@ -66,18 +68,43 @@ export QT_QPA_PLATFORM=offscreen
 unset QT_QPA_PLATFORM
 xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/xvfb-smoke.txt"
 
+prior="${3:-}"
+if [ -n "$prior" ]; then
+    prior="$(realpath "$prior")"
+    test "$(dpkg-deb -f "$prior" Package)" = djhx-bilix-gui
+    prior_version="$(dpkg-deb -f "$prior" Version)"
+    dpkg --compare-versions "$prior_version" lt "$package_version"
+    sha256sum "$prior" | tee "$record_root/prior-deb-sha256.txt"
+    # Exercise APT's own downgrade policy before the genuine old-to-new upgrade.
+    if sudo apt-get install -y "$prior" > "$record_root/apt-downgrade-rejected.log" 2>&1; then
+        echo 'APT unexpectedly accepted unattended downgrade without --allow-downgrades' >&2
+        exit 1
+    fi
+    sudo apt-get install -y --allow-downgrades "$prior" 2>&1 | tee "$record_root/apt-prior-install.log"
+    test "$(dpkg-query -W -f='${Version}' djhx-bilix-gui)" = "$prior_version"
+    xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/prior-smoke.txt"
+    sudo apt-get install -y "$deb" 2>&1 | tee "$record_root/apt-upgrade.log"
+    test "$(dpkg-query -W -f='${Version}' djhx-bilix-gui)" = "$package_version"
+    test "$(sha256sum "$profile/config.toml")" = "$config_digest"
+    test "$(sha256sum "$profile/token.txt")" = "$token_digest"
+    test "$(cat "$downloads/keep.txt")" = download-retained
+    xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/upgrade-smoke.txt"
+fi
+
 # Reinstallation verifies a repeatable package transaction; genuine cross-
 # version upgrade requires a previously published GUI release package.
 sudo apt-get install -y --reinstall "$deb" 2>&1 | tee "$record_root/apt-reinstall.log"
 test "$(cat "$profile/keep.txt")" = retained-across-package-lifecycle
 test "$(cat "$downloads/keep.txt")" = download-retained
 test "$(sha256sum "$profile/config.toml")" = "$config_digest"
+test "$(sha256sum "$profile/token.txt")" = "$token_digest"
 xvfb-run -a /usr/bin/bilix-gui --smoke-test 2>&1 | tee "$record_root/reinstall-smoke.txt"
 sudo apt-get remove -y djhx-bilix-gui 2>&1 | tee "$record_root/apt-remove.log"
 test ! -e /usr/bin/bilix-gui
 test "$(cat "$profile/keep.txt")" = retained-across-package-lifecycle
 test "$(cat "$downloads/keep.txt")" = download-retained
 test "$(sha256sum "$profile/config.toml")" = "$config_digest"
+test "$(sha256sum "$profile/token.txt")" = "$token_digest"
 dpkg-query -W -f='${Status}\n' djhx-bilix-gui 2>/dev/null \
     | tee "$record_root/dpkg-removed.txt" || true
 printf 'accept_success=1\n' | tee "$record_root/result.txt"

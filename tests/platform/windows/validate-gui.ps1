@@ -261,6 +261,10 @@ try {
         $checks.Add('installer-files-and-licenses') | Out-Null
         $installedSmoke = Invoke-CheckedProcess $installedExe '--smoke-test' $installRoot 180 $environment
         Assert-Success $installedSmoke 'installed-gui-smoke'
+        Wait-ExecutableUnlocked $installedExe
+        $reinstallArguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $installRoot + '" /LOG="' + (Join-Path $runRoot 'reinstall.log') + '"'
+        Assert-Success (Invoke-CheckedProcess $setup $reinstallArguments $runRoot 600) 'same-version-setup-reinstall'
+        Assert-Success (Invoke-CheckedProcess $installedExe '--smoke-test' $installRoot 180 $environment) 'reinstalled-gui-smoke'
         Assert-True ((Get-FileHash -LiteralPath $configFile -Algorithm SHA256).Hash -ceq $configHash) 'Installation or upgrade changed shared configuration'
         Assert-True ((Get-Content -LiteralPath $profileSentinel -Raw).Trim() -ceq 'BiliX validation profile') 'Installation or upgrade changed profile data'
         Assert-True ((Get-Content -LiteralPath $downloadSentinel -Raw).Trim() -ceq 'BiliX validation download') 'Installation or upgrade changed download data'

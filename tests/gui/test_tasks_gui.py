@@ -1,0 +1,192 @@
+"""GUI history, independent previews and per-source selection contracts."""
+
+import os
+from dataclasses import replace
+
+import pytest
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+pytest.importorskip("PySide6")
+pytest.importorskip("pytestqt")
+
+from PySide6.QtCore import Qt  # noqa: E402
+
+from djhx_bilix import tasks  # noqa: E402
+from djhx_bilix.config import load_settings  # noqa: E402
+from djhx_bilix.errors import InputError, NetworkError  # noqa: E402
+from djhx_bilix.gui import app, worker  # noqa: E402
+from djhx_bilix.models import DownloadResult, Page  # noqa: E402
+from djhx_bilix.operations import CancellationToken  # noqa: E402
+
+
+def setup_window(qtbot, monkeypatch, video_info):
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    window.urls_edit.setPlainText(video_info.url)
+    monkeypatch.setattr(tasks.BilibiliClient, "fetch", lambda *_a: video_info)
+    return window
+
+
+def wait(qtbot, window):
+    qtbot.waitUntil(lambda: window._thread is None, timeout=5000)
+
+
+def test_history_retry_selected_snapshot_keeps_other_rows(qtbot, monkeypatch, video_info):
+    pages = video_info.pages + (Page(2, "second", video_info.url + "?p=2", 4, "200"),)
+
+    def fetch(_self, url):
+        return replace(video_info, pages=pages, url=url, cid="200" if "p=2" in url else "100")
+
+    window = setup_window(qtbot, monkeypatch, video_info)
+    monkeypatch.setattr(tasks.BilibiliClient, "fetch", fetch)
+    calls = []
+
+    def execute(plan, *a, **kw):
+        calls.append(plan.video.quality)
+        raise NetworkError("测试失败")
+
+    monkeypatch.setattr(tasks, "execute", execute)
+    window.quality_combo.setCurrentIndex(window.quality_combo.findData(32))
+    window._start_download()
+    wait(qtbot, window)
+    assert window.jobs_table.rowCount() == 2
+    first_id = window.jobs_table.item(0, 0).data(app._TASK_ROLE)
+    original_summary = window.session.batches[next(iter(window.session.batches))].summary
+    window.quality_combo.setCurrentIndex(window.quality_combo.findData(16))
+    window.jobs_table.selectRow(0)
+    window._retry_selected()
+    wait(qtbot, window)
+    assert calls == [32, 32, 32]
+    assert window.jobs_table.rowCount() == 2
+    assert len(window.session.tasks[first_id].attempts) == 2
+    assert window.session.batches[next(iter(window.session.batches))].summary == original_summary
+    window._show_attempts()
+    assert "尝试 1" in window.info_text.toPlainText() and "尝试 2" in window.info_text.toPlainText()
+
+
+def test_preview_preserves_task_history_and_is_read_only(qtbot, monkeypatch, video_info):
+    window = setup_window(qtbot, monkeypatch, video_info)
+    monkeypatch.setattr(
+        tasks, "execute", lambda *_a, **_k: (_ for _ in ()).throw(NetworkError("失败"))
+    )
+    window._start_download()
+    wait(qtbot, window)
+    before = dict(window.session.tasks)
+    window._start_download(True)
+    wait(qtbot, window)
+    assert window.session.tasks == before and window.jobs_table.rowCount() == 1
+    assert "新建" in window.info_text.toPlainText()
+
+
+def test_readable_metadata_and_empty_part_selection_rejected(qtbot, monkeypatch, video_info):
+    pages = video_info.pages + (Page(2, "second", video_info.url + "?p=2", 4, "200"),)
+    window = setup_window(
+        qtbot, monkeypatch, replace(video_info, pages=pages, url=video_info.url + "?p=2")
+    )
+    window._start_info()
+    wait(qtbot, window)
+    root = window.metadata_tree.topLevelItem(0)
+    assert root.child(0).checkState(0) == Qt.CheckState.Unchecked
+    assert root.child(1).checkState(0) == Qt.CheckState.Checked
+    assert window._inputs()[0].page == "2"
+    assert (
+        "作者" in window.info_text.toPlainText()
+        and "available_streams" not in window.info_text.toPlainText()
+    )
+    root.child(1).setCheckState(0, Qt.CheckState.Unchecked)
+    with pytest.raises(InputError, match="未勾选"):
+        window._inputs()
+    window.page_edit.setText("all")
+    assert window._inputs()[0].page == "1,2"
+    window._copy_metadata()
+    assert "available_streams" in app.QApplication.clipboard().text()
+
+
+def test_stale_info_after_input_edit_is_ignored(qtbot, video_info):
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    window.urls_edit.setPlainText(video_info.url)
+    window._info_generation = window._input_generation
+    window.urls_edit.setPlainText("BV12R4y1J75d")
+    window._on_event(dict(type="info", index=0, metadata=video_info.public_dict()))
+    assert not window._metadata
+
+
+def test_filter_retry_and_clear_use_ids_and_do_not_touch_files(
+    qtbot, monkeypatch, video_info, tmp_path
+):
+    window = setup_window(qtbot, monkeypatch, video_info)
+    output = tmp_path / "output.mp4"
+    output.write_bytes(b"media")
+    monkeypatch.setattr(tasks, "execute", lambda *_a, **_k: DownloadResult(output, True))
+    window._start_download()
+    wait(qtbot, window)
+    window.filter_combo.setCurrentIndex(window.filter_combo.findData("failed"))
+    assert window.jobs_table.isRowHidden(0)
+    window._clear_records(frozenset({"skipped"}))
+    assert not window.session.tasks and window.jobs_table.rowCount() == 0
+    assert output.read_bytes() == b"media"
+
+
+def test_settings_file_value_effective_env_and_explicit_task_override(qtbot, monkeypatch, tmp_path):
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    assert "BILIX_DOWNLOAD_DIR" in window.settings_hint.text()
+    window.output_edit.setText(str(tmp_path / "task"))
+    window._output_edited = True
+    window.default_output_edit.setText(str(tmp_path / "file"))
+    window.ffmpeg_edit.setText("file-ffmpeg")
+    monkeypatch.setenv("BILIX_FFMPEG", "env-ffmpeg")
+    window._save_settings()
+    assert window.output_edit.text() == str(tmp_path / "task")
+    assert window.ffmpeg_edit.text() == "file-ffmpeg"
+    assert window._options(False).ffmpeg == "env-ffmpeg"
+    assert load_settings().file_download_dir == tmp_path / "file"
+
+
+def test_offline_credential_state_does_not_access_network(qtbot, monkeypatch, settings):
+    monkeypatch.setattr(
+        tasks.BilibiliClient, "fetch", lambda *_a: pytest.fail("startup must be offline")
+    )
+    settings.config_dir.mkdir()
+    settings.token_file.write_text("SESSDATA=FAKE_OFFLINE_DUMMY", encoding="utf-8")
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    assert "尚未验证" in window.account_label.text()
+    settings.token_file.write_text("broken", encoding="utf-8")
+    window._offline_account()
+    assert "格式错误" in window.account_label.text()
+
+
+def test_close_running_can_return_without_cancel(qtbot, monkeypatch):
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    def operation(_emit, cancel):
+        cancel.wait(3)
+
+    window._start_operation("doctor", operation)
+    monkeypatch.setattr(
+        app.QMessageBox, "question", lambda *_a, **_k: app.QMessageBox.StandardButton.No
+    )
+    window.close()
+    assert not window._cancel.cancelled() and not window._close_pending
+    window._cancel_active()
+    wait(qtbot, window)
+
+
+def test_worker_adapter_and_failure_categories(monkeypatch, video_info, tmp_path):
+    monkeypatch.setattr(tasks.BilibiliClient, "fetch", lambda *_a: video_info)
+    monkeypatch.setattr(
+        tasks, "execute", lambda *_a, **_k: (_ for _ in ()).throw(NetworkError("失败"))
+    )
+    events = []
+    result = worker.run_download(
+        (worker.JobSpec(video_info.url),),
+        worker.DownloadOptions(None, None, "aac", tmp_path, False, False, None),
+        events.append,
+        CancellationToken(),
+    )
+    assert result["failed"] == 1 and result["source_failed"] == 0
+    assert any(e.get("attempt") and e["attempt"].error_code == "network" for e in events)

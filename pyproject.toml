@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Multimedia :: Video",
 ]
 dependencies = [
-    "curl-cffi>=0.13,<0.17",
+    "curl-cffi>=0.16.3,<0.17",
     "platformdirs>=4.3,<5",
     "pypng>=0.20220715.0",
     "qrcode>=8.2",
@@ -57,6 +57,9 @@ gui-test = ["pytest-qt==4.5.0"]
 
 [tool.hatch.version]
 path = "src/djhx_bilix/__init__.py"
+
+[tool.uv]
+cache-keys = [{file = "pyproject.toml"}, {file = "src/djhx_bilix/__init__.py"}]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/djhx_bilix"]

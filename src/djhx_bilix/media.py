@@ -16,7 +16,9 @@ def find_ffmpeg(configured: str | None = None) -> Path:
         executable = shutil.which(configured) or str(Path(configured).expanduser())
         if Path(executable).is_file():
             return Path(executable).resolve()
-        raise MediaError("指定的 FFmpeg 不存在，请检查 --ffmpeg 或 BILIX_FFMPEG")
+        raise MediaError(
+            "指定的 FFmpeg 不存在，请检查 --ffmpeg 或 BILIX_FFMPEG", error_code="ffmpeg"
+        )
     if os.name == "nt":
         bundled = Path(str(resources.files("djhx_bilix").joinpath("assets", "ffmpeg.exe")))
         if bundled.is_file():
@@ -24,7 +26,9 @@ def find_ffmpeg(configured: str | None = None) -> Path:
     executable = shutil.which("ffmpeg")
     if executable:
         return Path(executable)
-    raise MediaError("未找到 FFmpeg，请安装后加入 PATH，或通过 --ffmpeg 指定路径")
+    raise MediaError(
+        "未找到 FFmpeg，请安装后加入 PATH，或通过 --ffmpeg 指定路径", error_code="ffmpeg"
+    )
 
 
 class FFmpeg:
@@ -57,14 +61,18 @@ class FFmpeg:
                                 process.wait(timeout=3)
                             if cancel.cancelled():
                                 cancel.raise_if_cancelled()
-                            raise MediaError("无法运行 FFmpeg，或媒体处理超过 10 分钟")
+                            raise MediaError(
+                                "无法运行 FFmpeg，或媒体处理超过 10 分钟", error_code="ffmpeg"
+                            )
                         cancel.wait(0.2)
                     cancel.raise_if_cancelled()
                     if process.returncode:
                         raise MediaError("FFmpeg 检测到无效/残缺媒体，或处理失败；临时文件已保留")
                     return ""
             except OSError:
-                raise MediaError("无法运行 FFmpeg，或媒体处理超过 10 分钟") from None
+                raise MediaError(
+                    "无法运行 FFmpeg，或媒体处理超过 10 分钟", error_code="ffmpeg"
+                ) from None
         try:
             result = subprocess.run(
                 command,
@@ -76,7 +84,9 @@ class FFmpeg:
                 creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
             )
         except (OSError, subprocess.TimeoutExpired):
-            raise MediaError("无法运行 FFmpeg，或媒体处理超过 10 分钟") from None
+            raise MediaError(
+                "无法运行 FFmpeg，或媒体处理超过 10 分钟", error_code="ffmpeg"
+            ) from None
         if result.returncode:
             # Never echo stderr: it may contain signed URLs or unsanitized input metadata.
             raise MediaError("FFmpeg 检测到无效/残缺媒体，或处理失败；临时文件已保留")
@@ -177,15 +187,18 @@ class FFmpeg:
 
     def version(self) -> str:
         # Version output is diagnostic metadata and contains no credentials.
-        result = subprocess.run(
-            [str(self.executable), "-version"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=10,
-            creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
-        )
+        try:
+            result = subprocess.run(
+                [str(self.executable), "-version"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
+                creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise MediaError("无法运行 FFmpeg，请检查程序路径和权限", error_code="ffmpeg") from None
         if result.returncode:
-            raise MediaError("FFmpeg 启动失败")
+            raise MediaError("FFmpeg 启动失败", error_code="ffmpeg")
         return result.stdout.splitlines()[0]

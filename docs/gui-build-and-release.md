@@ -66,6 +66,8 @@ uv run --locked --extra gui --group build python scripts/package_gui_deb.py --ma
 
 构建脚本输出 `build/gui/linux/gui_entry.dist/` 并在中文/空格路径做无网络启动检查；打包脚本为包内共享库生成构建期映射，再从实际 ELF 文件计算系统共享库依赖，制作 `dist/gui/djhx-bilix-gui_<版本>_amd64.deb`、对应源码包、`SHA256SUMS-linux.txt` 与 `release-manifest-linux.json`。预发布 Debian 版本把 `.dev0` 映射为 `~dev0-1`，排序低于同号正式版。deb 包在 `/usr/lib/djhx-bilix-gui/` 放置私有 Python/Qt 运行时，提供 `/usr/bin/bilix-gui`、桌面入口、图标、许可和源码获取说明。FFmpeg 由发行版 `ffmpeg` 依赖提供；GUI 应以普通用户运行，不应以 root 启动。
 
+1.7.0 起构建脚本显式复制 Qt 的 compose/IBus 输入后端及所需 Qt DBus 库。Nuitka 默认插件族不会自动包含 `platforminputcontexts`；整个目录中的虚拟键盘插件依赖 Essentials 未提供的 Qt Quick，因此只选择桌面需要的两个后端。插件文件和动态依赖检查通过仍不等于中文 IME 提交已经验收，T5 须在真实会话操作。传输库锁定为 curl-cffi 0.16.3，项目依赖范围为 `>=0.16.3,<0.17`；此前候选在 0.13.0 发现流式关闭竞态，修复与回归见 [1.7.0 验收记录](validation-1.7.0.md)。
+
 用户可通过 `sudo apt install ./djhx-bilix-gui_<版本>_amd64.deb` 本地安装或升级。把 deb 上传到网页/GitHub 不会自动生成 APT 更新源；自建 APT 仓库的签名、索引与轮换方案见[发行与升级调研](gui-distribution-and-updates.md)。首版 GUI 不内置自动更新。使用 `apt` 升级时程序文件交给包管理器管理，账号配置与下载文件保留在用户目录。
 
 正式发布前须在干净的 Ubuntu 22.04/24.04 与 Debian 12/13 amd64 桌面上实际测试 deb 安装、运行、X11、FFmpeg、中文路径、卸载及数据保留。Wayland、真实账号下载和跨版本升级应分别记录实际执行的系统与范围；未执行时明确列为未验证。本机若无 Linux 构建/测试环境，不能把 Windows 检查记作 deb 已通过。

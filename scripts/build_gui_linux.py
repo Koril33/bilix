@@ -72,6 +72,18 @@ def smoke(executable: Path) -> None:
         raise RuntimeError(f"Packaged GUI start check failed; see {BUILD / 'smoke.txt'}")
 
 
+def bundle_input_contexts(executable: Path) -> None:
+    """Include desktop input backends omitted by Nuitka's default families."""
+    import PySide6
+
+    qt_root = Path(PySide6.__file__).parent / "Qt"
+    input_contexts = executable.parent / "PySide6" / "qt-plugins" / "platforminputcontexts"
+    input_contexts.mkdir(parents=True, exist_ok=True)
+    for name in ("libcomposeplatforminputcontextplugin.so", "libibusplatforminputcontextplugin.so"):
+        shutil.copy2(qt_root / "plugins" / "platforminputcontexts" / name, input_contexts / name)
+    shutil.copy2(qt_root / "lib" / "libQt6DBus.so.6", executable.parent / "libQt6DBus.so.6")
+
+
 def main() -> None:
     require_environment()
     BUILD.mkdir(parents=True, exist_ok=True)
@@ -118,6 +130,10 @@ def main() -> None:
     # plugin from the release tree before its smoke check and ELF scan.
     pdf_plugin = executable.parent / "PySide6" / "qt-plugins" / "imageformats" / "libqpdf.so"
     pdf_plugin.unlink(missing_ok=True)
+    # Nuitka's default plugin families omit platforminputcontexts. Ship only
+    # the native compose/IBus backends for desktop text entry; the virtual
+    # keyboard plugin depends on Qt Quick, outside the Essentials runtime.
+    bundle_input_contexts(executable)
     smoke(executable)
     print(f"Built and start-checked {executable}")
 

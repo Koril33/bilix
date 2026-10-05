@@ -17,6 +17,10 @@ class Settings:
     config_dir: Path
     download_dir: Path
     ffmpeg: str | None = None
+    file_download_dir: Path | None = None
+    file_ffmpeg: str | None = None
+    download_source: str = "默认值"
+    ffmpeg_source: str = "自动查找"
 
     @property
     def token_file(self) -> Path:
@@ -39,18 +43,40 @@ def load_settings() -> Settings:
             values = tomllib.loads(config_file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             raise InputError(
-                "config.toml 无法读取或格式错误，请使用 blx config 查看配置位置"
+                "config.toml 无法读取或格式错误，请使用 blx config 查看配置位置",
+                error_code="config",
+                action="请修正 config.toml",
             ) from None
     for key in ("download_dir", "ffmpeg"):
         if key in values and (not isinstance(values[key], str) or not values[key].strip()):
-            raise InputError(f"config.toml 中的 {key} 必须是非空字符串")
+            raise InputError(
+                f"config.toml 中的 {key} 必须是非空字符串",
+                error_code="config",
+                action="请修正 config.toml",
+            )
     download_dir = Path(
         os.environ.get("BILIX_DOWNLOAD_DIR")
         or values.get("download_dir")
         or user_downloads_path() / "djhx-bilix"
     ).expanduser()
     ffmpeg = os.environ.get("BILIX_FFMPEG") or values.get("ffmpeg")
-    return Settings(config_dir, download_dir, ffmpeg)
+    return Settings(
+        config_dir,
+        download_dir,
+        ffmpeg,
+        Path(values["download_dir"]).expanduser() if values.get("download_dir") else None,
+        values.get("ffmpeg"),
+        "BILIX_DOWNLOAD_DIR 环境变量"
+        if os.environ.get("BILIX_DOWNLOAD_DIR")
+        else "config.toml"
+        if values.get("download_dir")
+        else "默认值",
+        "BILIX_FFMPEG 环境变量"
+        if os.environ.get("BILIX_FFMPEG")
+        else "config.toml"
+        if values.get("ffmpeg")
+        else "自动查找",
+    )
 
 
 def save_settings(settings: Settings, *, download_dir: Path, ffmpeg: str | None) -> Settings:

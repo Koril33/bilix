@@ -3,8 +3,11 @@
 # for diagnosis. The Linux build and evidence live under ignored dist/gui/.
 param(
     [switch]$SkipBuild,
+    [switch]$PrepareOnly,
+    [switch]$ReusePrepared,
     [string]$Maintainer = '',
     [string]$ArtifactDir = '',
+    [string]$PriorDeb = '',
     [ValidateSet('ubuntu2204', 'ubuntu2404', 'debian12', 'debian13')]
     [string[]]$Targets = @('ubuntu2204', 'ubuntu2404', 'debian12', 'debian13')
 )
@@ -80,6 +83,18 @@ function Remove-TestVM([string]$Target) {
 Push-Location $PSScriptRoot
 try {
     Invoke-Vagrant @('validate')
+    if ($PrepareOnly -and -not $SkipBuild) {
+        throw '-PrepareOnly requires -SkipBuild.'
+    }
+    if ($PrepareOnly) {
+        foreach ($target in $Targets) {
+            $machine = if ($target -eq 'ubuntu2204') { 'ubuntu2204clean' } else { $target }
+            Remove-TestVM $machine
+            Invoke-Vagrant @('up', $machine, '--provider=virtualbox')
+            Invoke-Vagrant @('halt', $machine)
+        }
+        return
+    }
     if (-not $SkipBuild) {
         & python (Join-Path $PSScriptRoot 'write-source-manifest.py')
         if ($LASTEXITCODE -ne 0) {
@@ -117,11 +132,25 @@ try {
     $guestPackage = '/bilix-host/' + $package.Substring($repoRoot.Length + 1).Replace('\', '/')
     # Quote the shared-folder path for the guest shell, including spaces/apostrophes.
     $quotedPackage = "'" + $guestPackage.Replace("'", "'`"'`"'") + "'"
+    $quotedPrior = ''
+    if ($PriorDeb) {
+        $priorInput = if ([IO.Path]::IsPathRooted($PriorDeb)) { $PriorDeb } else { Join-Path $repoRoot $PriorDeb }
+        $priorPath = (Resolve-Path -LiteralPath $priorInput).Path
+        if (-not $priorPath.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'PriorDeb must be inside this repository shared folder.'
+        }
+        $priorGuest = '/bilix-host/' + $priorPath.Substring($repoRoot.Length + 1).Replace('\', '/')
+        $quotedPrior = "'" + $priorGuest.Replace("'", "'`"'`"'") + "'"
+    }
     foreach ($target in $Targets) {
         $machine = if ($target -eq 'ubuntu2204') { 'ubuntu2204clean' } else { $target }
-        Remove-TestVM $machine
-        Invoke-Vagrant @('up', $machine, '--provider=virtualbox')
-        Invoke-Vagrant @('ssh', $machine, '-c', "bash /bilix-host/tests/vm/accept-deb.sh $target $quotedPackage")
+        if ($ReusePrepared) {
+            Invoke-Vagrant @('up', $machine, '--provider=virtualbox', '--no-provision')
+        } else {
+            Remove-TestVM $machine
+            Invoke-Vagrant @('up', $machine, '--provider=virtualbox')
+        }
+        Invoke-Vagrant @('ssh', $machine, '-c', "bash /bilix-host/tests/vm/accept-deb.sh $target $quotedPackage $quotedPrior")
         Invoke-Vagrant @('halt', $machine)
     }
 }

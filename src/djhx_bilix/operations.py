@@ -33,3 +33,4 @@ class StageEvent:
 
     stage: str
     detail: str = ""
+    ffmpeg: str = ""

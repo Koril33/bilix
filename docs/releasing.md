@@ -60,13 +60,13 @@ Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe'
 
 包含 GUI 的版本应按 [GUI 构建与发行](gui-build-and-release.md) 及 [Linux VM 矩阵](gui-vm-validation.md)、[Windows 10 VM 流程](gui-win10-validation.md)分别构建和验收。Windows 绿色 EXE、安装器、配套源码 ZIP，Ubuntu 22.04 构建的 deb 与源码归档，以及 Python wheel/sdist、Windows CLI ZIP 均需用**同一源码版本**生成；运行 `scripts/assemble_gui_release.py` 与 `scripts/assemble_release.py` 取得跨平台完整哈希清单。真实未通过的平台不得在发行说明中称为支持。
 
-集合完最终候选后，用 `scripts/validate.py --profile gui --release-dir dist/release-<版本>` 只读核对哈希、归档和材料。集合脚本会写产物，不能用它复核公开包。文档/材料重包也改变哈希，需绑定新候选重验；源码改动则重新编译受影响的 CLI/GUI。下一版以原始 1.6.0 GUI 包做真实升级，Preview 不代替稳定渠道；Windows 降级保护尚需补实现和实测。
+集合完最终候选后，用 `scripts/validate.py --profile gui --release-dir dist/release-<版本>` 只读核对哈希、归档和材料。集合脚本会写产物，不能用它复核公开包。文档/材料重包也改变哈希，需绑定新候选重验；源码改动则重新编译受影响的 CLI/GUI。1.7.0 以原始 1.6.0 GUI 包做真实升级，Preview 不代替稳定渠道；新安装器的降级保护与写入后恢复已实现，实际覆盖和未验证范围见 [1.7.0 记录](validation-1.7.0.md)。旧 1.6.0 安装器仍没有新保护。
 
 ## 标签、镜像与页面
 
 只有最终代码与产物一致后才创建版本标签（例如 `v1.6.0`）。推送普通提交、标签和上传发行文件是发布步骤，历史清理与强制推送属于另行协调的维护操作。不要为了普通发布覆盖现有标签。
 
-在 GitHub 与实际维护的镜像发行页填写同一版本说明并上传已验证文件，下载后核对 SHA256。旧发行文件保留其真实状态，不能把新功能写成旧版本已有功能。
+既有流程在 GitHub 发布发行说明及已验证文件，在 PyPI 发布 wheel/sdist，并向 Gitea 同步代码与标签；Gitea 没有对应的发行文件不算镜像发行完成。若另设镜像发行页，应填写同一版本说明、上传同一文件并回下载核对 SHA256。旧发行文件保留其真实状态，不能把新功能写成旧版本已有功能。
 
 项目页面唯一源码为 `site/bilix.html`。完成 [页面验证](../site/README.md) 后复制到现有网站；它不会随包上传或 Git 推送自动部署。正式发布后同步 README、CHANGELOG 和页面的未发布提示，保留 FFmpeg 与许可链接。
 

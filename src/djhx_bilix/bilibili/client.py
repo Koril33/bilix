@@ -150,6 +150,8 @@ class BilibiliClient:
                 ),
                 float(e.get("duration", 0)) / 1000,
                 str(e.get("cid", "")),
+                str(e.get("bvid", "")),
+                str(e["id"]),
             )
             for i, e in enumerate(episodes, 1)
         )

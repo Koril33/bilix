@@ -8,7 +8,7 @@ import pytest
 from curl_cffi import requests
 from typer.testing import CliRunner
 
-from djhx_bilix import auth, cli
+from djhx_bilix import auth, cli, tasks
 from djhx_bilix.bilibili import client as client_module
 from djhx_bilix.bilibili.client import BilibiliClient, cookie_header
 from djhx_bilix.bilibili.parser import apply_playback, embedded_json, parse_video
@@ -389,7 +389,7 @@ def test_audio_selection_and_distinct_outputs(video_info, tmp_path):
 def test_cli_hdr_auto_and_audio_option(monkeypatch, video_info):
     info = apply_playback(video_info, PLAY)
     monkeypatch.setattr(BilibiliClient, "fetch", lambda *a: info)
-    monkeypatch.setattr(cli, "execute", lambda *a: pytest.fail("must not transfer"))
+    monkeypatch.setattr(tasks, "execute", lambda *a, **kw: pytest.fail("must not transfer"))
     result = CliRunner().invoke(
         cli.app,
         [

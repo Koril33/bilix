@@ -34,12 +34,23 @@ def discover(
         if cancel:
             cancel.raise_if_cancelled()
         label = f"P{part.number} {part.title}" if len(info.pages) > 1 else ""
+        identity = dict(
+            page_number=part.number,
+            cid=part.cid,
+            bvid=part.bvid or (info.bvid if not info.episode_id else ""),
+        )
         if part.cid and part.cid == info.cid and info.videos:
-            result.append(VideoTarget(info.url, info, label))
+            result.append(
+                VideoTarget(info.url, info, label, **identity, episode_id=info.episode_id)
+            )
         elif part.url == info.url:
-            result.append(VideoTarget(info.url, info, label))
+            result.append(
+                VideoTarget(info.url, info, label, **identity, episode_id=info.episode_id)
+            )
         else:
-            result.append(VideoTarget(part.url, label=label))
+            result.append(
+                VideoTarget(part.url, label=label, **identity, episode_id=part.episode_id)
+            )
     return tuple(result)
 
 
@@ -81,7 +92,8 @@ def execute(
             if stage:
                 stage(StageEvent("skipped"))
             return DownloadResult(plan.output, skipped=True)
-    media = FFmpeg(find_ffmpeg(ffmpeg_path))
+    executable = find_ffmpeg(ffmpeg_path)
+    media = FFmpeg(executable)
     if cancel:
         cancel.raise_if_cancelled()
     try:
@@ -95,7 +107,7 @@ def execute(
     headers = {"User-Agent": USER_AGENT, "Referer": plan.info.url}
     try:
         if stage:
-            stage(StageEvent("downloading"))
+            stage(StageEvent("downloading", ffmpeg=str(executable)))
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [
                 executor.submit(
@@ -138,7 +150,16 @@ def execute(
             raise MediaError("音视频时长不一致，未提交 MP4")
         if stage:
             stage(StageEvent("muxing"))
-        media.mux(checked_video, checked_audio, output, **({"cancel": cancel} if cancel else {}))
+        try:
+            media.mux(
+                checked_video, checked_audio, output, **({"cancel": cancel} if cancel else {})
+            )
+        except MediaError as error:
+            raise MediaError(
+                str(error),
+                error_code="mux" if error.error_code == "validation" else error.error_code,
+                action=error.action,
+            ) from None
         # Ensure buffers reach the filesystem before committing the new directory entry.
         with output.open("rb+") as handle:
             os.fsync(handle.fileno())
@@ -157,9 +178,12 @@ def execute(
             shutil.rmtree(work, ignore_errors=True)
             raise OperationCancelled("操作已取消") from None
         message = str(error) if isinstance(error, BilixError) else "文件写入或提交失败"
-        raise DownloadError(f"{message}；临时目录：{work}") from None
+        raise DownloadError(f"{message}；临时目录：{work}", cause=error) from None
     except KeyboardInterrupt:
-        raise DownloadError(f"下载已中断；临时目录：{work}") from None
+        if cancel:
+            cancel.cancel()
+        shutil.rmtree(work, ignore_errors=True)
+        raise OperationCancelled("操作已取消") from None
     shutil.rmtree(work, ignore_errors=True)
     if stage:
         stage(StageEvent("completed" if committed else "skipped"))

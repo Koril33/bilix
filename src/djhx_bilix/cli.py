@@ -2,7 +2,9 @@
 
 import json
 import os
+import signal
 import sys
+import threading
 from datetime import datetime
 from difflib import get_close_matches
 from enum import StrEnum
@@ -25,12 +27,12 @@ from .completion import (
     shell_script,
 )
 from .config import load_settings
-from .errors import BilixError, InputError
+from .errors import BilixError, InputError, OperationCancelled
 from .media import FFmpeg, find_ffmpeg
-from .models import CODECS, QUALITY_NAMES
-from .planner import build_plan, parse_quality
+from .operations import CancellationToken
+from .planner import parse_quality
 from .presentation import console, download_progress, error_console, show_info
-from .service import discover, execute
+from .tasks import DownloadOptions, JobSpec, Session, run_batch, run_preview, summary_text
 from .urls import load_urls, normalize_url, parse_pages
 
 app = typer.Typer(
@@ -39,7 +41,9 @@ app = typer.Typer(
     help="BiliX · Bilibili 视频下载器",
     rich_markup_mode="rich",
     suggest_commands=True,
-    epilog="Tab 补全：使用 blx completion SHELL 生成脚本，支持 bash/zsh/fish/powershell/pwsh。",
+    epilog="快速开始：blx info BV1j4411W7F7；blx download BV1j4411W7F7 --dry-run；"
+    "blx auth login。\n"
+    "Tab 补全：blx completion SHELL，支持 bash/zsh/fish/powershell/pwsh。",
     context_settings={"help_option_names": ["--help", "-h"]},
 )
 auth_app = typer.Typer(
@@ -71,6 +75,9 @@ def guarded(function):
     def wrapper(*args, **kwargs):
         try:
             return function(*args, **kwargs)
+        except OperationCancelled:
+            error_console.print("已取消", markup=False)
+            raise typer.Exit(130) from None
         except BilixError as error:
             error_console.print(f"错误：{error}", markup=False)
             raise typer.Exit(1) from None
@@ -159,14 +166,26 @@ def info_command(
     urls: Annotated[list[str] | None, typer.Argument(help="视频 URL 或 BV 号")] = None,
     file: Annotated[
         Path | None,
-        typer.Option("--file", "-o", help="UTF-8 URL 列表", autocompletion=complete_file),
+        typer.Option(
+            "--file",
+            "-o",
+            rich_help_panel="输入与保存",
+            help="UTF-8 URL 列表",
+            autocompletion=complete_file,
+        ),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="输出 JSON，便于脚本处理")] = False,
 ):
     run_info(urls, file, json_output)
 
 
-@app.command("download", help="下载视频；默认选全部 P，已有文件默认跳过")
+@app.command(
+    "download",
+    help="下载视频；默认遵循链接 ?p=，无 ?p= 时选全部 P，已有文件跳过",
+    epilog="示例：blx download BV1j4411W7F7 --dry-run\n"
+    "blx download BV1j4411W7F7 -p 1,3-5 -q 1080p --save ./下载\n"
+    "blx download --file urls.txt --quiet\n覆盖使用 --overwrite；-o 仍表示输入文件。",
+)
 @app.command("video", hidden=True)
 @guarded
 def download_command(
@@ -176,23 +195,48 @@ def download_command(
         typer.Option(
             "--quality",
             "-q",
+            rich_help_panel="媒体与选集",
             help="auto / 1080p+ / 1080p60 / 4k / HDR / 8k / id",
             autocompletion=complete_quality,
         ),
     ] = "auto",
     codec: Annotated[
-        Codec, typer.Option("--codec", case_sensitive=False, help="视频编码；auto 按清晰度选择")
+        Codec,
+        typer.Option(
+            "--codec",
+            rich_help_panel="媒体与选集",
+            case_sensitive=False,
+            help="视频编码；auto 按清晰度选择",
+        ),
     ] = Codec.auto,
     audio: Annotated[
-        Audio, typer.Option("--audio", case_sensitive=False, help="AAC / FLAC 无损 / Dolby / best")
+        Audio,
+        typer.Option(
+            "--audio",
+            rich_help_panel="媒体与选集",
+            case_sensitive=False,
+            help="AAC / FLAC 无损 / Dolby / best",
+        ),
     ] = Audio.aac,
     save: Annotated[
         Path | None,
-        typer.Option("--save", "-s", help="保存目录", autocompletion=complete_directory),
+        typer.Option(
+            "--save",
+            "-s",
+            rich_help_panel="输入与保存",
+            help="保存目录",
+            autocompletion=complete_directory,
+        ),
     ] = None,
     page: Annotated[
         str | None,
-        typer.Option("--page", "-p", help="all / 1 / 1,3,5-7", autocompletion=complete_page),
+        typer.Option(
+            "--page",
+            "-p",
+            rich_help_panel="媒体与选集",
+            help="all / 1 / 1,3,5-7",
+            autocompletion=complete_page,
+        ),
     ] = None,
     file: Annotated[
         Path | None,
@@ -200,15 +244,32 @@ def download_command(
             "--file", "--origin", "-o", help="UTF-8 URL 列表", autocompletion=complete_file
         ),
     ] = None,
-    overwrite: Annotated[bool, typer.Option("--overwrite", help="验证成功后替换已有文件")] = False,
-    strict: Annotated[
-        bool, typer.Option("--strict", help="指定清晰度/编码不可用时直接失败")
+    overwrite: Annotated[
+        bool,
+        typer.Option("--overwrite", rich_help_panel="执行与安全", help="验证成功后替换已有文件"),
     ] = False,
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="显示计划，不下载媒体")] = False,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict", rich_help_panel="执行与安全", help="指定清晰度/编码不可用时直接失败"
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", rich_help_panel="执行与安全", help="显示计划，不下载媒体")
+    ] = False,
     ffmpeg: Annotated[
-        str | None, typer.Option("--ffmpeg", help="FFmpeg 路径", autocompletion=complete_file)
+        str | None,
+        typer.Option(
+            "--ffmpeg",
+            rich_help_panel="执行与安全",
+            help="FFmpeg 路径",
+            autocompletion=complete_file,
+        ),
     ] = None,
-    quiet: Annotated[bool, typer.Option("--quiet", help="隐藏进度和计划，仅显示结果")] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", rich_help_panel="执行与安全", help="隐藏进度和计划，仅显示结果"),
+    ] = False,
     info: Annotated[bool, typer.Option("--info", "-i", help="兼容旧版：仅查看视频信息")] = False,
 ):
     if info:
@@ -217,60 +278,92 @@ def download_command(
     quality_id = parse_quality(quality)
     parse_pages(page)
     settings = load_settings()
-    client = BilibiliClient(settings)
-    completed = skipped = failed = planned = 0
-    for index, url in enumerate(sources(urls, file), 1):
-        try:
-            targets = discover(client, normalize_url(url), page)
-        except BilixError as error:
-            failed += 1
-            error_console.print(f"第 {index} 个地址失败：{error}", markup=False)
-            continue
-        for target in targets:
-            context = f"{target.label}（{target.url}）" if target.label else target.url
-            try:
-                video = target.cached_info or client.fetch(target.url)
-                title = f"{video.title} · {target.label}" if target.label else video.title
-                context = f"{title}（{target.url}）"
-                plan = build_plan(
-                    video,
-                    save or settings.download_dir,
-                    quality_id,
-                    None if codec == Codec.auto else codec.value,
-                    strict,
-                    audio.value,
-                )
-                for warning in plan.warnings:
-                    error_console.print(f"提示：{warning}", markup=False)
-                if not quiet:
-                    console.print(
-                        f"{video.title} · "
-                        f"{QUALITY_NAMES.get(plan.video.quality, plan.video.quality)} / "
-                        f"{CODECS.get(plan.video.codec, plan.video.codec)} / "
-                        f"{plan.audio.audio_kind.upper()}",
+    specs = tuple(JobSpec(url, page) for url in sources(urls, file))
+    options = DownloadOptions(
+        quality_id,
+        None if codec == Codec.auto else codec.value,
+        audio.value,
+        save or settings.download_dir,
+        strict,
+        overwrite,
+        ffmpeg or settings.ffmpeg,
+        dry_run,
+    )
+    cancel = CancellationToken()
+    previous_handlers = {}
+    if threading.current_thread() is threading.main_thread():
+        interrupts = [signal.SIGINT]
+        if os.name == "nt":
+            interrupts.append(signal.SIGBREAK)
+        for interrupt in interrupts:
+            previous_handlers[interrupt] = signal.signal(interrupt, lambda *_: cancel.cancel())
+    labels = {"new": "新建", "skip": "跳过（已存在，未校验）", "replace": "替换", "blocked": "阻塞"}
+    try:
+        with download_progress(quiet or dry_run) as progress:
+
+            def emit(event):
+                kind = event["type"]
+                if kind == "progress":
+                    for stream, (done, total) in event["streams"].items():
+                        if progress:
+                            progress(stream, done, total)
+                elif kind in {"plan", "preview"}:
+                    for warning in event.get("warnings", ()):
+                        error_console.print(f"提示：{warning}", markup=False)
+                    if event.get("duplicate"):
+                        error_console.print(
+                            "提示：本批次存在重复输出路径，将逐项重新检查", markup=False
+                        )
+                    if not quiet and event.get("output"):
+                        console.print(
+                            f"{event.get('title', '')} · {event['selection']}", markup=False
+                        )
+                        console.print(
+                            f"→ {event['output']} · {labels[event['conflict']]}",
+                            markup=False,
+                            soft_wrap=True,
+                        )
+                    if event.get("detail"):
+                        error_console.print(
+                            f"失败：{event['detail']}；{event.get('action', '')}", markup=False
+                        )
+                elif kind == "source" and event["request"].state == "failed":
+                    source = event["request"]
+                    error_console.print(
+                        f"来源读取失败：{source.spec.source}：{source.detail}；{source.action}",
                         markup=False,
                     )
-                    console.print(f"→ {plan.output}", markup=False, soft_wrap=True)
-                if dry_run:
-                    planned += 1
-                    continue
-                with download_progress(quiet) as progress:
-                    result = execute(plan, ffmpeg or settings.ffmpeg, overwrite, progress)
-                if result.skipped:
-                    skipped += 1
-                    console.print(f"跳过已有文件：{result.output}", markup=False, soft_wrap=True)
-                else:
-                    completed += 1
-                    console.print(f"完成：{result.output}", markup=False, soft_wrap=True)
-            except BilixError as error:
-                failed += 1
-                error_console.print(f"失败：{context}：{error}", markup=False, soft_wrap=True)
-    console.print(
-        f"{'计划 ' + str(planned) + ' 项；' if dry_run else ''}"
-        f"完成 {completed} · 跳过 {skipped} · 失败 {failed}",
-        markup=False,
-    )
-    if failed:
+                elif kind == "task":
+                    attempt = event["attempt"]
+                    if attempt.state == "failed":
+                        error_console.print(
+                            f"失败：{event['task'].label}（{event['task'].target_url}）："
+                            f"{attempt.detail}；{attempt.action}",
+                            markup=False,
+                            soft_wrap=True,
+                        )
+                    elif attempt.state in {"completed", "skipped"}:
+                        if attempt.state == "skipped":
+                            console.print("已有文件未校验", markup=False)
+                        prefix = "跳过已有文件" if attempt.state == "skipped" else "完成"
+                        console.print(
+                            f"{prefix}：{attempt.output}",
+                            markup=False,
+                            soft_wrap=True,
+                        )
+
+            if dry_run:
+                counts = run_preview(specs, options, emit, cancel)
+            else:
+                session = Session()
+                counts = run_batch(session, session.begin(specs, options), emit, cancel)
+    finally:
+        for interrupt, handler in previous_handlers.items():
+            signal.signal(interrupt, handler)
+    console.print(summary_text(counts), markup=False, soft_wrap=True)
+    if cancel.cancelled():
+        raise typer.Exit(130)
+    if counts["failed"] or counts["source_failed"]:
         raise typer.Exit(1)
 
 
@@ -324,8 +417,11 @@ def logout_command():
 def config_command():
     settings = load_settings()
     console.print(
-        f"配置：{settings.config_file}\n下载目录：{settings.download_dir}\n"
-        f"FFmpeg：{settings.ffmpeg or '自动查找'}",
+        f"配置：{settings.config_file}\n文件下载目录：{settings.file_download_dir or '未设置'}\n"
+        f"生效下载目录：{settings.download_dir}（{settings.download_source}）\n"
+        f"文件 FFmpeg：{settings.file_ffmpeg or '未设置'}\n"
+        f"生效 FFmpeg：{settings.ffmpeg or '自动查找'}（{settings.ffmpeg_source}；"
+        "请用 doctor 验证可运行性）",
         markup=False,
     )
 

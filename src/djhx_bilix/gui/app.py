@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from functools import partial
 from pathlib import Path
 from typing import Any
 
+from platformdirs import user_downloads_path
 from PySide6.QtCore import Qt, QThread, QTimer, QUrl
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
@@ -26,21 +28,26 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
 from djhx_bilix import __version__, auth
 from djhx_bilix.config import Settings, load_settings, save_settings
+from djhx_bilix.credentials import normalize_cookie
 from djhx_bilix.errors import BilixError, InputError
 from djhx_bilix.media import FFmpeg, find_ffmpeg
 from djhx_bilix.models import QUALITY_NAMES
 from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import parse_quality
-from djhx_bilix.urls import load_urls, normalize_url, parse_pages
+from djhx_bilix.tasks import TERMINAL, Session, summary_text
+from djhx_bilix.urls import load_urls, normalize_url, parse_pages, url_page
 
 from .worker import (
     DownloadOptions,
@@ -50,12 +57,14 @@ from .worker import (
     run_download,
     run_info,
     run_login,
+    run_session,
     run_status,
 )
 
 _RETRY_ROLE = Qt.ItemDataRole.UserRole
 _OUTPUT_ROLE = Qt.ItemDataRole.UserRole + 1
 _STATE_ROLE = Qt.ItemDataRole.UserRole + 2
+_TASK_ROLE = Qt.ItemDataRole.UserRole + 3
 
 _STAGES = {
     "downloading": "下载中",
@@ -105,11 +114,18 @@ class MainWindow(QMainWindow):
         self._cancel: CancellationToken | None = None
         self._active_kind: str | None = None
         self._close_pending = False
-        self._row_for_key: dict[tuple[int, int], int] = {}
         self._qr_dialog: QDialog | None = None
         self._qr_label: QLabel | None = None
         self._qr_status: QLabel | None = None
         self._busy_buttons: list[QPushButton] = []
+        self.session = Session()
+        self._row_for_task: dict[str, int] = {}
+        self._source_items: dict[str, QTreeWidgetItem] = {}
+        self._event_versions: dict[str, tuple[str, int]] = {}
+        self._metadata: dict[int, dict] = {}
+        self._input_generation = 0
+        self._info_generation = 0
+        self._output_edited = False
 
         tabs = QTabWidget(self)
         self.setCentralWidget(tabs)
@@ -119,6 +135,10 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._make_doctor_tab(), "诊断")
         self.statusBar().showMessage("就绪")
         self._load_settings_view()
+        self._offline_account()
+        self.urls_edit.textChanged.connect(self._invalidate_info)
+        self.page_edit.textChanged.connect(self._reset_part_checks)
+        self.output_edit.textEdited.connect(lambda _text: setattr(self, "_output_edited", True))
 
     def _button(self, text: str, callback: Any, busy_sensitive: bool = True) -> QPushButton:
         button = QPushButton(text)
@@ -154,18 +174,21 @@ class MainWindow(QMainWindow):
         output_row.addWidget(self._button("选择…", self._choose_output))
         options.addRow("保存到", output_row)
 
-        selections = QHBoxLayout()
         self.quality_combo = QComboBox()
         self.quality_combo.addItem("自动 / 当前可获取的最高画质", None)
         for quality in sorted(QUALITY_NAMES, reverse=True):
             self.quality_combo.addItem(f"{QUALITY_NAMES[quality]} ({quality})", quality)
-        selections.addWidget(QLabel("画质"))
-        selections.addWidget(self.quality_combo, 3)
+        options.addRow("画质", self.quality_combo)
+        layout.addWidget(options_group)
+
+        self.advanced_toggle = QCheckBox("高级选项")
+        layout.addWidget(self.advanced_toggle)
+        self.advanced_group = QWidget()
+        advanced = QFormLayout(self.advanced_group)
         self.codec_combo = QComboBox()
         for label, value in (("自动", None), ("AVC", "AVC"), ("HEVC", "HEVC"), ("AV1", "AV1")):
             self.codec_combo.addItem(label, value)
-        selections.addWidget(QLabel("编码"))
-        selections.addWidget(self.codec_combo, 1)
+        advanced.addRow("编码", self.codec_combo)
         self.audio_combo = QComboBox()
         for label, value in (
             ("AAC", "aac"),
@@ -174,25 +197,31 @@ class MainWindow(QMainWindow):
             ("最佳", "best"),
         ):
             self.audio_combo.addItem(label, value)
-        selections.addWidget(QLabel("音轨"))
-        selections.addWidget(self.audio_combo, 1)
-        options.addRow("媒体", selections)
-
-        page_row = QHBoxLayout()
+        advanced.addRow("音轨", self.audio_combo)
         self.page_edit = QLineEdit()
-        self.page_edit.setPlaceholderText("留空遵循链接中的 ?p=；all 为全部；也可填 1,3,5-7")
-        page_row.addWidget(self.page_edit)
+        self.page_edit.setPlaceholderText("留空遵循链接 ?p=；all 为全部；也可填 1,3,5-7")
+        advanced.addRow("批量选集规则", self.page_edit)
         self.strict_check = QCheckBox("必须精确匹配画质 / 编码")
-        self.overwrite_check = QCheckBox("覆盖同名文件")
-        page_row.addWidget(self.strict_check)
-        page_row.addWidget(self.overwrite_check)
-        options.addRow("选集", page_row)
-        layout.addWidget(options_group)
+        self.overwrite_check = QCheckBox("校验成功后覆盖同名文件")
+        advanced.addRow(self.strict_check)
+        advanced.addRow(self.overwrite_check)
+        layout.addWidget(self.advanced_group)
+        self.advanced_group.hide()
+        self.advanced_toggle.toggled.connect(self.advanced_group.setVisible)
+        self.option_summary = QLabel()
+        self.option_summary.setWordWrap(True)
+        layout.addWidget(self.option_summary)
+        for combo in (self.quality_combo, self.codec_combo, self.audio_combo):
+            combo.currentIndexChanged.connect(self._update_option_summary)
+        for check in (self.strict_check, self.overwrite_check):
+            check.toggled.connect(self._update_option_summary)
+        self.output_edit.textChanged.connect(self._update_option_summary)
+        self.page_edit.textChanged.connect(self._update_option_summary)
 
         actions = QHBoxLayout()
         self.start_button = self._button("开始下载", self._start_download)
         self.plan_button = self._button("预览计划", lambda: self._start_download(True))
-        self.retry_button = self._button("重试失败项", self._retry_failed)
+        self.retry_button = self._button("重试全部失败", self._retry_failed)
         self.retry_button.setEnabled(False)
         self.cancel_button = QPushButton("取消当前操作")
         self.cancel_button.setEnabled(False)
@@ -204,6 +233,45 @@ class MainWindow(QMainWindow):
         actions.addStretch()
         layout.addLayout(actions)
 
+        history_actions = QHBoxLayout()
+        history_actions.addWidget(self._button("重试选中（原参数）", self._retry_selected))
+        history_actions.addWidget(
+            self._button("重试选中（当前参数）", lambda: self._retry_selected(True))
+        )
+        history_actions.addWidget(
+            self._button("重试全部取消", lambda: self._retry_matching("canceled"))
+        )
+        history_actions.addStretch()
+        layout.addLayout(history_actions)
+        self.history_tabs = QTabWidget()
+        self.metadata_tree = QTreeWidget()
+        self.metadata_tree.setHeaderLabels(["来源 / 可选选集", "时长 / 当前可获取媒体"])
+        self.metadata_tree.setMinimumHeight(120)
+        self.metadata_tree.currentItemChanged.connect(self._show_metadata)
+        self.history_tabs.addTab(self.metadata_tree, "信息与选集")
+        self.source_tree = QTreeWidget()
+        self.source_tree.setHeaderLabels(["批次 / 来源", "读取状态", "说明"])
+        self.source_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        self.history_tabs.addTab(self.source_tree, "来源记录")
+        self.source_tree.currentItemChanged.connect(self._show_source)
+        task_page = QWidget()
+        task_layout = QVBoxLayout(task_page)
+        self.filter_combo = QComboBox()
+        for label, value in (
+            ("全部任务", "all"),
+            ("排队", "queued"),
+            ("处理中", "active"),
+            ("完成 / 跳过", "success"),
+            ("失败", "failed"),
+            ("取消", "canceled"),
+        ):
+            self.filter_combo.addItem(label, value)
+        self.filter_combo.currentIndexChanged.connect(self._filter_tasks)
+        task_layout.addWidget(self.filter_combo)
+        self.batch_combo = QComboBox()
+        self.batch_combo.addItem("已结束批次汇总", None)
+        self.batch_combo.currentIndexChanged.connect(self._show_batch)
+        task_layout.addWidget(self.batch_combo)
         self.jobs_table = QTableWidget(0, 4)
         self.jobs_table.setHorizontalHeaderLabels(["视频 / 选集", "状态", "进度", "文件 / 说明"])
         self.jobs_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -215,7 +283,12 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.jobs_table.doubleClicked.connect(self._open_selected_folder)
-        layout.addWidget(self.jobs_table, 4)
+        task_layout.addWidget(self.jobs_table)
+        self.jobs_table.setMinimumHeight(140)
+        self.jobs_table.itemSelectionChanged.connect(self._show_attempts)
+        self.history_tabs.addTab(task_page, "会话任务")
+        self.history_tabs.setMinimumHeight(220)
+        layout.addWidget(self.history_tabs, 4)
 
         progress_row = QHBoxLayout()
         self.progress_bar = QProgressBar()
@@ -226,14 +299,32 @@ class MainWindow(QMainWindow):
         progress_row.addWidget(self._button("打开输出目录", self._open_selected_folder))
         layout.addLayout(progress_row)
 
-        info_group = QGroupBox("视频信息 / 计划")
+        record_actions = QHBoxLayout()
+        record_actions.addWidget(self._button("打开文件", self._open_selected_file, False))
+        record_actions.addWidget(self._button("复制路径", self._copy_selected_path, False))
+        record_actions.addWidget(
+            self._button(
+                "清理成功记录", lambda: self._clear_records(frozenset({"completed", "skipped"}))
+            )
+        )
+        record_actions.addWidget(
+            self._button(
+                "清理失败 / 取消", lambda: self._clear_records(frozenset({"failed", "canceled"}))
+            )
+        )
+        layout.addLayout(record_actions)
+        info_group = QGroupBox("信息 / 尝试详情 / 冲突预览")
         info_layout = QVBoxLayout(info_group)
         self.info_text = QPlainTextEdit()
         self.info_text.setReadOnly(True)
         self.info_text.setMaximumHeight(145)
         info_layout.addWidget(self.info_text)
+        info_layout.addWidget(self._button("复制选中来源 JSON", self._copy_metadata, False))
         layout.addWidget(info_group, 1)
-        return page
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(page)
+        return scroll
 
     def _make_account_tab(self) -> QWidget:
         page = QWidget()
@@ -305,10 +396,18 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("配置需要修正")
             return
         self._settings = settings
-        self.default_output_edit.setText(str(settings.download_dir))
-        self.output_edit.setText(str(settings.download_dir))
-        self.ffmpeg_edit.setText(settings.ffmpeg or "")
+        self.default_output_edit.setText(
+            str(settings.file_download_dir or user_downloads_path() / "djhx-bilix")
+        )
+        if not self._output_edited:
+            self.output_edit.setText(str(settings.download_dir))
+        self.ffmpeg_edit.setText(settings.file_ffmpeg or "")
         self.config_path_label.setText(str(settings.config_file))
+        self.settings_hint.setText(
+            f"生效下载目录：{settings.download_dir}（{settings.download_source}）\n"
+            f"生效 FFmpeg：{settings.ffmpeg or '自动查找'}（{settings.ffmpeg_source}）。\n"
+            "上方编辑文件值；环境变量优先。路径能否运行请使用诊断检查。"
+        )
 
     def _save_settings(self) -> None:
         if self._settings is None:
@@ -317,9 +416,8 @@ class MainWindow(QMainWindow):
         if not self.default_output_edit.text().strip():
             self._error("请填写默认下载目录")
             return
-        previous = str(self._settings.download_dir)
         try:
-            updated = save_settings(
+            save_settings(
                 self._settings,
                 download_dir=Path(self.default_output_edit.text().strip()).expanduser(),
                 ffmpeg=self.ffmpeg_edit.text().strip() or None,
@@ -330,14 +428,13 @@ class MainWindow(QMainWindow):
         except OSError:
             self._error("无法保存设置，请检查配置目录权限")
             return
-        self._settings = updated
-        if self.output_edit.text().strip() == previous:
-            self.output_edit.setText(str(updated.download_dir))
+        self._load_settings_view()
         self.statusBar().showMessage("设置已保存，与 CLI 共用", 5000)
 
     def _choose_output(self) -> None:
         directory = QFileDialog.getExistingDirectory(self, "选择保存目录", self.output_edit.text())
         if directory:
+            self._output_edited = True
             self.output_edit.setText(directory)
 
     def _choose_default_output(self) -> None:
@@ -408,7 +505,21 @@ class MainWindow(QMainWindow):
         page = self.page_edit.text().strip() or None if validate_page else None
         if validate_page:
             parse_pages(page)
-        return tuple(JobSpec(value, page) for _line_number, value in values)
+        specs = []
+        for index, (_line_number, value) in enumerate(values):
+            selected = page
+            if validate_page and index in self._metadata:
+                root = self.metadata_tree.topLevelItem(index)
+                parts = [
+                    str(root.child(j).data(0, Qt.ItemDataRole.UserRole))
+                    for j in range(root.childCount())
+                    if root.child(j).checkState(0) == Qt.CheckState.Checked
+                ]
+                if not parts:
+                    raise InputError(f"第 {index + 1} 个来源未勾选任何选集")
+                selected = ",".join(parts)
+            specs.append(JobSpec(value, selected))
+        return tuple(specs)
 
     def _options(self, dry_run: bool) -> DownloadOptions:
         raw_dir = self.output_edit.text().strip()
@@ -427,70 +538,287 @@ class MainWindow(QMainWindow):
             save=save,
             strict=self.strict_check.isChecked(),
             overwrite=self.overwrite_check.isChecked(),
-            ffmpeg=None,
+            ffmpeg=load_settings().ffmpeg,
             dry_run=dry_run,
         )
 
-    def _new_row(self, key: tuple[int, int], label: str, retry: JobSpec) -> int:
-        row = self.jobs_table.rowCount()
-        if key[1] > 0:
-            siblings = [
-                index for (source, _part), index in self._row_for_key.items() if source == key[0]
-            ]
-            if siblings:
-                row = max(siblings) + 1
-                for existing_key, existing_row in tuple(self._row_for_key.items()):
-                    if existing_row >= row:
-                        self._row_for_key[existing_key] = existing_row + 1
-        self.jobs_table.insertRow(row)
-        for column, text in enumerate((label, _STATES["queued"], "", "")):
-            self.jobs_table.setItem(row, column, QTableWidgetItem(text))
-        name = self.jobs_table.item(row, 0)
-        name.setData(_RETRY_ROLE, retry)
-        name.setData(_STATE_ROLE, "queued")
-        self._row_for_key[key] = row
-        return row
+    def _update_option_summary(self, *_args) -> None:
+        self.option_summary.setText(
+            f"画质 {self.quality_combo.currentText()} · 编码 {self.codec_combo.currentText()} · "
+            f"音轨 {self.audio_combo.currentText()} · "
+            f"严格 {'开' if self.strict_check.isChecked() else '关'} · "
+            f"覆盖 {'开' if self.overwrite_check.isChecked() else '关'} · "
+            f"选集 {self.page_edit.text() or '按来源勾选 / 链接默认'}"
+        )
 
-    def _prepare_queue(self, specs: tuple[JobSpec, ...]) -> None:
-        self.jobs_table.setRowCount(0)
-        self._row_for_key.clear()
-        for index, spec in enumerate(specs):
-            self._new_row((index, 0), spec.source, spec)
-        self.retry_button.setEnabled(False)
-        self.progress_bar.setRange(0, 0)
-        self.progress_bar.setFormat("准备任务…")
+    def _invalidate_info(self) -> None:
+        self._input_generation += 1
+        self._metadata.clear()
+        self.metadata_tree.clear()
+
+    def _offline_account(self) -> None:
+        if self._settings is None:
+            self.account_label.setText("配置不可读，无法检查本地凭据")
+            return
+        path = self._settings.token_file
+        try:
+            if not path.exists():
+                text = "本地未保存凭据，可扫码登录"
+            else:
+                normalize_cookie(path.read_text(encoding="utf-8"), require_session=True)
+                text = "本地凭据已保存，尚未验证有效性；请查询状态"
+        except (BilixError, OSError, UnicodeError):
+            text = "本地凭据无法读取或格式错误，请重新扫码"
+        self.account_label.setText(text)
+
+    def _reset_part_checks(self) -> None:
+        for index, metadata in self._metadata.items():
+            root = self.metadata_tree.topLevelItem(index)
+            if root is None:
+                continue
+            try:
+                raw = self.page_edit.text().strip() or None
+                selected = parse_pages(raw)
+                if raw is None:
+                    part = url_page(metadata["url"])
+                    selected = (part,) if part else None
+            except BilixError:
+                continue
+            for j in range(root.childCount()):
+                child = root.child(j)
+                number = child.data(0, Qt.ItemDataRole.UserRole)
+                child.setCheckState(
+                    0,
+                    Qt.CheckState.Checked
+                    if selected is None or number in selected
+                    else Qt.CheckState.Unchecked,
+                )
+
+    def _show_metadata(self, item=None, *_args) -> None:
+        if item is None:
+            return
+        root = item.parent() or item
+        index = self.metadata_tree.indexOfTopLevelItem(root)
+        value = self._metadata.get(index)
+        if value:
+            media = (
+                ", ".join(f"{v['name']} {v['codec']}" for v in value["available_streams"])
+                or "未知 / 不可获取"
+            )
+            audio = (
+                ", ".join(v["kind"].upper() for v in value["available_audio"]) or "未知 / 不可获取"
+            )
+            self.info_text.setPlainText(
+                f"{value['title']}\n作者：{value['owner']} · 时长 {value['duration']:.0f} 秒 · "
+                f"BV {value['bvid'] or '无'} · CID {value['cid']} · "
+                f"EP {value['episode_id'] or '无'}\n"
+                f"当前读取选集媒体：{media} / {audio}\n"
+                f"试看：{'是' if value['is_preview'] else '否'} · "
+                f"DRM：{'是' if value['is_drm'] else '否'}\n"
+                f"其他选集的权限及媒体在执行 / 预览时分别读取。\n{value['description']}"
+            )
+
+    def _copy_metadata(self) -> None:
+        item = self.metadata_tree.currentItem()
+        if item:
+            index = self.metadata_tree.indexOfTopLevelItem(item.parent() or item)
+            if index in self._metadata:
+                QApplication.clipboard().setText(
+                    json.dumps(self._metadata[index], ensure_ascii=False, indent=2)
+                )
+
+    def _show_source(self, item=None, *_args) -> None:
+        if item:
+            request = self.session.requests.get(item.data(0, Qt.ItemDataRole.UserRole))
+            if request:
+                self.info_text.setPlainText(
+                    f"来源 {request.spec.source} · 选集 {request.spec.page or '链接默认'}\n"
+                    f"{request.options.description()}\n{request.detail}\n{request.action}\n"
+                    f"来源 ID {request.request_id} · 原来源 {request.origin_request_id or '无'}"
+                )
+
+    def _selected_ids(self) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        tasks = (
+            tuple(
+                self.jobs_table.item(row.row(), 0).data(_TASK_ROLE)
+                for row in self.jobs_table.selectionModel().selectedRows()
+                if not self.jobs_table.isRowHidden(row.row())
+            )
+            if self.history_tabs.currentIndex() == 2
+            else ()
+        )
+        sources = (
+            tuple(i.data(0, Qt.ItemDataRole.UserRole) for i in self.source_tree.selectedItems())
+            if self.history_tabs.currentIndex() == 1
+            else ()
+        )
+        return tasks, sources
 
     def _start_download(
         self, dry_run: bool = False, specs: tuple[JobSpec, ...] | None = None
     ) -> None:
+        if self._thread is not None:
+            return
         try:
             selected = specs if specs is not None else self._inputs()
             options = self._options(dry_run)
+            if dry_run:
+                self.info_text.setPlainText("冲突预览为读取时刻快照；执行和提交时会重新检查。")
+                self._start_operation("plan", partial(run_download, selected, options))
+                return
+            batch_id = self.session.begin(selected, options)
         except BilixError as error:
             self._error(str(error))
             return
-        self._prepare_queue(selected)
-        self._start_operation(
-            "plan" if dry_run else "download",
-            partial(run_download, selected, options),
-        )
+        self._start_batch(batch_id)
+
+    def _start_batch(self, batch_id: str) -> None:
+        self.history_tabs.setCurrentIndex(2)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFormat("准备批次…")
+        self._start_operation("download", partial(run_session, self.session, batch_id))
 
     def _retry_failed(self) -> None:
-        specs = []
-        for row in range(self.jobs_table.rowCount()):
+        self._retry_matching("failed")
+
+    def _retry_matching(self, state: str) -> None:
+        tasks = tuple(i for i, t in self.session.tasks.items() if t.latest.state == state)
+        sources = tuple(
+            i
+            for i, r in self.session.requests.items()
+            if r.state == state
+            and not any(n.origin_request_id == i for n in self.session.requests.values())
+        )
+        self._retry_ids(tasks, sources)
+
+    def _retry_selected(self, current: bool = False) -> None:
+        tasks, sources = self._selected_ids()
+        self._retry_ids(tasks, sources, current)
+
+    def _retry_ids(self, tasks, sources, current: bool = False) -> None:
+        if self._thread is not None:
+            return
+        try:
+            options = self._options(False) if current else None
+            if (
+                options is not None
+                and QMessageBox.question(
+                    self,
+                    "确认重试参数",
+                    f"{len(tasks)} 项任务 / {len(sources)} 个来源将使用当前参数：\n"
+                    f"{options.description()}",
+                )
+                != QMessageBox.StandardButton.Yes
+            ):
+                return
+            batch_id = self.session.retry(tasks, sources, options)
+        except BilixError as error:
+            self._error(str(error))
+            return
+        self._start_batch(batch_id)
+
+    def _filter_tasks(self) -> None:
+        selected = self.filter_combo.currentData()
+        for task_id, row in self._row_for_task.items():
+            state = self.jobs_table.item(row, 0).data(_STATE_ROLE)
+            visible = (
+                selected == "all"
+                or selected == state
+                or selected == "success"
+                and state in {"completed", "skipped"}
+                or selected == "active"
+                and state not in TERMINAL
+                and state != "queued"
+            )
+            self.jobs_table.setRowHidden(row, not visible)
+
+    def _show_attempts(self) -> None:
+        row = self.jobs_table.currentRow()
+        if row < 0:
+            return
+        task = self.session.tasks.get(self.jobs_table.item(row, 0).data(_TASK_ROLE))
+        if task:
+            self.info_text.setPlainText(
+                "\n\n".join(
+                    f"尝试 {a.number} · {_STATES.get(a.state, a.state)} · 批次 {a.batch_id}\n"
+                    f"{a.options.description()}\n实际 FFmpeg {a.resolved_ffmpeg or '未调用'}\n"
+                    f"{a.detail}\n类别 {a.error_code or '无'} · {a.action}\n"
+                    f"计划路径 {a.planned_output or '尚未生成'}\n实际输出 {a.output or '无'}"
+                    for a in task.attempts
+                )
+            )
+
+    def _show_batch(self) -> None:
+        batch_id = self.batch_combo.currentData()
+        batch = self.session.batches.get(batch_id)
+        if batch and batch.finished:
+            self.info_text.setPlainText(f"批次 {batch_id}\n" + summary_text(dict(batch.summary)))
+
+    def _clear_records(self, states: frozenset[str]) -> None:
+        if self._thread is not None:
+            return
+        self.session.clear(states)
+        for row in reversed(range(self.jobs_table.rowCount())):
+            if self.jobs_table.item(row, 0).data(_STATE_ROLE) in states:
+                self.jobs_table.removeRow(row)
+        self._row_for_task = {
+            self.jobs_table.item(row, 0).data(_TASK_ROLE): row
+            for row in range(self.jobs_table.rowCount())
+        }
+        for request_id, item in tuple(self._source_items.items()):
+            if (
+                request_id not in self.session.requests
+                or self.session.requests[request_id].state in states
+            ):
+                self.source_tree.takeTopLevelItem(self.source_tree.indexOfTopLevelItem(item))
+                del self._source_items[request_id]
+        self._update_retry_button()
+
+    def _open_selected_file(self) -> None:
+        row = self.jobs_table.currentRow()
+        if row < 0:
+            return
+        name = self.jobs_table.item(row, 0)
+        output = name.data(_OUTPUT_ROLE)
+        if (
+            name.data(_STATE_ROLE) not in {"completed", "skipped"}
+            or not output
+            or not Path(output).is_file()
+        ):
+            self._error("尚无可打开的输出文件，或文件已被移动 / 删除")
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(output)):
+            self._error("无法打开输出文件，请检查桌面关联程序")
+
+    def _copy_selected_path(self) -> None:
+        row = self.jobs_table.currentRow()
+        if row >= 0:
             name = self.jobs_table.item(row, 0)
-            if name.data(_STATE_ROLE) in ("failed", "canceled"):
-                specs.append(name.data(_RETRY_ROLE))
-        if specs:
-            self._start_download(False, tuple(specs))
+            output = name.data(_OUTPUT_ROLE)
+            if (
+                output
+                and Path(output).is_file()
+                and name.data(_STATE_ROLE) in {"completed", "skipped"}
+            ):
+                QApplication.clipboard().setText(output)
+            else:
+                self._error("尚无输出文件，或文件已被移动 / 删除")
 
     def _start_info(self) -> None:
+        if self._thread is not None:
+            return
         try:
             specs = self._inputs(validate_page=False)
         except BilixError as error:
             self._error(str(error))
             return
-        self.info_text.clear()
+        self._metadata.clear()
+        self.metadata_tree.clear()
+        self._info_generation = self._input_generation
+        for spec in specs:
+            self.metadata_tree.addTopLevelItem(QTreeWidgetItem([spec.source, "等待读取"]))
+        self.history_tabs.setCurrentIndex(0)
+        self.info_text.setPlainText("逐个读取来源；其他选集的权限需分别检查。")
         self._start_operation("info", partial(run_info, specs))
 
     def _start_login(self) -> None:
@@ -535,6 +863,7 @@ class MainWindow(QMainWindow):
             self._error("无法删除登录凭据，请检查配置目录权限")
             return
         self.account_label.setText("已退出登录，本地凭据已删除。")
+        self._invalidate_info()
 
     def _start_doctor(self) -> None:
         self.doctor_text.setPlainText("正在检查…")
@@ -567,6 +896,27 @@ class MainWindow(QMainWindow):
         for button in self._busy_buttons:
             button.setEnabled(not busy)
         self.cancel_button.setEnabled(busy)
+        labels = {
+            "download": "取消整个批次",
+            "plan": "取消预览",
+            "info": "取消信息读取",
+            "login": "取消登录",
+            "status": "取消状态查询",
+            "doctor": "取消诊断",
+        }
+        self.cancel_button.setText(labels.get(self._active_kind, "取消当前操作"))
+        for widget in (
+            self.urls_edit,
+            self.output_edit,
+            self.page_edit,
+            self.quality_combo,
+            self.codec_combo,
+            self.audio_combo,
+            self.strict_check,
+            self.overwrite_check,
+            self.metadata_tree,
+        ):
+            widget.setEnabled(not busy)
         if not busy:
             self._update_retry_button()
 
@@ -578,85 +928,163 @@ class MainWindow(QMainWindow):
 
     def _on_event(self, event: dict[str, Any]) -> None:
         kind = event["type"]
-        if kind == "info":
-            previous = self.info_text.toPlainText()
-            self.info_text.setPlainText((previous + "\n\n" if previous else "") + event["text"])
-            return
         if kind == "login":
             self._on_login_event(event)
             return
-        key = event["key"]
-        if kind == "target":
-            row = self._row_for_key.get(key)
-            if row is None:
-                row = self._new_row(key, event["label"], event["retry"])
-            name = self.jobs_table.item(row, 0)
-            name.setText(event["label"])
-            name.setData(_RETRY_ROLE, event["retry"])
+        if kind == "info":
+            if self._info_generation != self._input_generation:
+                return
+            index = event["index"]
+            root = self.metadata_tree.topLevelItem(index)
+            if root is None:
+                return
+            if event.get("error"):
+                root.setText(1, f"读取失败：{event['error']}；可再次查看信息")
+                return
+            data = event["metadata"]
+            self._metadata[index] = data
+            root.setText(0, data["title"])
+            root.setText(1, f"已读取 · {len(data['pages']) or 1} 个选集")
+            pages = data["pages"] or [
+                dict(number=1, title=data["title"], duration=data["duration"])
+            ]
+            for page in pages:
+                child = QTreeWidgetItem(
+                    [
+                        f"P{page['number']} {page['title']}",
+                        f"{page['duration']:.0f} 秒 · 媒体待检查",
+                    ]
+                )
+                child.setData(0, Qt.ItemDataRole.UserRole, page["number"])
+                child.setFlags(child.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(0, Qt.CheckState.Checked)
+                root.addChild(child)
+            root.setExpanded(True)
+            self._reset_part_checks()
+            self.metadata_tree.setCurrentItem(root)
             return
-        row = self._row_for_key.get(key)
+        if kind == "preview":
+            labels = {
+                "new": "新建",
+                "skip": "跳过（已存在，未校验）",
+                "replace": "替换",
+                "blocked": "阻塞",
+            }
+            detail = (
+                f"[{event['source_index'] + 1}] {event.get('title', '')} "
+                f"{event.get('label', '')} · {labels[event['conflict']]}\n"
+            )
+            detail += f"{event.get('selection', '')} → {event.get('output', '无计划路径')}\n"
+            detail += "；".join(event.get("warnings", ()))
+            if event.get("duplicate"):
+                detail += "；本批次输出路径重复，将逐项重新检查"
+            detail += event.get("detail", "") + " " + event.get("action", "")
+            self.info_text.appendPlainText(detail)
+            return
+        if kind == "source":
+            source = event["request"]
+            item = self._source_items.get(source.request_id)
+            if item is None:
+                item = QTreeWidgetItem([f"{source.batch_id[:8]} · {source.spec.source}", "", ""])
+                item.setData(0, Qt.ItemDataRole.UserRole, source.request_id)
+                self.source_tree.addTopLevelItem(item)
+                self._source_items[source.request_id] = item
+            item.setText(
+                1,
+                {
+                    "discovered": "已发现选集",
+                    "loading": "读取中",
+                    "failed": "失败",
+                    "canceled": "取消",
+                    "queued": "等待",
+                }.get(source.state, source.state),
+            )
+            item.setText(2, f"{source.detail} {source.action}")
+            return
+        if "task" not in event:
+            return
+        task, attempt = event["task"], event["attempt"]
+        stored = self.session.tasks.get(task.task_id)
+        if stored is None or attempt.number > len(stored.attempts):
+            return
+        known = stored.attempts[attempt.number - 1]
+        if known.attempt_id != attempt.attempt_id or attempt.sequence > known.sequence:
+            return
+        # Queued Qt signals may outlive an earlier attempt or preview. Ignore them.
+        previous = self._event_versions.get(task.task_id)
+        if previous and (previous[0] == attempt.attempt_id and attempt.sequence <= previous[1]):
+            return
+        row = self._row_for_task.get(task.task_id)
+        if previous and previous[0] != attempt.attempt_id and row is not None:
+            shown_number = self.jobs_table.item(row, 0).data(Qt.ItemDataRole.UserRole + 4)
+            if shown_number is not None and attempt.number < shown_number:
+                return
+        self._event_versions[task.task_id] = (attempt.attempt_id, attempt.sequence)
         if row is None:
-            return
+            row = self.jobs_table.rowCount()
+            self.jobs_table.insertRow(row)
+            for col in range(4):
+                self.jobs_table.setItem(row, col, QTableWidgetItem(""))
+            self._row_for_task[task.task_id] = row
         name = self.jobs_table.item(row, 0)
-        state_item = self.jobs_table.item(row, 1)
-        progress_item = self.jobs_table.item(row, 2)
-        detail_item = self.jobs_table.item(row, 3)
+        name.setText(
+            f"{event.get('title', task.label)} · P{task.spec.page} · 尝试 {attempt.number}"
+        )
+        name.setData(_TASK_ROLE, task.task_id)
+        name.setData(Qt.ItemDataRole.UserRole + 4, attempt.number)
+        name.setData(_STATE_ROLE, attempt.state)
+        name.setData(_OUTPUT_ROLE, attempt.output)
+        self.jobs_table.item(row, 1).setText(_STATES.get(attempt.state, attempt.state))
+        detail = attempt.detail + ("；" + attempt.action if attempt.action else "")
         if kind == "plan":
-            name.setText(event["title"])
-            name.setData(_OUTPUT_ROLE, event["output"])
-            detail = event["selection"]
-            if event["warnings"]:
+            decision = {
+                "new": "新建",
+                "skip": "跳过（未校验）",
+                "replace": "替换",
+                "blocked": "阻塞",
+            }[event["conflict"]]
+            detail = f"{event['selection']} · {decision} → {attempt.planned_output}"
+            if event.get("warnings"):
                 detail += "；" + "；".join(event["warnings"])
-            detail_item.setText(f"{detail} → {event['output']}")
-            detail_item.setToolTip(detail_item.text())
-        elif kind == "progress":
-            parts = []
+            if event.get("duplicate"):
+                detail += "；本批次输出路径重复"
+        if attempt.output:
+            detail += f" → {attempt.output}"
+        if detail:
+            self.jobs_table.item(row, 3).setText(detail)
+            self.jobs_table.item(row, 3).setToolTip(detail)
+        if kind == "progress":
             current = total = 0
-            known = True
-            for stream in ("video", "audio"):
-                if stream not in event["streams"]:
-                    known = False
-                    continue
-                done, expected = event["streams"][stream]
+            known = len(event["streams"]) == 2
+            parts = []
+            for stream, (done, expected) in event["streams"].items():
                 current += done
                 if expected:
                     total += expected
-                    parts.append(f"{stream} {done * 100 // expected}%")
+                    parts.append(f"{stream} {min(100, done * 100 // expected)}%")
                 else:
                     known = False
                     parts.append(f"{stream} {_display_size(done)}")
-            progress_item.setText(" · ".join(parts))
-            if known and total:
-                self.progress_bar.setRange(0, 100)
-                self.progress_bar.setValue(min(99, current * 100 // total))
-                self.progress_bar.setFormat("%p%")
-            else:
-                self.progress_bar.setRange(0, 0)
-                self.progress_bar.setFormat("下载中…")
-        elif kind == "stage":
-            stage = event["stage"]
-            name.setData(_STATE_ROLE, stage)
-            state_item.setText(_STAGES.get(stage, stage))
-            self.statusBar().showMessage(f"{name.text()}：{state_item.text()}")
+            self.jobs_table.item(row, 2).setText(" · ".join(parts))
+            self.progress_bar.setRange(0, 100 if known and total else 0)
+            self.progress_bar.setValue(min(99, current * 100 // total) if known and total else 0)
+            self.progress_bar.setFormat("%p%" if known and total else "下载中…")
+        elif attempt.state not in TERMINAL:
             self.progress_bar.setRange(0, 0)
-            self.progress_bar.setFormat(f"{_STAGES.get(stage, stage)}…")
-        elif kind == "state":
-            state = event["state"]
-            name.setData(_STATE_ROLE, state)
-            state_item.setText(_STATES.get(state, state))
-            if "output" in event:
-                name.setData(_OUTPUT_ROLE, event["output"])
-            if event.get("detail"):
-                detail = event["detail"]
-                if state in ("completed", "skipped") and event.get("output"):
-                    detail = f"{detail} → {event['output']}"
-                detail_item.setText(detail)
-                detail_item.setToolTip(detail)
-            if state in ("completed", "skipped"):
-                self.progress_bar.setRange(0, 100)
-                self.progress_bar.setValue(100)
-                self.progress_bar.setFormat("完成" if state == "completed" else "已跳过")
-            self.statusBar().showMessage(f"{name.text()}：{state_item.text()}")
+            self.progress_bar.setFormat(f"{_STATES[attempt.state]}…")
+        else:
+            self.jobs_table.item(row, 2).setText("")
+        selected = self.filter_combo.currentData()
+        visible = (
+            selected == "all"
+            or selected == attempt.state
+            or selected == "success"
+            and attempt.state in {"completed", "skipped"}
+            or selected == "active"
+            and attempt.state not in TERMINAL
+            and attempt.state != "queued"
+        )
+        self.jobs_table.setRowHidden(row, not visible)
 
     def _on_login_event(self, event: dict[str, Any]) -> None:
         if self._qr_status is None:
@@ -689,27 +1117,23 @@ class MainWindow(QMainWindow):
         kind = self._active_kind
         state = result["state"]
         if kind in ("download", "plan"):
-            if state == "canceled":
-                self._mark_unfinished("canceled", "操作已取消，可重试")
-                self.progress_bar.setRange(0, 100)
-                self.progress_bar.setValue(0)
-                self.progress_bar.setFormat("已取消")
-                self.statusBar().showMessage("操作已取消")
-            elif state == "ok":
+            if state == "ok":
                 counts = result["value"]
                 self.progress_bar.setRange(0, 100)
-                self.progress_bar.setValue(100)
-                self.progress_bar.setFormat("批量处理完成")
-                self.statusBar().showMessage(
-                    f"完成 {counts['completed']} · 跳过 {counts['skipped']} · "
-                    f"失败 {counts['failed']} · 计划 {counts['planned']}"
+                self.progress_bar.setValue(
+                    0 if counts["canceled"] or counts["source_canceled"] else 100
                 )
+                summary = summary_text(counts)
+                self.progress_bar.setFormat("批次已结束")
+                self.statusBar().showMessage(summary)
+                self.info_text.appendPlainText(summary)
+                for batch_id, batch in self.session.batches.items():
+                    if batch.finished and self.batch_combo.findData(batch_id) < 0:
+                        self.batch_combo.addItem(f"批次 {batch_id[:8]}", batch_id)
             else:
-                self._mark_unfinished("failed", result.get("message", "操作失败，可重试"))
                 self.progress_bar.setRange(0, 100)
                 self.progress_bar.setValue(0)
-                self.progress_bar.setFormat("操作失败")
-                self.statusBar().showMessage("操作失败")
+                self.progress_bar.setFormat("已取消" if state == "canceled" else "操作失败")
         elif kind == "status" and state == "ok":
             info = result["value"]
             if not info.get("logged_in"):
@@ -726,6 +1150,7 @@ class MainWindow(QMainWindow):
                 )
         elif kind == "login":
             if state == "ok":
+                self._invalidate_info()
                 self.account_label.setText("登录成功，凭据已保存。可点击“查询状态”查看账号。")
             if self._qr_dialog is not None:
                 if state == "ok":
@@ -765,31 +1190,33 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self.close)
 
     def _update_retry_button(self) -> None:
-        failed = any(
-            self.jobs_table.item(row, 0).data(_STATE_ROLE) in ("failed", "canceled")
-            for row in range(self.jobs_table.rowCount())
+        self.retry_button.setEnabled(
+            any(t.latest.state == "failed" for t in self.session.tasks.values())
+            or any(
+                r.state == "failed"
+                and not any(n.origin_request_id == i for n in self.session.requests.values())
+                for i, r in self.session.requests.items()
+            )
         )
-        self.retry_button.setEnabled(failed)
-
-    def _mark_unfinished(self, state: str, detail: str) -> None:
-        terminal = {"completed", "skipped", "failed", "canceled", "planned"}
-        for row in range(self.jobs_table.rowCount()):
-            name = self.jobs_table.item(row, 0)
-            if name.data(_STATE_ROLE) in terminal:
-                continue
-            name.setData(_STATE_ROLE, state)
-            self.jobs_table.item(row, 1).setText(_STATES[state])
-            detail_item = self.jobs_table.item(row, 3)
-            detail_item.setText(detail)
-            detail_item.setToolTip(detail)
 
     def _error(self, message: str) -> None:
         QMessageBox.warning(self, "BiliX", message)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._thread is not None:
-            self._close_pending = True
-            self._cancel_active()
+            if not self._close_pending:
+                answer = QMessageBox.question(
+                    self,
+                    "操作进行中",
+                    "停止当前操作并退出？未提交任务将取消，会话记录在退出后清除。",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    event.ignore()
+                    return
+                self._close_pending = True
+                self._cancel_active()
             event.ignore()
             return
         super().closeEvent(event)

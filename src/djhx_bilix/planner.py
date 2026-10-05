@@ -3,7 +3,7 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .errors import InputError
+from .errors import InputError, SelectionError
 from .filenames import safe_filename
 from .models import CODECS, QUALITY_NAMES, DownloadPlan, Page, VideoInfo
 from .urls import parse_pages, url_page
@@ -43,11 +43,23 @@ def build_plan(
     audio: str = "aac",
 ) -> DownloadPlan:
     if info.is_drm:
-        raise InputError("播放接口标记该媒体为 DRM 保护，当前不支持下载；请使用官方客户端播放")
+        raise InputError(
+            "播放接口标记该媒体为 DRM 保护，当前不支持下载；请使用官方客户端播放",
+            error_code="drm",
+            action="请使用官方客户端播放",
+        )
     if info.is_preview:
-        raise InputError("当前会话仅能获取试看内容，未下载正片；请检查账号或影片购买权限")
+        raise InputError(
+            "当前会话仅能获取试看内容，未下载正片；请检查账号或影片购买权限",
+            error_code="preview",
+            action="请检查账号或影片购买权限",
+        )
     if not info.videos or not info.audios:
-        raise InputError("没有可下载的音视频流，可能需要登录或相应会员权限")
+        raise InputError(
+            "没有可下载的音视频流，可能需要登录或相应会员权限",
+            error_code="auth_needed",
+            action="请扫码登录并检查会员权限",
+        )
     if quality is not None and quality not in QUALITY_NAMES:
         raise InputError("未知清晰度 id")
     if codec is None:
@@ -66,17 +78,17 @@ def build_plan(
     candidates = [v for v in info.videos if v.codec == codecid]
     if not candidates:
         if strict:
-            raise InputError(f"当前账号无法获取 {codec} 视频流")
+            raise SelectionError(f"当前账号无法获取 {codec} 视频流")
         candidates = list(info.videos)
         warnings.append(f"{codec} 不可用，将使用当前可获取的编码")
     exact = [v for v in candidates if v.quality == quality] if quality else []
     if quality and not exact:
         if strict:
-            raise InputError(f"当前账号无法获取指定清晰度 {QUALITY_NAMES[quality]}")
+            raise SelectionError(f"当前账号无法获取指定清晰度 {QUALITY_NAMES[quality]}")
         # Fallback never upgrades a user's explicit size/quality limit.
         lower = [v for v in candidates if v.quality <= quality]
         if not lower:
-            raise InputError("没有不高于指定清晰度的可用流，请调整 --quality")
+            raise SelectionError("没有不高于指定清晰度的可用流，请调整 --quality")
         candidates = lower
         warnings.append(f"{QUALITY_NAMES[quality]} 不可用，将使用可获取的较低清晰度")
     video = max(exact or candidates, key=lambda v: (v.quality, v.bandwidth))
@@ -84,7 +96,7 @@ def build_plan(
         raise InputError("--audio 必须是 aac、flac、dolby 或 best")
     audio_candidates = [s for s in info.audios if audio == "best" or s.audio_kind == audio]
     if not audio_candidates:
-        raise InputError(f"该视频或当前账号没有可获取的 {audio.upper()} 音频")
+        raise SelectionError(f"该视频或当前账号没有可获取的 {audio.upper()} 音频")
     selected_audio = max(
         audio_candidates,
         key=lambda s: (

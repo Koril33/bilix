@@ -11,7 +11,7 @@ from curl_cffi import requests
 from curl_cffi.requests.exceptions import RequestException
 from typer.testing import CliRunner
 
-from djhx_bilix import auth, cli
+from djhx_bilix import auth, cli, tasks
 from djhx_bilix.bilibili.client import BilibiliClient
 from djhx_bilix.config import load_settings
 from djhx_bilix.errors import BilixError, InputError, NetworkError
@@ -170,7 +170,7 @@ def test_invalid_parameters_fail_before_network(monkeypatch, arguments):
 
 def test_dry_run_single_page_and_compatibility_alias(monkeypatch, video_info):
     monkeypatch.setattr(BilibiliClient, "fetch", lambda *a: video_info)
-    monkeypatch.setattr(cli, "execute", lambda *a: pytest.fail("must not transfer"))
+    monkeypatch.setattr(tasks, "execute", lambda *a, **kw: pytest.fail("must not transfer"))
     for command in ("download", "video"):
         result = runner.invoke(cli.app, [command, "BV1j4411W7F7", "--page", "1", "--dry-run"])
         assert result.exit_code == 0, result.output
@@ -214,10 +214,18 @@ def test_drm_language_versions_report_distinct_targets_without_transfer(monkeypa
     )
 
     def fetch(self, url):
-        return replace(video_info, url=url, pages=pages, is_drm=True, videos=(), audios=())
+        return replace(
+            video_info,
+            url=url,
+            pages=pages,
+            cid="200" if "ep777157" in url else "100",
+            is_drm=True,
+            videos=(),
+            audios=(),
+        )
 
     monkeypatch.setattr(BilibiliClient, "fetch", fetch)
-    monkeypatch.setattr(cli, "execute", lambda *a: pytest.fail("DRM must not transfer"))
+    monkeypatch.setattr(tasks, "execute", lambda *a, **kw: pytest.fail("DRM must not transfer"))
     result = runner.invoke(cli.app, ["download", season_url])
     assert result.exit_code == 1
     assert "完成 0 · 跳过 0 · 失败 2" in result.output
@@ -253,7 +261,7 @@ def test_completion_options_reach_root_entry(monkeypatch):
 def test_reported_output_path_remains_a_single_copyable_line(monkeypatch, video_info, tmp_path):
     monkeypatch.setattr(BilibiliClient, "fetch", lambda *a: video_info)
     output = tmp_path / ("长文件名" * 25 + ".mp4")
-    monkeypatch.setattr(cli, "execute", lambda *a: DownloadResult(output, skipped=True))
+    monkeypatch.setattr(tasks, "execute", lambda *a, **kw: DownloadResult(output, skipped=True))
     result = runner.invoke(cli.app, ["download", "BV1j4411W7F7", "--quiet"])
     assert result.exit_code == 0
     assert f"跳过已有文件：{output}\n" in result.stdout

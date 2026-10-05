@@ -38,6 +38,8 @@ class Page:
     url: str
     duration: float = 0
     cid: str = ""
+    bvid: str = ""
+    episode_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,10 @@ class VideoTarget:
     url: str
     cached_info: VideoInfo | None = None
     label: str = ""
+    page_number: int = 1
+    cid: str = ""
+    bvid: str = ""
+    episode_id: str = ""
 
 
 @dataclass(frozen=True)

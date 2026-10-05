@@ -1,4 +1,5 @@
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -89,3 +90,28 @@ def test_cancelled_transfer_does_not_retry_or_claim_completion(tmp_path):
             )
     assert any(completed for completed, _ in reports)
     assert (tmp_path / "video.m4s").stat().st_size <= 4
+
+
+@pytest.mark.parametrize("cancel_at_end", [False, True])
+def test_short_stream_close_lifecycle_under_parallel_transfers(tmp_path, cancel_at_end):
+    # Fast EOF/close used to race the native cleanup callback in curl-cffi 0.13.
+    # Exercise the actual native client, with one Session per transfer as in production.
+    with server(Handler) as url:
+
+        def once(index):
+            token = CancellationToken()
+            target = tmp_path / f"{index}.m4s"
+
+            def progress(_stream, completed, _expected):
+                if cancel_at_end and completed:
+                    token.cancel()
+
+            if cancel_at_end:
+                with pytest.raises(OperationCancelled):
+                    transfer(Stream(16, 7, 4, (url + "/ok",)), target, {}, progress, cancel=token)
+            else:
+                transfer(Stream(16, 7, 4, (url + "/ok",)), target, {}, progress, cancel=token)
+            assert target.read_bytes() == b"abcd"
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(once, range(32)))

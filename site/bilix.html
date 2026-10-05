@@ -262,10 +262,11 @@
         <pre><code>.\bilix.exe download "https://www.bilibili.com/video/BV1yt4y1Q7SS" "https://www.bilibili.com/video/BV1j4411W7F7"</code></pre>
         <h3>下载多个视频 — 方式二：多个 URL 写入一个文件，一行一个 URL</h3>
         <pre><code>.\bilix.exe download --file "url_list.txt"</code></pre>
-        <p>列表使用 UTF-8 编码，每行一个 URL 或 BV 号，支持空行与 # 注释。已有同名文件默认跳过；<code>--overwrite</code> 在新文件完成下载、校验与合并后替换旧文件。失败保留临时材料，目前不支持自动续传。</p>
+        <p>列表使用 UTF-8 编码，每行一个 URL 或 BV 号，支持空行与 # 注释。已有同名文件默认跳过并提示“未校验”；<code>--overwrite</code> 在新文件完成下载、校验与合并后替换旧文件。失败保留临时材料，目前不支持自动续传。</p>
         <h3>先查看下载计划，再开始下载</h3>
         <pre><code>.\bilix.exe download BV1j4411W7F7 --dry-run</code></pre>
         <h3>图形版安装与使用</h3>
+        <p>1.7.0 图形版提供逐视频选集、只读冲突预览和当前窗口会话内的任务历史。可筛选失败或取消的任务并精确重试，默认沿用原参数；清理记录不会删除下载文件。关闭窗口后会话记录不保存。编码、音轨、选集规则与覆盖等高级选项可展开设置，参数摘要始终可见。</p>
         <p>从发行页选择 Windows 10 x64 绿色版或安装版，或适用于 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 <code>.deb</code>。绿色版下载 EXE 时请同时保存许可证与源码 ZIP；Linux 可运行 <code>sudo apt install ./djhx-bilix-gui_版本_amd64.deb</code>。安装后启动 <code>bilix-gui</code>，在“账号”页扫码登录，在“下载”页输入视频链接并选择画质、编码与音轨。详细步骤见 <a href="https://github.com/Koril33/bilix/blob/main/docs/gui-usage.md">图形版说明</a>。</p>
         <h3>Python 版安装（Windows / macOS / Linux）</h3>
         <pre><code>uv tool install djhx-bilix

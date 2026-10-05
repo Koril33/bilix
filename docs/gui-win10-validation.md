@@ -78,7 +78,9 @@ try {
 }
 ```
 
-`VBoxManage guestcontrol copyto` 在这个 VirtualBox 版本中应指定每个文件的完整目标路径。`validate-gui.ps1` 核对 OS build、三个产物的大小/SHA-256 和 Windows 专用校验和；它把绿色版复制到中文路径，在隔离配置目录中启动两次，静默安装并检查许可/源码，运行已安装程序自检，再卸载并确认用户数据标记保留。可选 `-PriorSetup` 可验收同一安装渠道的旧版本升级，要求旧版号小于目标版本。`1.6.0.dev0` 与 `1.6.0` 的 Inno Setup AppId 不同，不能用二者的连续安装声称完成跨版本升级。
+`VBoxManage guestcontrol copyto` 在这个 VirtualBox 版本中应指定每个文件的完整目标路径。`validate-gui.ps1` 核对 OS build、三个产物的大小/SHA-256 和 Windows 专用校验和；它把绿色版复制到中文路径，在隔离配置目录中启动两次，静默安装并检查许可/源码，运行已安装程序自检，执行同版本重装及再次自检，再卸载并确认用户数据标记保留。可选 `-PriorSetup` 可验收同一安装渠道的旧版本升级，要求旧版号小于目标版本。`1.6.0.dev0` 与 `1.6.0` 的 Inno Setup AppId 不同，不能用二者的连续安装声称完成跨版本升级。
+
+1.7 的独立安装事务检查使用 [validate-installer-transactions.ps1](../tests/platform/windows/validate-installer-transactions.ps1)。从生产 `.iss` 编译小运行目录的同版、低版、1.10.0、Preview 和 `ValidationFailure` 测试安装器，交给已加载用户 profile 的 `run-guest-validation.ps1 -InstallerTransactions`。故障版本先覆盖运行文件，再读取故意缺失的外部文件触发真实安装 I/O 失败；验证原始完整 1.6.0 runtime 全部文件哈希和卸载版本恢复。另检查文件占用、目录创建权限不足、新安装器低版拒绝、数字版本排序及 Preview 隔离。生产发行不得定义 `ValidationFailure`。小目录测试证明安装脚本的事务行为，不能替代最终完整包的升级/重装测试，也不证明磁盘耗尽、用户主动取消或断电恢复已通过。
 
 程序自检退出后，验收脚本最多等待 15 秒确认 EXE 的文件锁释放，再启动卸载；卸载返回后再等待其清理助手删除 EXE，超过 15 秒仍残留会失败。这两个有界检查避免把进程退出信号当作全部文件已释放，也不把永久残留误记为通过。
 

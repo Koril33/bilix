@@ -6,7 +6,9 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-**1.6.0** 是首个图形界面版本，提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。CLI 保留 1.5.0 增加的 Tab 补全与相近指令提示。下载文件与 SHA256 见 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
+本轮源码与发行材料版本为 **1.7.0**，新增会话任务历史、精确快照重试、逐来源选集、冲突预览、配置来源与安装升级保护；实际结果和本轮接受的未验证范围见[验收记录](docs/validation-1.7.0.md)。正式文件与渠道状态以 [v1.7.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.7.0) 为准。
+
+图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。CLI 保留 1.5.0 增加的 Tab 补全与相近指令提示。1.7.0 的安装升级与真实媒体检查已完成，真实桌面 IME/DPI 等范围仍未验证；历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
 Python 包要求 3.11 或更新版本。Windows GUI/CLI 独立程序和 Linux deb 无需安装 Python/Qt；Windows 包内置 FFmpeg，deb 自动安装系统 FFmpeg 依赖。macOS 暂提供 CLI Python 包，GUI 支持后续加入。
 
@@ -26,7 +28,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.6.0-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.0-1_amd64.deb
 bilix-gui
 ```
 
@@ -41,7 +43,7 @@ uv run --locked --extra gui bilix-gui
 
 GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
 
-首版的完成情况、最终产物和未验证范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。真实账号下载、Linux 输入法、完整 Wayland 桌面与跨稳定版 GUI 升级仍需补测；后续改进见 [CLI/GUI 下一版建议](docs/roadmap.md)。
+首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。1.7.0 的真实账号、稳定版升级与桌面补测结果独立记录在[本轮验收记录](docs/validation-1.7.0.md)；后续范围见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
 ## 快速开始
 
@@ -84,7 +86,8 @@ blx completion powershell | Out-String | Invoke-Expression
 | 命令、下载参数、配置与退出码 | [使用说明](docs/usage.md) |
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
-| CLI/GUI 人机交互与产品体验评审 | [产品体验评审](docs/cli-gui-ux-review.md) |
+| 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
+| 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |
 | 模块职责与下载事务 | [架构说明](docs/architecture.md) |
 | 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |
 | GUI 技术与版本选择 | [GUI 技术评估](docs/gui-technology-evaluation.md) |
@@ -96,7 +99,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 持续测试、用例与验收门槛 | [测试规范](docs/testing.md) |
 | 每版验收记录格式 | [验收模板](docs/validation-template.md) |
 | 首个 GUI 版本的最终完成情况 | [1.6.0 复核](docs/validation-1.6.0.md) |
-| CLI/GUI 下一版功能与优化建议 | [版本规划](docs/roadmap.md) |
+| 功能范围索引与后续方向 | [版本规划](docs/roadmap.md) |
 | 版本、产物、校验与发布 | [发布说明](docs/releasing.md) |
 | 旧版本与兼容入口 | [迁移说明](docs/releases.md) |
 | 贡献代码或报告问题 | [贡献指南](CONTRIBUTING.md) |
