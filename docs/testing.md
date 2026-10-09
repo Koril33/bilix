@@ -18,6 +18,8 @@ uv sync --locked --extra gui --group gui-test
 uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui
 ```
 
+验证入口先比对源码版本与已安装 `djhx-bilix` 发行元数据；不一致直接失败并保留报告。不要使用会优先加载旧 `src/*.egg-info` 的 PYTHONPATH 覆盖来绕过检查。应在隔离环境重新安装当前 checkout/最终 wheel，并确认版本身份。
+
 GUI profile 运行全部共享内核、CLI、GUI 测试，CLI profile 明确排除 `tests/gui`。GUI profile 缺少 PySide6 或 pytest-qt 时直接失败，防止整个 GUI 测试目录被 `importorskip` 跳过后误报完成。脚本检查文档的相对文件链接、Ruff、pytest、CLI 帮助/版本/诊断/纠错/四种补全脚本，以及 GUI 离线启动。链接检查只验证文件存在；标题锚点、远程链接和页面交互仍需人工检查。
 
 每次结果在 `build/validation/<版本>/<profile>-<UTC时间>-<随机数>/`，包括 `result.json`、逐步骤日志和 `pytest.xml`。记录 Python/依赖版本、提交、工作树状态、失败和每项 skip 原因；失败返回非零退出码，重跑不会覆盖旧证据。账号、下载和 pytest 临时目录独立；脚本不读取日常账号，不启动 VM，不执行在线登录、上传或部署。

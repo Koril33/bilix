@@ -37,6 +37,69 @@ def test_pytest_summary_keeps_skip_reasons_and_failures(validation, tmp_path):
     assert result["skipped"] == [{"test": "media.skip", "reason": "missing encoder"}]
 
 
+def test_version_metadata_mismatch_blocks_validation(validation):
+    with pytest.raises(RuntimeError, match="differs from installed"):
+        validation.check_version_metadata("1.7.1", "1.3.2")
+    assert validation.check_version_metadata("1.7.1", "1.7.1") == {
+        "source": "1.7.1",
+        "installed": "1.7.1",
+    }
+
+
+@pytest.fixture
+def validation_checkout(validation, monkeypatch, tmp_path):
+    initializer = tmp_path / "src" / "djhx_bilix" / "__init__.py"
+    initializer.parent.mkdir(parents=True)
+    initializer.write_text('__version__ = "1.7.1"\n', encoding="utf-8")
+    monkeypatch.setattr(validation, "ROOT", tmp_path)
+    monkeypatch.setattr(validation, "__version__", "1.7.1")
+    return validation, initializer
+
+
+def test_validation_reads_checkout_and_accepts_matching_wheel(validation_checkout, monkeypatch):
+    validation, initializer = validation_checkout
+    package = importlib.import_module("djhx_bilix")
+    monkeypatch.setattr(package, "__file__", str(initializer.parents[2] / "wheel/__init__.py"))
+    assert validation.check_checkout_version_identity("1.7.1") == {
+        "source": "1.7.1",
+        "installed": "1.7.1",
+        "imported": "1.7.1",
+    }
+
+
+def test_validation_rejects_equal_old_wheel_and_metadata(validation_checkout, monkeypatch):
+    validation, _ = validation_checkout
+    monkeypatch.setattr(validation, "__version__", "1.7.0")
+    with pytest.raises(RuntimeError, match="Checkout source version 1.7.1.*imported.*1.7.0"):
+        validation.check_checkout_version_identity("1.7.0")
+
+
+def test_validation_rejects_current_import_with_stale_metadata(validation_checkout):
+    validation, _ = validation_checkout
+    with pytest.raises(RuntimeError, match="differs from installed.*1.7.0"):
+        validation.check_checkout_version_identity("1.7.0")
+
+
+def test_validation_main_rejects_old_wheel_before_checks(validation_checkout, monkeypatch):
+    validation, initializer = validation_checkout
+    root = initializer.parents[2]
+    (root / "uv.lock").write_text("fixture", encoding="utf-8")
+    monkeypatch.setattr(validation, "__version__", "1.7.0")
+    monkeypatch.setattr(validation.importlib.metadata, "version", lambda _name: "1.7.0")
+    monkeypatch.setattr(validation.subprocess, "check_output", lambda *_args, **_kwargs: "")
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Old wheel reached Ruff, pytest, or executable checks")
+
+    monkeypatch.setattr(validation.subprocess, "run", forbidden)
+    assert validation.main(["--profile", "cli"]) == 1
+    reports = list(root.glob("build/validation/1.7.0/*/result.json"))
+    assert len(reports) == 1
+    record = json.loads(reports[0].read_text(encoding="utf-8"))
+    assert record["status"] == "failed" and record["checks"] == []
+    assert "Checkout source version 1.7.1" in record["error"]
+
+
 def test_read_only_release_verification_rejects_tampering(validation, tmp_path, monkeypatch):
     monkeypatch.setattr(validation, "_verify_public_archive", lambda _path: None)
     monkeypatch.setattr(validation, "_verify_python_wheel", lambda _path: None)

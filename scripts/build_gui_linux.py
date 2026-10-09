@@ -11,7 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gui_release import GUI_ENTRY, ROOT, STANDALONE_NAME, sha256
+from gui_release import GUI_ENTRY, ROOT, STANDALONE_NAME, require_version_identity, sha256
 
 BUILD = ROOT / "build" / "gui" / "linux"
 NUITKA = "4.2.2"
@@ -19,6 +19,7 @@ PYSIDE = "6.11.2"
 
 
 def require_environment() -> None:
+    require_version_identity()
     if sys.platform != "linux" or platform.machine() != "x86_64":
         raise RuntimeError("The first Linux GUI package targets Ubuntu/Debian x86_64")
     release = platform.freedesktop_os_release()

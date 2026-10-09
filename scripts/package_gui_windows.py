@@ -18,6 +18,7 @@ from gui_release import (
     artifact_manifest,
     collect_licenses,
     copy_sources,
+    require_version_identity,
     sha256,
     version_parts,
 )
@@ -104,6 +105,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--portable-only", action="store_true", help="skip Inno Setup packaging")
     args = parser.parse_args()
+    require_version_identity()
     if os.name != "nt":
         parser.error("Run Windows GUI packaging on Windows")
     if sys.version_info[:3] != (3, 14, 8):

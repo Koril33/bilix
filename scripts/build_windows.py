@@ -12,6 +12,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from gui_release import require_version_identity
+
 from djhx_bilix import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +92,7 @@ def main():
     parser.add_argument("--mode", choices=("onefile", "standalone"), default="onefile")
     parser.add_argument("--output", type=Path, default=ROOT / "build" / "windows")
     arguments = parser.parse_args()
+    require_version_identity()
     if os.name != "nt":
         parser.error("This build script requires Windows")
     output = arguments.output.resolve()

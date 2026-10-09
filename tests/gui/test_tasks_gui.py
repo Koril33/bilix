@@ -190,3 +190,47 @@ def test_worker_adapter_and_failure_categories(monkeypatch, video_info, tmp_path
     )
     assert result["failed"] == 1 and result["source_failed"] == 0
     assert any(e.get("attempt") and e["attempt"].error_code == "network" for e in events)
+
+
+def test_native_ime_composition_hides_hint_and_restores_after_commit_or_cancel(qtbot):
+    from PySide6.QtGui import QInputMethodEvent
+    from PySide6.QtWidgets import QApplication
+
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    editor = window.urls_edit
+    editor.setFocus()
+    QApplication.sendEvent(editor, QInputMethodEvent("zhongwen", []))
+    assert editor.toPlainText() == "" and editor.placeholderText() == ""
+    commit = QInputMethodEvent()
+    commit.setCommitString("中文")
+    QApplication.sendEvent(editor, commit)
+    assert editor.toPlainText() == "中文" and editor.placeholderText() == editor.hint
+    editor.clear()
+    QApplication.sendEvent(editor, QInputMethodEvent("shuru", []))
+    QApplication.sendEvent(editor, QInputMethodEvent())
+    assert editor.toPlainText() == "" and editor.placeholderText() == editor.hint
+
+
+def test_url_tab_navigation_reaches_actions_without_changing_input(qtbot):
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    editor = window.urls_edit
+    editor.setPlainText("BV1j4411W7F7")
+    editor.setFocus()
+    window.activateWindow()
+    qtbot.waitUntil(editor.hasFocus)
+    qtbot.keyClick(editor, Qt.Key.Key_Tab)
+    assert not editor.hasFocus()
+    assert window.focusWidget().text() == "导入 URL 文件"
+    qtbot.keyClick(window.focusWidget(), Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier)
+    assert editor.hasFocus() and editor.toPlainText() == "BV1j4411W7F7"
+
+
+def test_wayland_startup_leaves_space_for_compositor_panel_and_decoration(qtbot, monkeypatch):
+    monkeypatch.setattr(app.QApplication, "platformName", staticmethod(lambda: "wayland"))
+    window = app.MainWindow()
+    qtbot.addWidget(window)
+    assert window.height() <= max(240, window.screen().availableGeometry().height() - 80)

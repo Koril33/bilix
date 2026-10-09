@@ -28,6 +28,7 @@ Vagrant.configure("2") do |config|
         vb.name = "bilix-validation-#{name}"
         vb.cpus = name == "ubuntu2204" ? 4 : 2
         vb.memory = name == "ubuntu2204" ? 6144 : 4096
+        vb.customize ["modifyvm", :id, "--vram", "128"]
       end
       vm.vm.provision "shell", path: "provision.sh", args: [name]
     end

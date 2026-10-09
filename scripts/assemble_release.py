@@ -10,12 +10,13 @@ import re
 import shutil
 import tarfile
 import zipfile
+from email.parser import Parser
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 
 from assemble_gui_release import DIST as GUI_DIST
 from assemble_gui_release import assemble as assemble_gui
-from gui_release import ROOT, artifact_manifest, deb_version, sha256
+from gui_release import ROOT, artifact_manifest, deb_version, sha256, source_version
 
 from djhx_bilix import __version__
 
@@ -198,26 +199,74 @@ def _verify_public_archive(path: Path) -> None:
         _verify_deb(path)
 
 
+def _verify_python_identity(metadata: bytes, source: bytes, label: str) -> None:
+    """Read package identity without executing archived application source."""
+    try:
+        headers = Parser().parsestr(metadata.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(f"Python {label} identity is not valid UTF-8 source/metadata") from exc
+    names = headers.get_all("Name", [])
+    versions = headers.get_all("Version", [])
+    if len(names) != 1 or re.sub(r"[-_.]+", "-", names[0].lower()) != "djhx-bilix":
+        raise RuntimeError(f"Python {label} metadata has the wrong or repeated package name")
+    if versions != [__version__]:
+        raise RuntimeError(f"Python {label} metadata has the wrong or repeated version")
+    if source_version(source, f"Python {label} source") != __version__:
+        raise RuntimeError(f"Python {label} source version differs from release metadata")
+
+
 def _verify_python_wheel(path: Path) -> None:
+    if path.name != f"djhx_bilix-{__version__}-py3-none-any.whl":
+        raise RuntimeError("Python wheel filename has the wrong version or tag")
     with zipfile.ZipFile(path) as archive:
         if archive.testzip() is not None:
             raise RuntimeError(f"Wheel ZIP integrity check failed: {path.name}")
         names = archive.namelist()
         metadata = f"djhx_bilix-{__version__}.dist-info/METADATA"
-        if metadata not in names or "djhx_bilix/gui/app.py" not in names:
+        initializer = "djhx_bilix/__init__.py"
+        if (
+            metadata not in names
+            or initializer not in names
+            or "djhx_bilix/gui/app.py" not in names
+        ):
             raise RuntimeError("Python wheel lacks its metadata or GUI source")
-        metadata_lines = archive.read(metadata).decode("utf-8").splitlines()
-        if f"Version: {__version__}" not in metadata_lines:
-            raise RuntimeError("Python wheel metadata has the wrong version")
+        metadata_names = [name for name in names if name.endswith(".dist-info/METADATA")]
+        if metadata_names != [metadata] or names.count(initializer) != 1:
+            raise RuntimeError("Python wheel has mixed or repeated package identity")
+        if any(archive.getinfo(name).file_size > 1_000_000 for name in (metadata, initializer)):
+            raise RuntimeError("Python wheel package identity is oversized")
+        _verify_python_identity(archive.read(metadata), archive.read(initializer), "wheel")
 
 
 def _verify_python_sdist(path: Path) -> None:
+    if path.name != f"djhx_bilix-{__version__}.tar.gz":
+        raise RuntimeError("Python sdist filename has the wrong version")
     with tarfile.open(path, "r:gz") as archive:
-        names = set(archive.getnames())
+        names = archive.getnames()
         prefix = f"djhx_bilix-{__version__}/"
-        for name in ("LICENSE", "src/djhx_bilix/gui/app.py", "scripts/assemble_gui_release.py"):
+        for name in (
+            "LICENSE",
+            "src/djhx_bilix/gui/app.py",
+            "scripts/assemble_gui_release.py",
+            "PKG-INFO",
+            "src/djhx_bilix/__init__.py",
+        ):
             if prefix + name not in names:
                 raise RuntimeError(f"Python sdist lacks {name}")
+        if any(name != prefix.rstrip("/") and not name.startswith(prefix) for name in names):
+            raise RuntimeError("Python sdist contains mixed source version roots")
+        identity = []
+        for name in (prefix + "PKG-INFO", prefix + "src/djhx_bilix/__init__.py"):
+            member = archive.getmember(name)
+            if names.count(name) != 1 or not member.isfile() or member.size > 1_000_000:
+                raise RuntimeError(
+                    "Python sdist has repeated, invalid or oversized package identity"
+                )
+            stream = archive.extractfile(member)
+            if stream is None:
+                raise RuntimeError("Python sdist package identity cannot be read")
+            identity.append(stream.read())
+        _verify_python_identity(*identity, "sdist")
 
 
 def _verify_cli_zip(path: Path) -> None:

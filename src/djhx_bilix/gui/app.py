@@ -10,7 +10,7 @@ from typing import Any
 
 from platformdirs import user_downloads_path
 from PySide6.QtCore import Qt, QThread, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QPixmap
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QInputMethodEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -100,14 +100,35 @@ def _display_size(value: int) -> str:
     return str(value)
 
 
+class UrlInput(QPlainTextEdit):
+    """Keep the URL hint from overlapping a native IME composition."""
+
+    hint = "粘贴 Bilibili 视频、番剧链接或 BV 号，每行一个"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setPlaceholderText(self.hint)
+        self.setTabChangesFocus(True)
+
+    def inputMethodEvent(self, event: QInputMethodEvent) -> None:
+        self.setPlaceholderText("" if event.preeditString() else self.hint)
+        super().inputMethodEvent(event)
+
+
 class MainWindow(QMainWindow):
     """One active background operation; downloads form a serial, visible queue."""
 
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(f"BiliX {__version__}")
-        self.resize(940, 760)
-        self.setMinimumSize(760, 590)
+        available = self.screen().availableGeometry()
+        width = max(320, available.width() - 16)
+        # Wayland may report the whole output as available, including the
+        # compositor panel and client-side window decoration.
+        margin = 80 if QApplication.platformName() == "wayland" else 48
+        height = max(240, available.height() - margin)
+        self.setMinimumSize(min(760, width), min(590, height))
+        self.resize(min(940, width), min(760, height))
         self._settings: Settings | None = None
         self._thread: QThread | None = None
         self._worker: OperationWorker | None = None
@@ -154,8 +175,7 @@ class MainWindow(QMainWindow):
 
         input_group = QGroupBox("视频链接 / BV 号（每行一个）")
         input_layout = QVBoxLayout(input_group)
-        self.urls_edit = QPlainTextEdit()
-        self.urls_edit.setPlaceholderText("粘贴 Bilibili 视频、番剧链接或 BV 号，每行一个")
+        self.urls_edit = UrlInput()
         self.urls_edit.setMaximumHeight(100)
         input_layout.addWidget(self.urls_edit)
         input_actions = QHBoxLayout()
@@ -278,6 +298,9 @@ class MainWindow(QMainWindow):
         self.jobs_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.jobs_table.verticalHeader().setVisible(False)
         header = self.jobs_table.horizontalHeader()
+        # Measure visible rows; rescanning the entire queue on each progress
+        # update makes native tables stall when thousands of items change.
+        header.setResizeContentsPrecision(0)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)

@@ -24,7 +24,7 @@ from assemble_release import (
     _verify_python_sdist,
     _verify_python_wheel,
 )
-from gui_release import ROOT, sha256
+from gui_release import ROOT, sha256, source_version
 
 from djhx_bilix import __version__
 
@@ -104,6 +104,32 @@ def pytest_summary(path: Path) -> dict:
     }
 
 
+def check_version_metadata(source_version: str, installed_version: str) -> dict:
+    """Reject stale metadata even when imports load the current source."""
+    if installed_version != source_version:
+        raise RuntimeError(
+            f"Source version {source_version} differs from installed djhx-bilix metadata "
+            f"{installed_version}; reinstall this checkout in an isolated environment and "
+            "remove stale generated metadata from the import path"
+        )
+    return {"source": source_version, "installed": installed_version}
+
+
+def check_checkout_version_identity(installed_version: str) -> dict:
+    """Allow a current installed wheel, but reject imports from an older release."""
+    initializer = ROOT / "src" / "djhx_bilix" / "__init__.py"
+    checkout_version = source_version(initializer.read_bytes(), "Validation checkout")
+    if __version__ != checkout_version:
+        raise RuntimeError(
+            f"Checkout source version {checkout_version} differs from imported djhx-bilix "
+            f"version {__version__}; install the current checkout or its matching wheel"
+        )
+    return {
+        **check_version_metadata(checkout_version, installed_version),
+        "imported": __version__,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=("cli", "gui"), default="gui")
@@ -168,6 +194,9 @@ def main(argv: list[str] | None = None) -> int:
             packages.extend(["PySide6-Essentials", "shiboken6", "pytest-qt"])
         # Fail here instead of allowing importorskip to silently omit the whole GUI suite.
         record["dependencies"] = {name: importlib.metadata.version(name) for name in packages}
+        record["version_identity"] = check_checkout_version_identity(
+            record["dependencies"]["djhx-bilix"]
+        )
         record["docs"] = check_docs()
         run("ruff-check", ["-m", "ruff", "check", "src", "tests", "scripts"])
         run("ruff-format", ["-m", "ruff", "format", "--check", "src", "tests", "scripts"])

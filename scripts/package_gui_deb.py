@@ -21,6 +21,7 @@ from gui_release import (
     collect_licenses,
     copy_sources,
     deb_version,
+    require_version_identity,
     sha256,
 )
 
@@ -33,6 +34,7 @@ ARCH = "amd64"
 
 
 def require_environment() -> None:
+    require_version_identity()
     if sys.platform != "linux" or platform.machine() != "x86_64":
         raise RuntimeError("The first .deb must be built on Linux x86_64")
     release = platform.freedesktop_os_release()

@@ -12,6 +12,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from gui_release import require_version_identity
+
 from djhx_bilix import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,6 +90,7 @@ def main():
     parser.add_argument("executable", type=Path)
     parser.add_argument("output", type=Path)
     arguments = parser.parse_args()
+    require_version_identity()
     executable = arguments.executable.resolve()
     if not executable.is_file():
         parser.error("Executable does not exist")

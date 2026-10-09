@@ -13,7 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gui_release import GUI_ENTRY, ROOT, STANDALONE_NAME, sha256, version_parts
+from gui_release import (
+    GUI_ENTRY,
+    ROOT,
+    STANDALONE_NAME,
+    require_version_identity,
+    sha256,
+    version_parts,
+)
 
 EXPECTED_NUITKA = "4.2.2"
 EXPECTED_PYSIDE = "6.11.2"
@@ -21,6 +28,7 @@ FFMPEG = ROOT / "src" / "djhx_bilix" / "assets" / "ffmpeg.exe"
 
 
 def require_build_environment() -> None:
+    require_version_identity()
     if os.name != "nt" or platform.machine().casefold() not in {"amd64", "x86_64"}:
         raise RuntimeError("This release builder requires Windows x64")
     if struct.calcsize("P") * 8 != 64:

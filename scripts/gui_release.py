@@ -1,5 +1,6 @@
 """Shared, fail-closed release helpers for the optional desktop application."""
 
+import ast
 import hashlib
 import importlib.metadata
 import json
@@ -10,6 +11,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import djhx_bilix
 from djhx_bilix import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +37,46 @@ RUNTIME_PACKAGES = (
     "PySide6-Essentials",
     "shiboken6",
 )
+
+
+def source_version(content: bytes, label: str) -> str:
+    """Read the unique constant version without running application code."""
+    try:
+        tree = ast.parse(content.decode("utf-8-sig"))
+    except (UnicodeDecodeError, SyntaxError) as exc:
+        raise RuntimeError(f"{label} is not valid UTF-8 Python source") from exc
+    versions = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "__version__"
+            for target in statement.targets
+        ):
+            if not isinstance(statement.value, ast.Constant) or not isinstance(
+                statement.value.value, str
+            ):
+                raise RuntimeError(f"{label} version is not a constant string")
+            versions.append(statement.value.value)
+    if len(versions) != 1:
+        raise RuntimeError(f"{label} must declare exactly one source version")
+    return versions[0]
+
+
+def require_version_identity() -> dict[str, str]:
+    """Refuse stale installed metadata or imports from another build checkout."""
+    initializer = ROOT / "src" / "djhx_bilix" / "__init__.py"
+    expected = source_version(initializer.read_bytes(), "Build checkout")
+    installed = importlib.metadata.version("djhx-bilix")
+    if expected != __version__ or expected != installed:
+        raise RuntimeError(
+            f"Build checkout version {expected}, imported version {__version__}, and installed "
+            f"djhx-bilix metadata {installed} differ; reinstall this checkout in an isolated "
+            "environment and remove stale generated metadata from the import path"
+        )
+    if not djhx_bilix.__file__ or Path(djhx_bilix.__file__).resolve() != initializer.resolve():
+        raise RuntimeError(
+            "Build imports djhx-bilix from another checkout; use this editable source"
+        )
+    return {"source": expected, "imported": __version__, "installed": installed}
 
 
 def version_parts() -> tuple[str, bool]:

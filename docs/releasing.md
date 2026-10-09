@@ -60,7 +60,15 @@ Get-FileHash -Algorithm SHA256 'build/windows/bilix.exe'
 
 包含 GUI 的版本应按 [GUI 构建与发行](gui-build-and-release.md) 及 [Linux VM 矩阵](gui-vm-validation.md)、[Windows 10 VM 流程](gui-win10-validation.md)分别构建和验收。Windows 绿色 EXE、安装器、配套源码 ZIP，Ubuntu 22.04 构建的 deb 与源码归档，以及 Python wheel/sdist、Windows CLI ZIP 均需用**同一源码版本**生成；运行 `scripts/assemble_gui_release.py` 与 `scripts/assemble_release.py` 取得跨平台完整哈希清单。真实未通过的平台不得在发行说明中称为支持。
 
-集合完最终候选后，用 `scripts/validate.py --profile gui --release-dir dist/release-<版本>` 只读核对哈希、归档和材料。集合脚本会写产物，不能用它复核公开包。文档/材料重包也改变哈希，需绑定新候选重验；源码改动则重新编译受影响的 CLI/GUI。1.7.0 以原始 1.6.0 GUI 包做真实升级，Preview 不代替稳定渠道；新安装器的降级保护与写入后恢复已实现，实际覆盖和未验证范围见 [1.7.0 记录](validation-1.7.0.md)。旧 1.6.0 安装器仍没有新保护。
+集合完最终候选后，用 `scripts/validate.py --profile gui --release-dir dist/release-<版本>` 只读核对哈希、归档和材料。集合脚本会写产物，不能用它复核公开包。文档/材料重包也改变哈希，须刷新清单并验证变化的材料；输入未变的二进制与测试结果可复用。产品源码或构建输入变化才重新编译受影响的 CLI/GUI，并执行对应验收。1.7.0 以原始 1.6.0 GUI 包做真实升级，Preview 不代替稳定渠道；新安装器的降级保护与写入后恢复已实现，实际覆盖和未验证范围见 [1.7.0 记录](validation-1.7.0.md)。旧 1.6.0 安装器仍没有新保护。
+
+### 1.7.1 最终材料收尾
+
+本轮最终二进制的输入已冻结，最后变更只涉及版本验证工具、桌面验收驱动和文档。刷新源码材料前逐文件核对 Windows 的33项产品、入口、安装器及许可/项目输入，Linux对应32项（不含Windows内置 `src/djhx_bilix/assets/ffmpeg.exe`）；预审记录为 `build/release-1.7.1/final-source-refresh-input-precheck.json`。产品、锁文件、安装器脚本与冻结样本须保持一致，不能以版本号相同替代内容对应。
+
+Windows Setup 内嵌的 `SOURCES` 保留实际打包时的源码快照；外部配套源码ZIP更新最后的工具与文档，并保持运行依赖许可及FFmpeg材料原字节。Linux外部源码包与Python sdist也刷新至最终公开工作区。此次材料收尾不重建已验收的Setup、Portable、deb或CLI程序，不宣称安装器内嵌文档也已更新。发布时将外部源码包与二进制一并提供，记录两个源码快照的差别及一致的产品输入。
+
+README作为Python包的长说明进入METADATA/PKG-INFO，最终文档冻结后重建wheel与sdist，核对长说明和版本；与已通过318项的wheel逐文件比较产品字节，再以实际安装做身份与GUI启动冒烟。只改包说明不扩大为全量或平台二进制重验。源码归档、公开文本秘密扫描和最终清单均须针对刷新后的产物执行；最终事实与哈希见 [1.7.1 验收记录](validation-1.7.1.md)。
 
 ## 标签、镜像与页面
 
