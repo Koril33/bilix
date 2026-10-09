@@ -1,6 +1,6 @@
 # 1.7.1 验收记录
 
-更新：2026-10-09（Asia/Shanghai）。维护者已恢复开发与测试，本轮目标为发布 1.7.1。**最终功能候选验收已完成；公开发布与回下载核验在材料冻结后执行，并补记到主分支。**五项收尾全部完成、最终候选测试通过后发布，不沿用 1.7.0 的范围例外。
+更新：2026-10-09（Asia/Shanghai）。**1.7.1已于2026-10-09发布；五项收尾、最终材料、公开回下载与全新CLI/GUI安装均通过。** 本轮按五项收尾全部完成、最终候选测试通过后发布，未沿用1.7.0的范围例外。
 
 交接入口：[恢复交接与下一步](handoff-1.7.1.md)。证据在忽略目录 `build/release-1.7.1/`、`build/validation/1.7.1/` 和 `dist/`。恢复后复用输入未变且明确通过的结果，只补缺口或变更影响的检查。下文简写日志及 `native/` 均相对于 `build/release-1.7.1/`。
 
@@ -8,13 +8,13 @@
 
 产品版本 1.7.1，工作起点 `12d1067499528d24eccf25e805c2e0ceea826abe`，最终源码以v1.7.1标签为准，产物以发行页release-manifest.json与SHA256SUMS.txt为准。指南 B-01 至 B-07 的全部能力、前置和验收均为 1.7.2 必须完成的内容，详见[完整指南 B](cli-gui-ux-review.md)及[路线图](roadmap.md)。网站只修改、验证并提交源码，维护者自行部署。
 
-| ID | 必须完成的内容 | 当前状态 | 证据与剩余工作 |
+| ID | 必须完成的内容 | 当前状态 | 验收证据 |
 | --- | --- | --- | --- |
 | CLOSE-01 | 支持平台真实字体、目录选择器、键盘、中文 IME、100/150/200% DPI、小屏；完整 Wayland | 通过 | Windows三DPI/真实小屏、四Linux发行版最终安装与三DPI可见矩阵、完整DRM Wayland通过；详细范围如下 |
 | CLOSE-02 | Windows 真实磁盘耗尽、正常用户取消，旧程序/注册表/用户数据保护 | 最终 Setup 通过 | 两项 result 均 passed，绑定当前 Setup 同一 SHA256；退出5/2，旧 runtime 全哈希、版本注册表、用户数据与残留清理通过 |
 | CLOSE-03 | 完整冻结窗口首帧、旧新版空闲内存、真实下载峰值、千项滚动/进度交互 | Windows原生基线通过 | 最终Portable与公开1.7.0各4个有效客户区首帧、同条件RSS；同样本真实下载及FFmpeg同刻树峰值；真实按键/末行/进度/筛选/终态的受控合成千项对照通过。不另加可选Linux性能重复测试 |
-| CLOSE-04 | 网站成功/失败/无 JS、宽窄屏、键盘验证及源码提交 | 页面验证通过，源码随版本提交 | 25项 Chrome 断言通过，48张截图；在线 API 另列观察。网站源码随版本提交，由维护者部署 |
-| CLOSE-05 | 源码、导入位置、安装元数据、归档身份一致，不一致强制失败 | 实现及回归通过 | validate静态读取checkout；两个CLI及四个GUI build/package入口强制身份检查，wheel/sdist组装核对内部身份；真实旧wheel/旧元数据同号、其他来源及新旧混合负例拒绝。归档身份与源码对应须在材料冻结后做最终只读预审，公开哈希见发行清单 |
+| CLOSE-04 | 网站成功/失败/无 JS、宽窄屏、键盘验证及源码提交 | 页面验证通过，源码已提交 | 25项 Chrome 断言通过，48张截图；在线 API 另列观察。网站源码随版本提交，由维护者部署 |
+| CLOSE-05 | 源码、导入位置、安装元数据、归档身份一致，不一致强制失败 | 实现及回归通过 | validate静态读取checkout；两个CLI及四个GUI build/package入口强制身份检查，wheel/sdist组装核对内部身份；真实旧wheel/旧元数据同号、其他来源及新旧混合负例拒绝。最终归档身份、源码对应、安全路径及公开文本秘密预审通过；公开完整哈希复核通过 |
 
 ## 本版修复
 
@@ -102,10 +102,30 @@ Ubuntu22复用构建VM；另外三OS复用专用测试VM并按需安装桌面，
 - `diskfull-release-final/result.json`：1GiB临时NTFS VHD，观察到runtime替换后真实耗尽至空闲528384字节，退出5及真实磁盘I/O错误；旧runtime全部哈希恢复、旧版本注册表和用户数据保留、无runtime.previous，VHD已清理。
 - `user-cancel-release-final/result.json`：真实非静默向导、正常用户取消日志、退出2；旧runtime全哈希、旧版本注册表、用户数据及无残留检查通过。旧轮次取消超时已由此成功记录取代。
 
-## 最终构建与发布余项
+## 最终构建与公开发布
 
 Windows最新onefile/standalone构建及启动检查、Portable/Setup打包通过，见 `windows-gui-build-candidate.log`、`windows-gui-package-candidate.log`。Linux最终构建、打包与传输完成，`linux-build-candidate.log` 明确 `build_success=1`；deb为1.7.1-1，SHA256 `baa4f0fa1b85681ced815fbdc97fd23de4263c1a5e9b57247be5f7edbcf2284e`。旧暂停清单、旧矩阵、旧manifest不能冒充当前产物。
 
-四发行版可见桌面/最终安装矩阵及Windows原生性能已闭环，不另加可选Linux性能。最终文档和工具进入外部许可源码包后刷新源码归档，Python wheel长说明已刷新且产品对照/实际安装通过；剩余只刷新sdist和外部源码材料，执行完整源码对应审计、归档校验、秘密扫描及最终SHA256清单。Windows Setup内嵌SOURCES仍是实际打包时快照，外部源码包补最后工具/文档，33项Windows/32项Linux产品及安装输入须不变，见[材料收尾说明](releasing.md#171-最终材料收尾)；不重建已验收的Setup、Portable、deb、CLI或扩大重跑全量。随后提交/推送GitHub与Gitea、创建v1.7.1、上传GitHub发行产物并发布PyPI，公开回下载核对哈希与隔离安装。网站由维护者部署。
+最终wheel说明元数据、Python sdist和外部Windows/Linux源码材料已刷新；Windows/Linux/sdist各135/123/142项公开源码对应发行标签工作区，26项wheel产品文件对应已测程序。公开归档461项文本秘密扫描为0，8项产物的版本、路径、内容身份、完整SHA256清单和文档链接只读核验通过，见`final-public-source-preflight.json`及`final-readonly-validation.json`。Setup内嵌SOURCES保留构建快照，最后工具/文档在外部源码包，33项Windows/32项Linux产品及安装输入一致，见[材料收尾说明](releasing.md#171-最终材料收尾)。
+
+| 渠道 | 公开结果 |
+| --- | --- |
+| [GitHub v1.7.1](https://github.com/Koril33/bilix/releases/tag/v1.7.1) | 稳定版、latest=true；8项产物及manifest/SHA256SUMS全部10项从公开CDN完整回下载，大小和SHA256逐项通过（慢速请求超时后分段续取，最终始终核验完整文件）；`github-verification.json` |
+| [PyPI 1.7.1](https://pypi.org/project/djhx-bilix/1.7.1/) | 官方元数据及wheel/sdist完整回下载哈希一致；两个全新Python3.11.2 CLI/GUI环境从官方索引安装，27项包文件/元数据与公开wheel逐字节一致，版本、blx/bilix、help/doctor、GUI Qt6.11.2与启动冒烟通过；CLI无Qt。GUI首次无缓存依赖下载超时后，只复用依赖缓存继续同一新建环境，项目包从官方索引刷新；超时记录保留 |
+| Gitea | main与v1.7.1代码/标签同步；没有独立二进制发行镜像 |
+| 网站 | 25项Chrome检查与48张截图通过，`site/bilix.html`随源码提交；维护者自行部署服务器 |
+
+发行源码提交：`3a6a722d4e8473900b7c1a3cfc3caebf4d2ccf90`。公开PyPI验收：`public-pypi-171-20261009T133539Z-f5632541/result.json`。标签和发行文件不可变；公开渠道结果作为发布后的主分支补记，标签内归档保留发布前已完成的功能/候选验收快照。
+
+| 发行文件 | 字节 | SHA256 |
+| --- | ---: | --- |
+| BiliX-GUI-Portable-1.7.1-windows-x64.exe | 33057792 | `f4a518a985de81f9d530640f2d4e794d29059222de390e8408c44815fb82fb5e` |
+| BiliX-GUI-Setup-1.7.1-windows-x64.exe | 44594857 | `f2c816d2dabbb5f29ab8bc6bb2af5e57c6f59d99a36264d0c22910cd966079ed` |
+| BiliX-GUI-licenses-and-source-1.7.1-windows-x64.zip | 13412376 | `9bb4eab3b0184df539a4041f05e69d8a2bbf24bc3f814b04df2540953ae21201` |
+| bilix-1.7.1-windows-x64.zip | 29969263 | `2bb6675d765a582e59e9cdf44a01d703af3464fb4bce2890920b3383b9db06f3` |
+| djhx-bilix-gui_1.7.1-1_amd64.deb | 66664760 | `baa4f0fa1b85681ced815fbdc97fd23de4263c1a5e9b57247be5f7edbcf2284e` |
+| djhx-bilix-gui_1.7.1_source.tar.gz | 486035 | `a884157eba1890002245ed61290d9c1853b331f6e79bc7d83c96b077d2af411e` |
+| djhx_bilix-1.7.1-py3-none-any.whl | 1790574 | `02a9c16a660162b4d36d3c366cc8fa6fcb450c9cc07cbe25bfc8918027f7a404` |
+| djhx_bilix-1.7.1.tar.gz | 13485185 | `1bd0ca47de341695eb336332717213209e2444dc9e963558b3edc1645f176839` |
 
 秘密预审 `secrets-preflight.log` 为工作区0项、历史22项，均为旧四个提交；[发布说明](releasing.md)已有维护者2026-10-03确认历史凭据失效的记录。不得写成历史扫描零项；私有token、VM状态、验收runtime和测试证据不进入发行归档。

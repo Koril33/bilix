@@ -1,6 +1,6 @@
 # 1.7.1 收尾交接
 
-更新：2026-10-09（Asia/Shanghai）。本轮目标为发布1.7.1。最终功能候选验收已全部完成；公开渠道的上传、回下载与隔离安装结果在发布后补记主分支。详细事实与限制见[验收记录](validation-1.7.1.md)。
+更新：2026-10-09（Asia/Shanghai）。**1.7.1已发布，五项收尾、最终材料和公开渠道验收完成。** GitHub/PyPI均已公开，代码与标签已同步Gitea。详细事实与限制见[验收记录](validation-1.7.1.md)。
 
 ## 已完成
 
@@ -12,13 +12,11 @@
 - 网站25项Chrome断言、48张截图通过；只提交网站源码，由维护者部署。
 - 最终wheel仅刷新README长说明，SHA256 `02a9c16a660162b4d36d3c366cc8fa6fcb450c9cc07cbe25bfc8918027f7a404`，26项产品文件与已测wheel一致；新建Python3.11.2实际安装、身份、逐字节对照、CLI help/doctor及GUI冒烟通过。
 
-## 最后发布步骤
+## 最终发布结果
 
-1. 冻结公开工作区，刷新外部Windows许可源码zip、Linux源码tar和Python sdist，组装8项产物及两项校验材料。预审所有公开源码对应、版本身份、安全路径及秘密；不得把本地build、凭据或VM状态加入归档。
-2. 明确暂存公开文件，提交main并推送github/gitea；创建从未存在的v1.7.1标签并推送两端，保留旧版本不可变。
-3. GitHub发布稳定最新版及10项文件；PyPI发布wheel/sdist。公开回下载全部哈希核验、从官方PyPI在两个全新CLI/GUI环境安装并验证入口，完成后更新主分支的公开发布记录。
+[GitHub发行页](https://github.com/Koril33/bilix/releases/tag/v1.7.1)与[PyPI](https://pypi.org/project/djhx-bilix/1.7.1/)均为正式1.7.1。GitHub全部10项文件完整回下载并核验SHA256，PyPI两个全新CLI/GUI环境实际安装与冒烟通过。源码提交`3a6a722d4e8473900b7c1a3cfc3caebf4d2ccf90`，完整文件哈希和采样范围见验收记录。公开文件与标签不可变，主分支仅补记发布事实。
 
-私有收尾工具在忽略目录`build/release-1.7.1/`：`refresh-final-sources.py`、`github_release.py`、`publish_pypi.py`、`verify-public-pypi-171.py`。不打印发布或VM凭据。网站不在服务器部署，Gitea只同步代码与标签，不称已有二进制发行镜像。
+网站源码已提交，服务器由维护者部署；Gitea只同步代码与标签。本轮无需继续1.7.1测试或重复构建，后续开发进入1.7.2。
 
 ## 1.7.2 开发范围
 
