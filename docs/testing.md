@@ -75,6 +75,8 @@ uv run --locked --extra gui --group gui-test python scripts/validate.py --profil
 
 1.7 的新增产品用例 TASK/INFO/SESSION/PLAN/CONFIG-17/ACCOUNT-17/CANCEL-17/CLI-17/UX-17 及 B-* 的准确 ID、场景和通过标准集中维护在[开发指南验收矩阵](cli-gui-ux-review.md#9-验收矩阵与发布门槛)。A 为必做范围，B 只有实际纳入功能冻结后才成为该候选的验收要求。`tests/prototypes/test_ux_17.py` 验证隔离设计实验，不证明正式 1.7 能力实现；对应覆盖与未验证范围见[设计验证记录](validation-1.7-design.md)。
 
+1.7.3 的 GUI 布局与交互新增用例 GUI173-01 至 GUI173-13 见[版本指南](gui-update-guide-1.7.3.md#9-定向验收)，复用现有行为测试，按实际界面变化做定向原生检查。共享下载内核/安装器输入未变时不重复扩大权限或安装故障矩阵；如这些输入发生变化，按影响补测。本版不承担 B 功能版验收，开发指南也不代表候选已经通过。
+
 产品实现的纯任务模型、来源/尝试隔离、身份校验、重试、单一终态、取消和只读预览回归在 `tests/test_tasks.py`；正式窗口的跨批次历史、选集、参数快照、配置覆盖、离线账号和关闭流程在 `tests/gui/test_tasks_gui.py`。`scripts/validate_tasks_gui.py` 对生产窗口运行 100/1000 项合成任务及 800×600 布局测量；这些离线检查不能替代原生桌面和真实账号验收。该版本的实际结果集中记录在[1.7.0 验收记录](validation-1.7.0.md)。
 
 ## 环境与平台矩阵
