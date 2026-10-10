@@ -1,6 +1,6 @@
 # 1.7.4 GUI 更新与发布记录
 
-日期：2026-10-10（Asia/Shanghai）。维护者授权按修订方案实施并尽快发布，测试集中相关 GUI 边界与发行包，不执行全面下载/安装/平台矩阵。本文只记录本版实际执行结果，公开发布状态在完成后补记。
+日期：2026-10-10（Asia/Shanghai）。维护者授权按修订方案实施并尽快发布，测试集中相关 GUI 边界与发行包，不执行全面下载/安装/平台矩阵。本文记录本版实际执行结果，公开发布核对见末节。
 
 ## 实现范围
 
@@ -28,4 +28,14 @@ Fusion 基础浅深色、SVG 操作图标、delegate 进度绘制、独立 GUI �
 
 ## 构建与发布状态
 
-Windows GUI/CLI、Ubuntu 22.04 GUI 和 Python wheel/sdist 已构建，候选程序启动检查通过；尚未公开发布。发行组装包含 Windows GUI 绿色版/安装器/配套源码、Linux deb/配套源码、CLI ZIP、wheel/sdist 共八项，以最终发行清单与 SHA256SUMS 为准。公开渠道文件与版本的核对结果将在发布后补记。网站由维护者部署，Gitea 同步代码与标签，不另建二进制发行页。
+Windows GUI/CLI、Ubuntu 22.04 GUI 和 Python wheel/sdist 已构建，最终程序启动检查通过。发行组装包含 Windows GUI 绿色版/安装器/配套源码、Linux deb/配套源码、CLI ZIP、wheel/sdist 共八项，以最终发行清单与 SHA256SUMS 为准。网站由维护者部署，Gitea 同步代码与标签，不另建二进制发行页。
+
+## 最终组装与公开发布
+
+2026-10-10 已正式发布，源码提交 `e02f25a49380d14dabc11cd4647c1cfb84568dc6`，标签 `v1.7.4` 与代码已同步 GitHub 和 Gitea。以下为公开后补记；标签和已公开文件保持不变，配套源码中的记录保留打包时的候选状态快照。
+
+- 八项发行文件经原有集合脚本核对归档路径、版本、许可、大小及 SHA256，证据为 `assembly.log` 和 `artifact-verification.json`。Windows 配套源码中的 142 份、Linux 配套源码中的 141 份选定源文件与标签工作区逐字节一致；Python 3.11 已安装包中的 43 份程序/资源文件与最终 wheel 一致。
+- [GitHub v1.7.4](https://github.com/Koril33/bilix/releases/tag/v1.7.4) 为最新正式发行。匿名页面可访问，认证 API 核对八项产物与两个清单文件的大小和 SHA256 全部一致；清单及 SHA256SUMS 匿名完整回下载通过。没有完整回下载所有 GitHub 大型二进制，证据为 `public-verification.json`。
+- [PyPI 1.7.4](https://pypi.org/project/djhx-bilix/1.7.4/) wheel/sdist 两项完整回下载，SHA256 与最终清单一致，Python 版本和 GUI extra 元数据通过。PyPI JSON 曾短暂保留旧的 404 缓存，使用官方 API 的等价规范化包名及 simple 索引核对实际文件；没有重新替换公开文件。
+- 在独立 CPython 3.11.2 环境重新安装公开回下载的 wheel，安装版本、CLI 版本和 GUI 离线自检通过，证据为 `pypi-verification.json`、`public-wheel-smoke.json`。
+- 本地材料与证据位于忽略目录 `dist/release-1.7.4/` 和 `build/release-1.7.4/`。Ubuntu 构建 VM 已正常关闭；本版未修改或部署网站。
