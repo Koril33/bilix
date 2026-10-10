@@ -39,6 +39,7 @@ AppUpdatesURL=https://github.com/Koril33/bilix/releases
 DefaultDirName={localappdata}\Programs\{#InstallName}
 DefaultGroupName={#DisplayName}
 UninstallDisplayIcon={app}\runtime\BiliX-GUI.exe
+SetupIconFile=..\..\src\djhx_bilix\assets\bilix.ico
 OutputDir={#OutputDir}
 OutputBaseFilename=BiliX-GUI-Setup-{#AppVersion}-windows-x64
 VersionInfoVersion={#NumericVersion}

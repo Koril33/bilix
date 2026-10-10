@@ -169,7 +169,12 @@ def stage_package(source_root: Path, maintainer: str) -> tuple[Path, Path]:
         / f"{PACKAGE}.svg"
     )
     icon.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / "scripts" / "installer" / "bilix-gui.svg", icon)
+    assets = ROOT / "src" / "djhx_bilix" / "assets"
+    shutil.copy2(assets / "bilix.svg", icon)
+    for size in (16, 24, 32, 48, 64, 128, 256, 512):
+        png = icon.parents[2] / f"{size}x{size}" / "apps" / f"{PACKAGE}.png"
+        png.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(assets / f"bilix-{size}.png", png)
 
     doc = package_root / "usr" / "share" / "doc" / PACKAGE
     doc.mkdir(parents=True)

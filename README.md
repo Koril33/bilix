@@ -6,7 +6,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-本轮源码与发行材料版本为 **1.7.1**，修复小屏与高 DPI 首屏、千项任务刷新、中文预编辑及输入框 Tab 导航，补齐源码/安装/归档版本身份检查。Windows10 与 Ubuntu22.04/24.04、Debian12/13 的真实桌面、三档 DPI、中文输入与小屏验收通过；Windows安装磁盘耗尽/正常取消、原生性能基线和完整DRM Wayland证据见 [1.7.1 验收记录](docs/validation-1.7.1.md)。下载及公开渠道状态以 [v1.7.1 发行页](https://github.com/Koril33/bilix/releases/tag/v1.7.1) 和 PyPI 为准。
+当前源码版本为 **1.7.2**，统一 GUI、CLI 和安装器的应用图标，使用原创蓝色下载篮和浅蓝白色圆角底板。此次小范围更新按维护者要求执行定向验证，具体范围见 [1.7.2 记录](docs/validation-1.7.2.md)。下载及公开渠道状态以 [v1.7.2 发行页](https://github.com/Koril33/bilix/releases/tag/v1.7.2) 和 PyPI 为准。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -28,7 +28,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.1-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.2-1_amd64.deb
 bilix-gui
 ```
 
@@ -43,7 +43,7 @@ uv run --locked --extra gui bilix-gui
 
 GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
 
-首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。本轮收尾见 [1.7.1 验收记录](docs/validation-1.7.1.md)；指南 B-01 至 B-07 的全部能力、前置与验收安排为 1.7.2 必须开发的内容，见 [CLI/GUI 开发路线](docs/roadmap.md)。
+首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 仅更新应用图标；指南 B-01 至 B-07 顺延至后续功能版，见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
 ## 快速开始
 
@@ -135,4 +135,4 @@ GUI 测试需要 `uv sync --locked --extra gui --group gui-test`；无桌面的�
 
 ## 致谢
 
-项目参考了 [Bilibili API 资料](https://socialsisteryi.github.io/bilibili-API-collect/)、[BBDown](https://github.com/nilaoda/BBDown) 和 [早期实现](https://blog.csdn.net/weixin_47481982/article/details/127666941)。原图标保存在 [docs/assets](docs/assets/bilix-icon.jpg)。本项目并非 Bilibili 官方产品。
+项目参考了 [Bilibili API 资料](https://socialsisteryi.github.io/bilibili-API-collect/)、[BBDown](https://github.com/nilaoda/BBDown) 和 [早期实现](https://blog.csdn.net/weixin_47481982/article/details/127666941)。当前应用图标由维护者原创，源稿见 [bilix.svg](src/djhx_bilix/assets/bilix.svg)；历史图标保存在 [docs/assets](docs/assets/bilix-icon.jpg)。本项目并非 Bilibili 官方产品。

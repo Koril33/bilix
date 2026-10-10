@@ -106,6 +106,7 @@ def main():
         "-m",
         "nuitka",
         f"--mode={arguments.mode}",
+        f"--windows-icon-from-ico={ROOT / 'src/djhx_bilix/assets/bilix.ico'}",
         "--msvc=latest",
         "--lto=no",
         "--assume-yes-for-downloads",

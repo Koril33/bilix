@@ -106,6 +106,7 @@ def main() -> None:
         "--noinclude-qt-plugins=egldeviceintegrations,platformthemes,printsupport",
         "--lto=no",
         "--include-package=djhx_bilix",
+        f"--include-data-files={ROOT / 'src/djhx_bilix/assets' / 'bilix-*.png'}=djhx_bilix/assets/",
         "--python-flag=isolated",
         f"--output-dir={BUILD}",
         "--output-filename=bilix-gui",

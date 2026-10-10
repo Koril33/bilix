@@ -10,7 +10,7 @@ from typing import Any
 
 from platformdirs import user_downloads_path
 from PySide6.QtCore import Qt, QThread, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QInputMethodEvent, QPixmap
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QIcon, QInputMethodEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -1253,6 +1253,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     application = QApplication.instance() or QApplication([sys.argv[0]])
     application.setApplicationName("BiliX")
+    application.setDesktopFileName("djhx-bilix-gui")
+    icon = QIcon()
+    assets = Path(__file__).resolve().parents[1] / "assets"
+    for size in (16, 24, 32, 48, 64, 128, 256):
+        icon.addFile(str(assets / f"bilix-{size}.png"))
+    application.setWindowIcon(icon)
     window = MainWindow()
     if smoke_test:
         try:
@@ -1269,6 +1275,8 @@ def main(argv: list[str] | None = None) -> int:
             qrcode.make("bilix-smoke-test", image_factory=PyPNGImage).save(qr_png)
             if not QPixmap().loadFromData(qr_png.getvalue()):
                 raise OSError("无法加载二维码 PNG 图片")
+            if icon.isNull() or icon.pixmap(32, 32).isNull():
+                raise OSError("无法加载应用图标")
         except (BilixError, OSError) as error:
             _report_startup_error(f"BiliX GUI 自检失败：{error}")
             return 1

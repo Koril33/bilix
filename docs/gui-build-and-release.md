@@ -6,6 +6,10 @@ GUI 与 CLI 共用 Python 下载内核。本文件说明首个图形界面版本
 
 ## 版本与支持范围
 
+1.7.2 统一应用图标，源稿为 `src/djhx_bilix/assets/bilix.svg`。修改源稿后在 GUI 环境运行 `python scripts/generate_icons.py`，生成 16/24/32/48/64/128/256/512 像素 PNG 和包含前七档的 ICO，并提交派生文件。Windows GUI/CLI EXE 和 Inno Setup 使用同一 ICO；GUI 使用 PNG 设置运行时窗口图标，两套 GUI 构建均显式收集 PNG。Linux deb 安装 SVG 与多尺寸 PNG，并将 Qt desktopFileName 与 `djhx-bilix-gui.desktop` 对应。
+
+按维护者 2026-10-10 的要求，1.7.2 仅执行图标、构建启动及发行材料定向验证，不重复多系统 IME/DPI、性能、账号/下载或安装异常矩阵；实际结果见 [1.7.2 记录](validation-1.7.2.md)。
+
 | 部件 | 首版构建基线 |
 | --- | --- |
 | 构建解释器 | CPython **3.14.8** x86-64 |

@@ -19,6 +19,8 @@ BiliX 自身采用 GPL-3.0-only（见 `LICENSE`）。各第三方组件保留自
 
 ## GUI 发行的许可材料
 
+应用图标由项目维护者原创，2026-10-10 确认为个人绘制，无第三方图标库来源。圆角底板、SVG、PNG 和 ICO 与项目源码一同按 GPL-3.0-only 分发；源稿为 `src/djhx_bilix/assets/bilix.svg`，派生素材由 `scripts/generate_icons.py` 生成。
+
 PySide6-Essentials 6.11.2 与 shiboken6 6.11.2 的 wheel 元数据列出上述三选一许可；BiliX 自身为 GPL-3.0-only，GUI 发行选择 GPL-3.0-only。Qt for Python 的[许可说明](https://doc.qt.io/qtforpython-6/)及 [Qt 6 模块许可清单](https://doc.qt.io/qt-6/licensing.html)记录该选项与个别模块差异。仅使用 QtCore、QtGui、QtWidgets 及运行所需平台插件；增加其他 Qt 模块时须重新核对其许可。
 
 Linux 的上述两个 wheel 未附单独许可文件时，`.deb` 会保存其原始 METADATA 许可表达式与 GPL-3.0 全文，并在 `SOURCE-ACCESS.md` 中给出对应的 Qt/Qt for Python 源码地址；Windows wheel 自带的许可文件则随包复制。
