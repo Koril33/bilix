@@ -6,6 +6,8 @@ CSS、JavaScript 和原背景图（JPEG data URI）全部内嵌，没有构建�
 
 ## 本地预览
 
+页面项目图标与 favicon 内嵌同一份 `src/djhx_bilix/assets/bilix.svg`，与应用保持一致，仍只需上传 HTML。更换应用图标后应同步更新这两处 data URI。
+
 ```shell
 python -m http.server 8765 --bind 127.0.0.1 --directory site
 ```

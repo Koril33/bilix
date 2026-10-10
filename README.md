@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/djhx_bilix/assets/bilix-128.png" width="96" height="96" alt="BiliX 项目图标">
+</p>
+
 # BiliX
 
 Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫码登录、批量与多 P 下载、清晰度/编码/音轨选择，以及下载后的媒体校验。
