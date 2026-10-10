@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import json
 import sys
-from functools import partial
 from pathlib import Path
 from typing import Any
 
 from platformdirs import user_downloads_path
-from PySide6.QtCore import Qt, QThread, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QDesktopServices, QIcon, QInputMethodEvent, QPixmap
+from PySide6.QtCore import Qt, QThread, QTimer, QUrl, Signal, Slot
+from PySide6.QtGui import QDesktopServices, QIcon, QInputMethodEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QDialog,
     QFileDialog,
     QFormLayout,
@@ -30,25 +30,22 @@ from PySide6.QtWidgets import (
 
 from djhx_bilix import __version__, auth
 from djhx_bilix.config import load_settings, save_settings
-from djhx_bilix.credentials import normalize_cookie
 from djhx_bilix.errors import BilixError, InputError
 from djhx_bilix.media import FFmpeg, find_ffmpeg
 from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import parse_quality
 from djhx_bilix.tasks import Session, summary_text
-from djhx_bilix.urls import load_urls, normalize_url, parse_pages, url_page
+from djhx_bilix.urls import parse_pages, url_page
 
+from .appearance import apply_theme
+from .desktop import DesktopActions
 from .history import NODE_ROLE
 from .panels import CompactUi, duration
 from .worker import (
     DownloadOptions,
-    JobSpec,
     OperationWorker,
     run_doctor,
-    run_download,
-    run_info,
     run_login,
-    run_session,
     run_status,
 )
 
@@ -94,6 +91,8 @@ def _display_size(value: int) -> str:
 class UrlInput(QPlainTextEdit):
     """Keep the URL hint from overlapping a native IME composition."""
 
+    compositionChanged = Signal()
+
     hint = "粘贴 Bilibili 视频、番剧链接或 BV 号，每行一个"
 
     def __init__(self) -> None:
@@ -106,10 +105,13 @@ class UrlInput(QPlainTextEdit):
         self.composing = bool(event.preeditString())
         self.setPlaceholderText("" if self.composing else self.hint)
         super().inputMethodEvent(event)
+        self.compositionChanged.emit()
 
 
-class MainWindow(CompactUi, QMainWindow):
+class MainWindow(DesktopActions, CompactUi, QMainWindow):
     """One active background operation; downloads form a serial, visible queue."""
+
+    closed = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -133,13 +135,12 @@ class MainWindow(CompactUi, QMainWindow):
         self._parse_total = self._parse_finished = self._parse_errors = 0
         self._build_ui(UrlInput)
         self._load_settings_view()
+        self._init_desktop()
         self._offline_account()
         self.urls_edit.textChanged.connect(self._invalidate_info)
+        self.urls_edit.compositionChanged.connect(self._ime_changed)
         self.output_edit.textEdited.connect(lambda _text: setattr(self, "_output_edited", True))
         self._update_retry_button()
-
-    def _message(self, text, timeout=0):
-        self.status_text.setText(text.replace("\n", " · "))
 
     def _button(self, text: str, callback: Any, busy_sensitive: bool = True) -> QPushButton:
         button = QPushButton(text)
@@ -183,10 +184,16 @@ class MainWindow(CompactUi, QMainWindow):
         form.addRow("配置文件", self.config_path_label)
         layout.addLayout(form)
         controls = QHBoxLayout()
-        controls.addWidget(self._button("保存设置", self._save_settings))
         controls.addWidget(self._button("打开配置目录", self._open_config_folder))
         controls.addStretch()
         layout.addLayout(controls)
+        self.tray_check = QCheckBox("最小化到托盘")
+        self.notify_check = QCheckBox("下载结束通知")
+        layout.addWidget(self.tray_check)
+        layout.addWidget(self.notify_check)
+        capability = QLabel("桌面不支持托盘或通知时，使用普通最小化和列表结束摘要。")
+        capability.setWordWrap(True)
+        layout.addWidget(capability)
         self.settings_hint = QLabel(
             "设置与 CLI 共用 config.toml。"
             "BILIX_DOWNLOAD_DIR、BILIX_FFMPEG 等环境变量会优先于文件设置。"
@@ -225,11 +232,15 @@ class MainWindow(CompactUi, QMainWindow):
             self.output_edit.setText(str(settings.download_dir))
         self.ffmpeg_edit.setText(settings.file_ffmpeg or "")
         self.config_path_label.setText(str(settings.config_file))
-        self.settings_hint.setText(
-            f"生效下载目录：{settings.download_dir}（{settings.download_source}）\n"
-            f"生效 FFmpeg：{settings.ffmpeg or '自动查找'}（{settings.ffmpeg_source}）。\n"
-            "上方编辑文件值；环境变量优先。路径能否运行请使用诊断检查。"
-        )
+        overrides = []
+        if "环境变量" in settings.download_source:
+            overrides.append("下载目录当前被 BILIX_DOWNLOAD_DIR 环境变量覆盖")
+        if "环境变量" in settings.ffmpeg_source:
+            overrides.append("FFmpeg 当前被 BILIX_FFMPEG 环境变量覆盖")
+        self.settings_hint.setText("；".join(overrides))
+        self.settings_hint.setVisible(bool(overrides))
+        self.config_path_label.setToolTip(str(settings.config_file))
+        self.config_path_label.setText("config.toml（与 CLI 共用）")
 
     def _save_settings(self) -> None:
         if self._thread is not None:
@@ -253,7 +264,18 @@ class MainWindow(CompactUi, QMainWindow):
             self._error("无法保存设置，请检查配置目录权限")
             return
         self._load_settings_view()
+        self._tray_enabled = self.tray_check.isChecked()
+        self._notify_enabled = self.notify_check.isChecked()
+        self._prefs.setValue("minimizeToTray", self._tray_enabled)
+        self._prefs.setValue("completionNotification", self._notify_enabled)
+        self._prefs.sync()
+        if self._prefs.status() != self._prefs.Status.NoError:
+            self._error("业务设置已保存，但 GUI 偏好无法写入，请检查配置目录权限")
+            return False
+        if not self._tray_enabled and not self.isVisible():
+            self._restore_main()
         self._message("设置已保存，与 CLI 共用", 5000)
+        return True
 
     def _choose_output(self) -> None:
         directory = QFileDialog.getExistingDirectory(self, "选择保存目录", self.output_edit.text())
@@ -305,48 +327,20 @@ class MainWindow(CompactUi, QMainWindow):
         if not path:
             return
         try:
-            urls = load_urls(Path(path))
-        except BilixError as error:
-            self._error(str(error))
+            text = Path(path).read_text(encoding="utf-8-sig")
+            urls = [
+                line.strip()
+                for line in text.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+        except (OSError, UnicodeError):
+            self._error("链接列表无法读取，请使用 UTF-8 文本")
             return
         if not urls:
             self._error("文件中没有可用的 URL 或 BV 号")
             return
-        previous = self.urls_edit.toPlainText().strip()
-        self.urls_edit.setPlainText("\n".join([previous, *urls] if previous else urls))
+        self._open_draft(text="\n".join(urls), read_clipboard=False)
         self._message(f"已导入 {len(urls)} 个地址", 5000)
-
-    def _inputs(self, *, validate_page: bool = True) -> tuple[JobSpec, ...]:
-        values = [
-            (line_number, line.strip())
-            for line_number, line in enumerate(self.urls_edit.toPlainText().splitlines(), 1)
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
-        if not values:
-            raise InputError("请输入至少一个视频 URL/BV 号，或导入 URL 文件")
-        for line_number, value in values:
-            try:
-                normalize_url(value)
-            except BilixError as error:
-                raise InputError(f"第 {line_number} 行：{error}") from None
-        page = self.page_edit.text().strip() or None if validate_page else None
-        if validate_page:
-            parse_pages(page)
-        specs = []
-        for index, (_line_number, value) in enumerate(values):
-            selected = page
-            if validate_page and index in self._metadata:
-                root = self.metadata_tree.topLevelItem(index)
-                parts = [
-                    str(root.child(j).data(0, Qt.ItemDataRole.UserRole))
-                    for j in range(root.childCount())
-                    if root.child(j).checkState(0) == Qt.CheckState.Checked
-                ]
-                if not parts:
-                    raise InputError(f"第 {index + 1} 个来源未勾选任何选集")
-                selected = ",".join(parts)
-            specs.append(JobSpec(value, selected))
-        return tuple(specs)
 
     def _options(self, dry_run: bool) -> DownloadOptions:
         raw_dir = self.output_edit.text().strip()
@@ -386,35 +380,10 @@ class MainWindow(CompactUi, QMainWindow):
         self.option_summary.setText(" · ".join(values))
         self.option_summary.setVisible(bool(values))
 
-    def _invalidate_info(self):
-        had_info = bool(self._metadata)
-        self._input_generation += 1
-        self._metadata.clear()
-        self.metadata_tree.clear()
-        self._parse_total = self._parse_finished = self._parse_errors = 0
-        self.parse_row.hide()
-        self.parts_info.clear()
-        if had_info:
-            self._message("链接或账号已改变，需要重新解析后选择选集")
-
     def _set_account(self, text, chip):
         self.account_label.setText(text)
         self.account_button.setText(chip + " ▾")
         self.account_button.setToolTip(text)
-
-    def _offline_account(self):
-        if self._settings is None:
-            self._set_account("配置不可读，无法检查本地凭据", "凭据不可读")
-            return
-        path = self._settings.token_file
-        try:
-            if not path.exists():
-                self._set_account("本地未保存凭据，可扫码登录", "未登录")
-            else:
-                normalize_cookie(path.read_text(encoding="utf-8"), require_session=True)
-                self._set_account("本地凭据已保存，尚未验证有效性；请查询状态", "凭据待验证")
-        except (BilixError, OSError, UnicodeError):
-            self._set_account("本地凭据无法读取或格式错误，请重新扫码", "凭据不可读")
 
     def _reset_part_checks(self) -> None:
         for index, metadata in self._metadata.items():
@@ -489,7 +458,7 @@ class MainWindow(CompactUi, QMainWindow):
         elif self._parse_errors:
             text = (
                 f"已解析 {len(self._metadata)} / {self._parse_total} · "
-                f"{self._parse_errors} 个读取失败"
+                f"已选 {selected} / {total} 集 · {self._parse_errors} 个失败，未加入下载"
             )
         elif self._parse_total == 1 and self._metadata:
             text = (
@@ -501,6 +470,7 @@ class MainWindow(CompactUi, QMainWindow):
             text = f"已解析 {len(self._metadata)} 个视频 · 已选 {selected} / {total} 集"
         self.parse_summary.setText(text)
         self.parse_row.show()
+        self._update_draft_actions()
 
     def _part_root(self):
         item = self.metadata_tree.currentItem()
@@ -537,10 +507,6 @@ class MainWindow(CompactUi, QMainWindow):
             )
         self._update_parse_summary()
 
-    def _shortcut_download(self):
-        if not self.urls_edit.composing and self._thread is None:
-            self._start_download()
-
     def _selected_ids(self):
         tasks, sources = [], []
         reread = {r.origin_request_id for r in self.session.requests.values()}
@@ -551,29 +517,6 @@ class MainWindow(CompactUi, QMainWindow):
             elif not node.children and node.identity not in reread:
                 sources.append(node.identity)
         return tuple(tasks), tuple(sources)
-
-    def _start_download(
-        self, dry_run: bool = False, specs: tuple[JobSpec, ...] | None = None
-    ) -> None:
-        if self._thread is not None:
-            return
-        try:
-            selected = specs if specs is not None else self._inputs()
-            options = self._options(dry_run)
-            if dry_run:
-                self.preview_text.clear()
-                self._preview_dialog.show()
-                self._start_operation("plan", partial(run_download, selected, options))
-                return
-            batch_id = self.session.begin(selected, options)
-        except BilixError as error:
-            self._error(str(error))
-            return
-        self._start_batch(batch_id)
-
-    def _start_batch(self, batch_id):
-        self._message("准备下载… · 当前下载结束后可添加新链接")
-        self._start_operation("download", partial(run_session, self.session, batch_id))
 
     def _retry_failed(self) -> None:
         self._retry_matching("failed")
@@ -591,28 +534,6 @@ class MainWindow(CompactUi, QMainWindow):
     def _retry_selected(self, current: bool = False) -> None:
         tasks, sources = self._selected_ids()
         self._retry_ids(tasks, sources, current)
-
-    def _retry_ids(self, tasks, sources, current: bool = False) -> None:
-        if self._thread is not None:
-            return
-        try:
-            options = self._options(False) if current else None
-            if (
-                options is not None
-                and QMessageBox.question(
-                    self,
-                    "确认重试参数",
-                    f"{len(tasks)} 项任务 / {len(sources)} 个来源将使用当前参数：\n"
-                    f"{options.description()}",
-                )
-                != QMessageBox.StandardButton.Yes
-            ):
-                return
-            batch_id = self.session.retry(tasks, sources, options)
-        except BilixError as error:
-            self._error(str(error))
-            return
-        self._start_batch(batch_id)
 
     def _filter_tasks(self):
         self.history_filter.set_state(self.filter_combo.currentData())
@@ -734,23 +655,6 @@ class MainWindow(CompactUi, QMainWindow):
         else:
             self._error("尚无输出文件，或文件已被移动 / 删除")
 
-    def _start_info(self):
-        if self._thread is not None:
-            return
-        try:
-            specs = self._inputs(validate_page=False)
-        except BilixError as error:
-            self._error(str(error))
-            return
-        self._metadata.clear()
-        self.metadata_tree.clear()
-        self._info_generation = self._input_generation
-        self._parse_total, self._parse_finished, self._parse_errors = len(specs), 0, 0
-        for spec in specs:
-            self.metadata_tree.addTopLevelItem(QTreeWidgetItem([spec.source, "等待读取"]))
-        self._start_operation("info", partial(run_info, specs))
-        self._update_parse_summary()
-
     def _start_login(self) -> None:
         if not self._start_operation("login", run_login):
             return
@@ -777,7 +681,16 @@ class MainWindow(CompactUi, QMainWindow):
     def _start_status(self) -> None:
         if self._thread is not None:
             return
-        self.account_label.setText("正在查询账号状态…")
+        self._check_credentials(schedule=False)
+        _key, credential_state = self._credential_fingerprint()
+        self._pending_account = False
+        if credential_state != "valid":
+            if credential_state == "none":
+                self._set_account("本地未保存凭据，可扫码登录", "未登录")
+            else:
+                self._set_account("本地凭据无法读取或格式错误，请修复或退出登录", "凭据不可读")
+            return
+        self._set_account("正在验证账号…", "正在验证账号")
         self._start_operation("status", run_status)
 
     def _logout(self) -> None:
@@ -797,7 +710,7 @@ class MainWindow(CompactUi, QMainWindow):
             self._error("无法删除登录凭据，请检查配置目录权限")
             return
         self._set_account("已退出登录，本地凭据已删除。", "未登录")
-        self._invalidate_info()
+        self._check_credentials()
 
     def _start_doctor(self) -> None:
         if self._thread is not None:
@@ -810,13 +723,16 @@ class MainWindow(CompactUi, QMainWindow):
             self._error("请等待当前操作结束，或先取消")
             return False
         self._active_kind = kind
+        self._job_serial += 1
+        context = kind, self._job_serial, self._input_generation, self._account_revision
+        self._active_context = context
         self._cancel = CancellationToken()
         thread = QThread(self)
-        worker = OperationWorker(operation, self._cancel)
+        worker = OperationWorker(operation, self._cancel, context)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
-        worker.event.connect(self._on_event)
-        worker.done.connect(self._on_done)
+        worker.event.connect(self._receive_event, Qt.ConnectionType.QueuedConnection)
+        worker.done.connect(self._receive_done, Qt.ConnectionType.QueuedConnection)
         worker.done.connect(thread.quit)
         thread.finished.connect(self._on_thread_finished)
         thread.finished.connect(worker.deleteLater)
@@ -828,43 +744,13 @@ class MainWindow(CompactUi, QMainWindow):
         thread.start()
         return True
 
-    def _set_busy(self, busy):
-        for button in self._busy_buttons:
-            button.setEnabled(not busy)
-        self.cancel_button.setEnabled(busy)
-        labels = {
-            "download": "取消本批下载",
-            "plan": "取消预览",
-            "info": "取消解析",
-            "login": "取消登录",
-            "status": "取消查询",
-            "doctor": "取消诊断",
-        }
-        self.cancel_button.setText(labels.get(self._active_kind, "取消"))
-        for widget in (
-            self.urls_edit,
-            self.output_edit,
-            self.page_edit,
-            self.quality_combo,
-            self.codec_combo,
-            self.audio_combo,
-            self.strict_check,
-            self.overwrite_check,
-            self.metadata_tree,
-            self.default_output_edit,
-            self.ffmpeg_edit,
-            self.part_range_edit,
-        ):
-            widget.setEnabled(not busy)
-        self.import_action.setEnabled(not busy)
-        self._update_retry_button()
+    @Slot(object)
+    def _receive_event(self, event):
+        self._deliver_event(event["_gui_context"], event)
 
-    def _cancel_active(self) -> None:
-        if self._cancel is not None:
-            self._cancel.cancel()
-            self.cancel_button.setEnabled(False)
-            self.cancel_button.setText("正在取消…")
-            self._message("正在取消，请等待当前请求或媒体处理停止…")
+    @Slot(object)
+    def _receive_done(self, result):
+        self._deliver_done(result["_gui_context"], result)
 
     def _on_event(self, event):
         kind = event["type"]
@@ -881,6 +767,7 @@ class MainWindow(CompactUi, QMainWindow):
             self._parse_finished += 1
             if event.get("error"):
                 self._parse_errors += 1
+                self._failed_parse.add(index)
                 root.setText(1, "读取失败：" + event["error"])
             else:
                 data = event["metadata"]
@@ -898,8 +785,11 @@ class MainWindow(CompactUi, QMainWindow):
                     child.setFlags(child.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                     child.setCheckState(0, Qt.CheckState.Checked)
                     root.addChild(child)
-                root.setExpanded(True)
-                self._reset_part_checks()
+                root.setFlags(
+                    root.flags() | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsAutoTristate
+                )
+                root.setExpanded(len(pages) > 1)
+                self._reset_one_part(root, data)
                 self.metadata_tree.setCurrentItem(root)
             self._update_parse_summary()
             return
@@ -957,6 +847,7 @@ class MainWindow(CompactUi, QMainWindow):
             self.session.requests[task.request_id],
             title=event.get("title"),
             progress=progress,
+            streams=event.get("streams"),
         )
         self.jobs_view.expand(
             self.history_filter.mapFromSource(self.history_model.row_index(row.parent))
@@ -1016,6 +907,9 @@ class MainWindow(CompactUi, QMainWindow):
                 )
                 if kind == "plan":
                     self.preview_text.appendPlainText(summary)
+                else:
+                    self._download_summary = self._last_summary
+                    self._notify_batch(counts)
             else:
                 self._message("已取消" if state == "canceled" else "操作失败")
         elif kind == "status" and state == "ok":
@@ -1036,13 +930,14 @@ class MainWindow(CompactUi, QMainWindow):
                         f"等级 {info.get('level', '')} · "
                         f"{membership}"
                     ),
-                    f"已登录：{info.get('name') or '账号'}",
+                    f"已登录：{info.get('name') or '账号'} · {membership}",
                 )
             self._invalidate_info()
         elif kind == "login":
             if state == "ok":
                 self._invalidate_info()
-                self._set_account("登录成功，凭据已保存。可点击查询状态查看账号。", "凭据待验证")
+                self._set_account("登录成功，凭据已保存，将自动验证账号。", "凭据待验证")
+                self._check_credentials(schedule=False)
             if self._qr_dialog is not None:
                 self._qr_dialog.accept() if state == "ok" else self._qr_dialog.reject()
                 self._qr_dialog = self._qr_label = self._qr_status = None
@@ -1051,33 +946,42 @@ class MainWindow(CompactUi, QMainWindow):
                 result["value"] if state == "ok" else result.get("message", "已取消")
             )
         elif kind == "info":
+            self._parse_complete = state == "ok" and self._info_generation == self._input_generation
             self._active_kind = None  # Parsing summary now describes results, not loading.
             self._update_parse_summary()
             self._active_kind = kind
             self._message(f"解析结束 · {len(self._metadata)} 成功 · {self._parse_errors} 失败")
         elif kind == "status":
-            self.account_label.setText(
+            self._set_account(
                 "账号状态查询已取消。"
                 if state == "canceled"
-                else "账号状态查询失败，请检查网络后重试。"
+                else "账号验证网络失败，可手动重试；凭据仍保留。",
+                "凭据待验证",
             )
-        if state == "error" and not self._close_pending:
+        if state == "error" and not self._close_pending and kind not in {"info", "status"}:
             self._error(result["message"])
         elif state == "canceled":
             self._message("操作已取消")
+        if kind == "status" and self._download_summary:
+            self._message(self._download_summary)
 
     def _on_thread_finished(self) -> None:
         self._thread = None
         self._worker = None
         self._cancel = None
         self._active_kind = None
+        self._active_context = None
         self._set_busy(False)
         if self._close_pending:
             QTimer.singleShot(0, self.close)
+        else:
+            QTimer.singleShot(0, self._drain_pending)
 
     def _update_retry_button(self, *_args):
         if not hasattr(self, "history_model"):
             return
+        self._update_counts()
+        self._update_draft_actions()
         idle = self._thread is None
         states = self.history_model.counts
         reread = {r.origin_request_id for r in self.session.requests.values()}
@@ -1109,29 +1013,7 @@ class MainWindow(CompactUi, QMainWindow):
         )
         self.folder_action.setEnabled(self.jobs_view.currentIndex().isValid() and folder.is_dir())
         self.details_action.setEnabled(self.jobs_view.currentIndex().isValid())
-        self.selection_button.setEnabled(self.jobs_view.currentIndex().isValid())
-
-    def _error(self, message: str) -> None:
-        QMessageBox.warning(self, "BiliX", message)
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        if self._thread is not None:
-            if not self._close_pending:
-                answer = QMessageBox.question(
-                    self,
-                    "操作进行中",
-                    "停止当前操作并退出？未提交任务将取消，会话记录在退出后清除。",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,
-                )
-                if answer != QMessageBox.StandardButton.Yes:
-                    event.ignore()
-                    return
-                self._close_pending = True
-                self._cancel_active()
-            event.ignore()
-            return
-        super().closeEvent(event)
+        self.selection_button.setEnabled(True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1142,13 +1024,17 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     application = QApplication.instance() or QApplication([sys.argv[0]])
     application.setApplicationName("BiliX")
+    application.setQuitOnLastWindowClosed(False)
     application.setDesktopFileName("djhx-bilix-gui")
     icon = QIcon()
     assets = Path(__file__).resolve().parents[1] / "assets"
     for size in (16, 24, 32, 48, 64, 128, 256):
         icon.addFile(str(assets / f"bilix-{size}.png"))
     application.setWindowIcon(icon)
+    apply_theme(application)
+    application.styleHints().colorSchemeChanged.connect(lambda scheme: apply_theme(application))
     window = MainWindow()
+    window.closed.connect(application.quit)
     if smoke_test:
         try:
             from io import BytesIO
@@ -1166,6 +1052,8 @@ def main(argv: list[str] | None = None) -> int:
                 raise OSError("无法加载二维码 PNG 图片")
             if icon.isNull() or icon.pixmap(32, 32).isNull():
                 raise OSError("无法加载应用图标")
+            if window.new_button.icon().pixmap(20, 20).isNull():
+                raise OSError("无法加载 SVG 操作图标")
         except (BilixError, OSError) as error:
             _report_startup_error(f"BiliX GUI 自检失败：{error}")
             return 1

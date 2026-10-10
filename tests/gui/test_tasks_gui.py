@@ -24,6 +24,8 @@ def setup_window(qtbot, monkeypatch, video_info):
     qtbot.addWidget(window)
     window.urls_edit.setPlainText(video_info.url)
     monkeypatch.setattr(tasks.BilibiliClient, "fetch", lambda *_a: video_info)
+    window._start_info()
+    qtbot.waitUntil(lambda: window._thread is None, timeout=5000)
     return window
 
 
@@ -39,6 +41,8 @@ def test_history_retry_selected_snapshot_keeps_other_rows(qtbot, monkeypatch, vi
 
     window = setup_window(qtbot, monkeypatch, video_info)
     monkeypatch.setattr(tasks.BilibiliClient, "fetch", fetch)
+    window._start_info()
+    wait(qtbot, window)
     calls = []
 
     def execute(plan, *a, **kw):
@@ -75,6 +79,9 @@ def test_preview_preserves_task_history_and_is_read_only(qtbot, monkeypatch, vid
     window._start_download()
     wait(qtbot, window)
     before = dict(window.session.tasks)
+    window.urls_edit.setPlainText(video_info.url)
+    window._start_info()
+    wait(qtbot, window)
     window._start_download(True)
     wait(qtbot, window)
     assert window.session.tasks == before and len(window.history_model.tasks) == 1
@@ -97,7 +104,7 @@ def test_readable_metadata_and_empty_part_selection_rejected(qtbot, monkeypatch,
         and "available_streams" not in window.parts_info.toPlainText()
     )
     root.child(1).setCheckState(0, Qt.CheckState.Unchecked)
-    with pytest.raises(InputError, match="未勾选"):
+    with pytest.raises(InputError, match="勾选"):
         window._inputs()
     window.page_edit.setText("all")
     window._reset_part_checks()
@@ -156,7 +163,7 @@ def test_offline_credential_state_does_not_access_network(qtbot, monkeypatch, se
     settings.token_file.write_text("SESSDATA=FAKE_OFFLINE_DUMMY", encoding="utf-8")
     window = app.MainWindow()
     qtbot.addWidget(window)
-    assert "尚未验证" in window.account_label.text()
+    assert "待验证" in window.account_label.text()
     settings.token_file.write_text("broken", encoding="utf-8")
     window._offline_account()
     assert "格式错误" in window.account_label.text()
@@ -169,8 +176,9 @@ def test_close_running_can_return_without_cancel(qtbot, monkeypatch):
 
     def operation(_emit, cancel):
         cancel.wait(3)
+        cancel.raise_if_cancelled()
 
-    window._start_operation("doctor", operation)
+    window._start_operation("download", operation)
     monkeypatch.setattr(
         app.QMessageBox, "question", lambda *_a, **_k: app.QMessageBox.StandardButton.No
     )
@@ -203,6 +211,7 @@ def test_native_ime_composition_hides_hint_and_restores_after_commit_or_cancel(q
     window = app.MainWindow()
     qtbot.addWidget(window)
     window.show()
+    window._open_draft(read_clipboard=False)
     editor = window.urls_edit
     editor.setFocus()
     QApplication.sendEvent(editor, QInputMethodEvent("zhongwen", []))
@@ -221,15 +230,18 @@ def test_url_tab_navigation_reaches_actions_without_changing_input(qtbot):
     window = app.MainWindow()
     qtbot.addWidget(window)
     window.show()
+    window._open_draft(read_clipboard=False)
     editor = window.urls_edit
     editor.setPlainText("BV1j4411W7F7")
     editor.setFocus()
-    window.activateWindow()
+    window._draft_dialog.activateWindow()
     qtbot.waitUntil(editor.hasFocus)
     qtbot.keyClick(editor, Qt.Key.Key_Tab)
     assert not editor.hasFocus()
-    assert window.focusWidget() is window.output_edit
-    qtbot.keyClick(window.focusWidget(), Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier)
+    assert window._draft_dialog.focusWidget() is not editor
+    qtbot.keyClick(
+        window._draft_dialog.focusWidget(), Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier
+    )
     assert editor.hasFocus() and editor.toPlainText() == "BV1j4411W7F7"
 
 

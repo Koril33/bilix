@@ -102,23 +102,34 @@ class OperationWorker(QObject):
         self,
         operation: Callable[[EventSink, CancellationToken], Any],
         cancel: CancellationToken,
+        context: tuple | None = None,
     ) -> None:
         super().__init__()
         self.operation = operation
         self.cancel = cancel
+        self.context = context
+
+    def _emit_event(self, event):
+        self.event.emit({**event, "_gui_context": self.context})
+
+    def _emit_done(self, result):
+        self.done.emit({**result, "_gui_context": self.context})
 
     @Slot()
     def run(self) -> None:
         try:
-            value = self.operation(self.event.emit, self.cancel)
+            value = self.operation(self._emit_event, self.cancel)
         except OperationCancelled:
-            self.done.emit({"state": "canceled"})
+            self._emit_done({"state": "canceled"})
         except BilixError as error:
-            self.done.emit({"state": "error", "message": str(error)})
+            self._emit_done({"state": "error", "message": str(error)})
         except (OSError, UnicodeError):
-            self.done.emit({"state": "error", "message": "文件或目录无法访问，请检查路径和权限"})
+            self._emit_done({"state": "error", "message": "文件或目录无法访问，请检查路径和权限"})
         except Exception:
             # Third-party exceptions may include cookies or signed media URLs.
-            self.done.emit({"state": "error", "message": "操作失败，请检查网络、设置或诊断信息"})
+            self._emit_done({"state": "error", "message": "操作失败，请检查网络、设置或诊断信息"})
         else:
-            self.done.emit({"state": "ok", "value": value})
+            if self.cancel.cancelled() and self.context and self.context[0] != "download":
+                self._emit_done({"state": "canceled"})
+            else:
+                self._emit_done({"state": "ok", "value": value})

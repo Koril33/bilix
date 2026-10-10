@@ -117,6 +117,7 @@ def build(mode: str, root_output: Path) -> Path:
         "--python-flag=isolated",
         f"--include-data-files={FFMPEG}=djhx_bilix/assets/ffmpeg.exe",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets' / 'bilix-*.png'}=djhx_bilix/assets/",
+        f"--include-data-files={ROOT / 'src/djhx_bilix/assets/action-*.svg'}=djhx_bilix/assets/",
         f"--output-dir={output}",
         "--output-filename=BiliX-GUI.exe",
         f"--file-version={file_version}",

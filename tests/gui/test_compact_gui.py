@@ -27,10 +27,11 @@ def test_compact_layout_and_dialogs_do_not_push_list(qtbot):
     assert not window.centralWidget().findChildren(QScrollArea)
     assert isinstance(window.jobs_view, QTreeView)
     assert window.list_stack.currentWidget() is window.empty_label
-    assert window.cancel_button.isVisible() and window.start_button.isVisible()
-    assert window.list_stack.height() > 100
+    assert not window.cancel_button.isVisible() and not window.start_button.isVisible()
+    assert window.new_button.isVisible()
+    assert window.list_stack.height() > 350
     before = window.list_stack.geometry()
-    window._options_dialog.show()
+    window._open_draft(read_clipboard=False)
     QApplication.processEvents()
     assert window.list_stack.geometry() == before
 
@@ -44,6 +45,7 @@ def test_ime_blocks_shortcut(qtbot, monkeypatch):
     window._shortcut_download()
     assert not calls
     QApplication.sendEvent(window.urls_edit, QInputMethodEvent("", []))
+    window.start_button.setEnabled(True)
     window._shortcut_download()
     assert calls == [True]
 
@@ -137,4 +139,4 @@ def test_busy_settings_cancel_and_account_chip(qtbot, settings):
     window._cancel_active()
     assert window.cancel_button.text() == "正在取消…"
     qtbot.waitUntil(lambda: window._thread is None)
-    assert window.start_button.isEnabled()
+    assert not window.start_button.isEnabled()  # Empty/unparsed drafts cannot be submitted.

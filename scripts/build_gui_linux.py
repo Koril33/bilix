@@ -107,6 +107,7 @@ def main() -> None:
         "--lto=no",
         "--include-package=djhx_bilix",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets' / 'bilix-*.png'}=djhx_bilix/assets/",
+        f"--include-data-files={ROOT / 'src/djhx_bilix/assets/action-*.svg'}=djhx_bilix/assets/",
         "--python-flag=isolated",
         f"--output-dir={BUILD}",
         "--output-filename=bilix-gui",

@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-当前稳定版本为 **1.7.3**，GUI 改为紧凑主窗口与统一下载列表，选集、文件预览、详情和设置按需打开，保留现有下载内核及命令行行为。本版按维护者要求执行定向检查，实际验证范围与公开渠道状态见 [1.7.3 记录](docs/validation-1.7.3.md)。
+当前版本为 **1.7.4**，GUI 以下载列表为中心，新建下载在单一对话框完成，支持链接自动解析、凭据自动验证、最小化到托盘与批次结束通知。下载内核及 CLI 行为沿用原实现。本版按维护者要求执行定向检查，实际范围与发布状态见 [1.7.4 记录](docs/validation-1.7.4.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.3-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.4-1_amd64.deb
 bilix-gui
 ```
 
@@ -91,6 +91,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
 | 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
+| 1.7.4 列表布局、自动解析与托盘设计 | [更新指南](docs/gui-update-guide-1.7.4.md) |
 | 1.7.3 GUI 简洁布局、交互与开发验收 | [更新指南](docs/gui-update-guide-1.7.3.md) |
 | 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |
 | 模块职责与下载事务 | [架构说明](docs/architecture.md) |

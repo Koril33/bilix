@@ -21,6 +21,7 @@ STATES = {
 }
 NODE_ROLE = Qt.ItemDataRole.UserRole
 STATE_ROLE = Qt.ItemDataRole.UserRole + 1
+STREAMS_ROLE = Qt.ItemDataRole.UserRole + 2
 
 
 @dataclass(eq=False)
@@ -36,6 +37,8 @@ class Row:
     detail: str = ""
     attempt: int = 0
     counts: Counter = field(default_factory=Counter)
+    streams: dict = field(default_factory=dict)
+    superseded: bool = False
 
 
 class HistoryModel(QAbstractItemModel):
@@ -50,7 +53,7 @@ class HistoryModel(QAbstractItemModel):
         if parent.isValid() and parent.column() != 0:
             return QModelIndex()
         rows = parent.internalPointer().children if parent.isValid() else self.roots
-        if 0 <= row < len(rows) and 0 <= column < 3:
+        if 0 <= row < len(rows) and 0 <= column < 4:
             return self.createIndex(row, column, rows[row])
         return QModelIndex()
 
@@ -65,11 +68,11 @@ class HistoryModel(QAbstractItemModel):
         return len(parent.internalPointer().children if parent.isValid() else self.roots)
 
     def columnCount(self, parent=QModelIndex()):
-        return 3
+        return 4
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            return ("视频 / 选集", "状态", "进度")[section]
+            return ("视频 / 选集", "状态", "进度", "操作")[section]
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
@@ -79,6 +82,10 @@ class HistoryModel(QAbstractItemModel):
             return row
         if role == STATE_ROLE:
             return row.state
+        if role == STREAMS_ROLE:
+            return row.streams
+        if index.column() == 3:
+            return "选中后打开操作菜单" if role == Qt.ItemDataRole.ToolTipRole else None
         if role == Qt.ItemDataRole.ToolTipRole:
             return row.title if index.column() == 0 else row.detail or STATES.get(row.state, "")
         if role == Qt.ItemDataRole.DisplayRole:
@@ -93,7 +100,15 @@ class HistoryModel(QAbstractItemModel):
                 state = STATES.get(row.state, row.state)
                 if row.state == "failed" and row.detail:
                     state += " · " + row.detail
-                values = (row.title, state, row.progress)
+                symbols = {
+                    "completed": "✓ ",
+                    "skipped": "! ",
+                    "failed": "× ",
+                    "canceled": "— ",
+                    "queued": "· ",
+                }
+                state = symbols.get(row.state, "● ") + state
+                values = (row.title, state, "" if row.streams else row.progress)
             return values[index.column()]
 
     def flags(self, index):
@@ -105,6 +120,10 @@ class HistoryModel(QAbstractItemModel):
         return self.createIndex(row.row, column, row)
 
     def source(self, request):
+        original = self.sources.get(request.origin_request_id)
+        if original and not original.children:
+            original.superseded = True
+            self.dataChanged.emit(self.row_index(original), self.row_index(original, 2))
         row = self.sources.get(request.request_id)
         if row is None:
             position = len(self.roots)
@@ -118,7 +137,7 @@ class HistoryModel(QAbstractItemModel):
         self.dataChanged.emit(self.row_index(row), self.row_index(row, 2))
         return row
 
-    def task(self, task, attempt, request, *, title=None, progress=None):
+    def task(self, task, attempt, request, *, title=None, progress=None, streams=None):
         row = self.tasks.get(task.task_id)
         state_changed = row is None or row.state != attempt.state
         if row is None:
@@ -145,6 +164,10 @@ class HistoryModel(QAbstractItemModel):
             row.progress = progress
         elif attempt.state != "downloading":
             row.progress = ""
+        if streams is not None:
+            row.streams = dict(streams)
+        elif attempt.state != "downloading":
+            row.streams = {}
         roles = [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole]
         if state_changed:
             roles.append(STATE_ROLE)
@@ -201,6 +224,8 @@ class HistoryFilter(QSortFilterProxyModel):
         model = self.sourceModel()
         index = model.index(row, 0, parent)
         node = model.data(index, NODE_ROLE)
+        if node.superseded:
+            return False
         if self.state == "all":
             return True
         if node.children:
@@ -211,5 +236,5 @@ class HistoryFilter(QSortFilterProxyModel):
             or self.state == "success"
             and state in {"completed", "skipped"}
             or self.state == "active"
-            and state not in {"completed", "skipped", "failed", "canceled", "queued", "discovered"}
+            and state not in {"completed", "skipped", "failed", "canceled", "discovered"}
         )

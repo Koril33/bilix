@@ -6,7 +6,7 @@ GUI 与 CLI 共用 Python 下载内核。本文件说明首个图形界面版本
 
 ## 版本与支持范围
 
-1.7.2 统一应用图标，源稿为 `src/djhx_bilix/assets/bilix.svg`。修改源稿后在 GUI 环境运行 `python scripts/generate_icons.py`，生成 16/24/32/48/64/128/256/512 像素 PNG 和包含前七档的 ICO，并提交派生文件。Windows GUI/CLI EXE 和 Inno Setup 使用同一 ICO；GUI 使用 PNG 设置运行时窗口图标，两套 GUI 构建均显式收集 PNG。Linux deb 安装 SVG 与多尺寸 PNG，并将 Qt desktopFileName 与 `djhx-bilix-gui.desktop` 对应。
+1.7.2 统一应用图标，源稿为 `src/djhx_bilix/assets/bilix.svg`。修改源稿后在 GUI 环境运行 `python scripts/generate_icons.py`，生成 16/24/32/48/64/128/256/512 像素 PNG 和包含前七档的 ICO，并提交派生文件。Windows GUI/CLI EXE 和 Inno Setup 使用同一 ICO；GUI 使用 PNG 设置运行时窗口图标，两套 GUI 构建均显式收集 PNG。1.7.4 增加自绘 `action-*.svg`，由 QtSvg 按主题渲染，两平台构建显式收集这些资源；离线自检也检查操作图标。Linux deb 安装 SVG 与多尺寸 PNG，并将 Qt desktopFileName 与 `djhx-bilix-gui.desktop` 对应。
 
 按维护者 2026-10-10 的要求，1.7.2 仅执行图标、构建启动及发行材料定向验证，不重复多系统 IME/DPI、性能、账号/下载或安装异常矩阵；实际结果见 [1.7.2 记录](validation-1.7.2.md)。
 
@@ -91,3 +91,5 @@ uv run --locked --extra gui --group build python scripts/package_gui_deb.py --ma
 每次发行的实际检查结果分别记录于 [Windows 10 VM 流程](gui-win10-validation.md)与 [Ubuntu/Debian VM 矩阵](gui-vm-validation.md)。记录应标明测试系统、候选文件哈希、安装和卸载结果，以及可见桌面与真实账号检查的范围。离线回归使用虚构账号和本地服务，不能替代真实权限验证；首次稳定 GUI 版本也没有可供跨稳定版升级测试的旧 GUI 安装包。
 
 从下一版开始，实际结果统一另存 `validation-<版本>.md`，平台文件仅维护可重复操作与历史备注。旧版升级、降级策略、IME、完整 Wayland 和性能必须逐项填写，不能沿用首版的“未验证”说明作为永久豁免。
+
+1.7.4 按维护者要求采用 GUI 调度、布局、托盘/通知和发行包启动定向检查，完整权限/安装/桌面矩阵后续执行；实际结果见 [1.7.4 记录](validation-1.7.4.md)。

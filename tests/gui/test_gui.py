@@ -87,13 +87,16 @@ def test_qr_login_and_account_status_are_offline(qtbot, monkeypatch):
     qrcode.make("offline-test", image_factory=PyPNGImage).save(buffer)
 
     def login(emit, _cancel):
+        settings = app.load_settings()
+        settings.config_dir.mkdir(parents=True, exist_ok=True)
+        settings.token_file.write_text("SESSDATA=FAKE_OFFLINE_DUMMY", encoding="utf-8")
         emit({"type": "login", "state": "qr_ready", "image": buffer.getvalue()})
         emit({"type": "login", "state": "scanned", "image": None})
 
     monkeypatch.setattr(app, "run_login", login)
     window._start_login()
     qtbot.waitUntil(lambda: window._thread is None, timeout=5000)
-    assert "登录成功" in window.account_label.text()
+    assert window._qr_dialog is None and app.load_settings().token_file.is_file()
     monkeypatch.setattr(
         app,
         "run_status",
@@ -110,7 +113,9 @@ def test_qr_login_and_account_status_are_offline(qtbot, monkeypatch):
     assert "UID 123" in window.account_label.text()
 
 
-def test_cancelled_status_query_clears_loading_message(qtbot, monkeypatch):
+def test_cancelled_status_query_clears_loading_message(qtbot, monkeypatch, settings):
+    settings.config_dir.mkdir()
+    settings.token_file.write_text("SESSDATA=FAKE_OFFLINE_DUMMY", encoding="utf-8")
     window = app.MainWindow()
     qtbot.addWidget(window)
     monkeypatch.setattr(
