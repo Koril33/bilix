@@ -28,6 +28,18 @@ GUI 使用紧凑主窗口、QTreeView / QAbstractItemModel 统一下载列表与
 
 ## 构建与公开渠道
 
-候选程序已完成上述构建与启动检查；最终材料按同一工作区刷新，集合为 Windows GUI 绿色版、安装器、配套源码 ZIP，Linux deb 与配套源码，以及 CLI ZIP、Python wheel/sdist 共 8 项产物。归档、版本与 SHA256 由集合脚本核对，以发行目录的 `release-manifest.json` / `SHA256SUMS.txt` 为准。
+最终程序已完成上述构建与启动检查；最终材料按同一工作区刷新，集合为 Windows GUI 绿色版、安装器、配套源码 ZIP，Linux deb 与配套源码，以及 CLI ZIP、Python wheel/sdist 共 8 项产物。归档、版本与 SHA256 已通过集合脚本及只读复核，以发行目录的 `release-manifest.json` / `SHA256SUMS.txt` 为准。
 
-公开上传、远端 SHA256 和公开 wheel 安装结果在实际完成后补记；此时不宣称公开渠道已发布。使用原有本地发布流程，网站由维护者部署，Gitea 同步代码与标签。
+使用原有本地发布流程，网站由维护者部署，Gitea 同步代码与标签。
+
+## 最终组装与公开发布
+
+2026-10-10 已正式发布。源码提交 `c23c1bdd822a32138eaaa0c1d9bb94d17a6d4e48`，`v1.7.3` 标签与代码已同步 GitHub、Gitea。以下为公开后补记，标签与已公开文件保持不变，发行源码中的记录保留打包时快照。
+
+- 完整 8 项发行产物经过归档路径、许可、源码/元数据版本、大小与 SHA256 检查，见本地 `assemble.log`、`final-material-verification.json`。源码 ZIP 与 Python sdist 分别有 153 份选定文件、Linux 源码归档有 141 份文件与标签工作区逐字节一致；wheel 中 37 份 Python/图标文件也一致。
+- [GitHub v1.7.3](https://github.com/Koril33/bilix/releases/tag/v1.7.3) 为最新正式发行，匿名发行页面可访问；认证 API 核对 10 个公开文件的大小及 SHA256 与本地一致，清单与校验文件匿名完整回下载通过，见 `public-verification.json`。没有完整回下载 GitHub 所有大型二进制。
+- [PyPI 1.7.3](https://pypi.org/project/djhx-bilix/1.7.3/) wheel 与 sdist 已公开，两项完整回下载的 SHA256 和包元数据通过，见 `pypi-verification.json`。在独立 CPython 3.11.2 环境实际安装公开 wheel，CLI 版本、GUI 离线启动及安装元数据通过，见 `public-wheel-smoke.json`。
+- Ruff 检查、73 个 Python 文件格式及文档相对链接通过。工作树秘密扫描 0 项；历史扫描仍是已确认失效的 22 项旧发现，v1.7.2 后提交没有新增发现，没有改写历史。
+- 网站源码通过 GitHub 最新正式发行接口显示版本，本版没有修改或部署网站；Gitea 同步代码和标签，不另建二进制发行页。
+
+最终材料保存于 `dist/release-1.7.3/`，本轮 Linux 构建 VM 已正常关闭。
