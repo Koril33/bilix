@@ -26,3 +26,15 @@
 构建仍使用 Python 3.14.8、Nuitka 4.2.2、PySide6/Qt 6.11.2；依赖锁文件未改变。FFmpeg 保持原有官方 7.1.5 Windows 构建，Linux 使用发行版 FFmpeg。工作树凭据扫描 0 项；历史扫描仍是既有 22 项旧凭据发现，维护者已于 2026-10-03 确认历史凭据失效，本版没有新增发现或改写历史。
 
 发行归档与公开渠道核验在最终上传时独立记录。未运行 Windows 安装/卸载/升级和四 Linux 桌面矩阵，不将编译、图标资源检查或离线自检作为这些项目的通过结果。
+
+## 最终组装与公开发布
+
+2026-10-10 已正式发布。源码提交 `8dbd009b9a064c33869bd87cfdb88c8183db2843`，`v1.7.2` 标签与代码已同步 GitHub、Gitea；标签及公开文件保持不变。以下为发布后补记，发行源码中的记录保留打包时快照。
+
+- Python 3.11.2 隔离环境实际安装最终 wheel，CLI 版本、GUI 离线启动、安装元数据通过；十个 SVG/PNG/ICO 素材与工作树逐字节一致，见 `wheel-smoke.json`。
+- 完整八项发行产物经过归档路径、许可材料、源码/元数据版本、大小与 SHA256 检查，见 `assemble.log`。最终 deb 的系统 SVG、八档系统 PNG、八档运行时 PNG 共十七项与源素材一致，桌面入口匹配，见 `archive-icons.json`。
+- [GitHub v1.7.2](https://github.com/Koril33/bilix/releases/tag/v1.7.2) 为最新正式发行；十个公开文件的 API 大小及 SHA256 与本地一致，完整回下载清单和校验文件通过，见 `public-verification.json`。本次没有完整回下载 GitHub 所有大型二进制。
+- [PyPI 1.7.2](https://pypi.org/project/djhx-bilix/1.7.2/) 的 wheel、sdist 已公开，元数据与两项完整回下载的 SHA256 均通过，见 `pypi-verification.json`；与已实际安装验证的 wheel 为同一文件。
+- 网站源码通过 GitHub 最新正式发行接口显示版本，本版没有修改或部署网站；Gitea 同步代码及标签，不另建二进制发行页。
+
+最终文件及校验清单保存于 `dist/release-1.7.2/`，Linux 构建 VM 已正常关闭。
