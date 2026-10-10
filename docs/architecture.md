@@ -73,3 +73,7 @@ GUI 只展示 `BilixError` 的安全消息；来自第三方网络库的异常�
 旧版根目录 Python 模块、旧日志模块与旧自更新器已移除。`python main.py` 应改为 `uv run blx` 或 `python -m djhx_bilix`。exe 自更新不沿用删除/替换自身的旧脚本；通过发行页更新 exe，Python 安装通过 `uv tool upgrade djhx-bilix` 更新。
 
 未知命令交给 Typer 的相近指令提示；只有 URL/BV 输入和旧版参数会转入下载入口，避免拼错命令被当成下载地址。命令和选项的补全候选来自同一 Typer 命令树，清晰度候选来自 `QUALITY_NAMES`，补全过程不访问网络或配置凭据。PowerShell 脚本通过 AST/JSON 传入参数，保留中文、空格与引号，并在调用后恢复环境变量。
+
+## 1.7.3 GUI 展示层
+
+`gui/panels.py` 组织紧凑主窗口及选集/预览/详情/设置等按需窗口，`gui/history.py` 将安全的来源/任务事件投影到 QAbstractItemModel。显示和选择按稳定 ID 关联，分组父行不代替子任务重试。状态筛选按 35ms 合并刷新，普通进度只更新对应行，避免批量事件触发反复全树筛选。MainWindow 继续协调单活动 worker，Session 和下载事务保持原有实现。

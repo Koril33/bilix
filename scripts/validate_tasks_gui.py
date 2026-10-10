@@ -107,7 +107,6 @@ def main() -> None:
             window.session.event(task_id, window._on_event, state="failed", detail="合成网络故障")
         window.session.source_state(request_id, "discovered", window._on_event)
         window.session.finish(batch)
-        window.history_tabs.setCurrentIndex(2)
         application.processEvents()
         create_ms = (time.perf_counter() - started) * 1000
         timings = {"filter": [], "details": [], "retry_model": []}
@@ -118,7 +117,11 @@ def main() -> None:
             application.processEvents()
             timings["filter"].append((time.perf_counter() - started) * 1000)
             started = time.perf_counter()
-            window.jobs_table.setCurrentCell(0, 0)
+            window.jobs_view.setCurrentIndex(
+                window.history_filter.mapFromSource(
+                    window.history_model.row_index(window.history_model.tasks[ids[0]])
+                )
+            )
             window._show_attempts()
             application.processEvents()
             timings["details"].append((time.perf_counter() - started) * 1000)
@@ -130,10 +133,10 @@ def main() -> None:
             timings["retry_model"].append((time.perf_counter() - started) * 1000)
         for width, height, advanced in ((1100, 760, False), (800, 600, False), (800, 600, True)):
             window.resize(width, height)
-            window.advanced_toggle.setChecked(advanced)
+            window._options_dialog.setVisible(advanced)
             application.processEvents()
             window.grab().save(str(args.output / f"{count}-{width}x{height}-{advanced}.png"))
-            scroll = window.centralWidget().widget(0)
+            scroll = window.jobs_view
             result["layout"].append(
                 dict(
                     tasks=count,

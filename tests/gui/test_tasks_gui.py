@@ -49,15 +49,18 @@ def test_history_retry_selected_snapshot_keeps_other_rows(qtbot, monkeypatch, vi
     window.quality_combo.setCurrentIndex(window.quality_combo.findData(32))
     window._start_download()
     wait(qtbot, window)
-    assert window.jobs_table.rowCount() == 2
-    first_id = window.jobs_table.item(0, 0).data(app._TASK_ROLE)
+    assert len(window.history_model.tasks) == 2
+    first_id = next(iter(window.session.tasks))
     original_summary = window.session.batches[next(iter(window.session.batches))].summary
     window.quality_combo.setCurrentIndex(window.quality_combo.findData(16))
-    window.jobs_table.selectRow(0)
+    node = window.history_model.tasks[first_id]
+    window.jobs_view.setCurrentIndex(
+        window.history_filter.mapFromSource(window.history_model.row_index(node))
+    )
     window._retry_selected()
     wait(qtbot, window)
     assert calls == [32, 32, 32]
-    assert window.jobs_table.rowCount() == 2
+    assert len(window.history_model.tasks) == 2
     assert len(window.session.tasks[first_id].attempts) == 2
     assert window.session.batches[next(iter(window.session.batches))].summary == original_summary
     window._show_attempts()
@@ -74,8 +77,8 @@ def test_preview_preserves_task_history_and_is_read_only(qtbot, monkeypatch, vid
     before = dict(window.session.tasks)
     window._start_download(True)
     wait(qtbot, window)
-    assert window.session.tasks == before and window.jobs_table.rowCount() == 1
-    assert "新建" in window.info_text.toPlainText()
+    assert window.session.tasks == before and len(window.history_model.tasks) == 1
+    assert "新建" in window.preview_text.toPlainText()
 
 
 def test_readable_metadata_and_empty_part_selection_rejected(qtbot, monkeypatch, video_info):
@@ -90,13 +93,14 @@ def test_readable_metadata_and_empty_part_selection_rejected(qtbot, monkeypatch,
     assert root.child(1).checkState(0) == Qt.CheckState.Checked
     assert window._inputs()[0].page == "2"
     assert (
-        "作者" in window.info_text.toPlainText()
-        and "available_streams" not in window.info_text.toPlainText()
+        "作者" in window.parts_info.toPlainText()
+        and "available_streams" not in window.parts_info.toPlainText()
     )
     root.child(1).setCheckState(0, Qt.CheckState.Unchecked)
     with pytest.raises(InputError, match="未勾选"):
         window._inputs()
     window.page_edit.setText("all")
+    window._reset_part_checks()
     assert window._inputs()[0].page == "1,2"
     window._copy_metadata()
     assert "available_streams" in app.QApplication.clipboard().text()
@@ -122,9 +126,9 @@ def test_filter_retry_and_clear_use_ids_and_do_not_touch_files(
     window._start_download()
     wait(qtbot, window)
     window.filter_combo.setCurrentIndex(window.filter_combo.findData("failed"))
-    assert window.jobs_table.isRowHidden(0)
+    assert window.history_filter.rowCount() == 0
     window._clear_records(frozenset({"skipped"}))
-    assert not window.session.tasks and window.jobs_table.rowCount() == 0
+    assert not window.session.tasks and not window.history_model.tasks
     assert output.read_bytes() == b"media"
 
 
@@ -224,7 +228,7 @@ def test_url_tab_navigation_reaches_actions_without_changing_input(qtbot):
     qtbot.waitUntil(editor.hasFocus)
     qtbot.keyClick(editor, Qt.Key.Key_Tab)
     assert not editor.hasFocus()
-    assert window.focusWidget().text() == "导入 URL 文件"
+    assert window.focusWidget() is window.output_edit
     qtbot.keyClick(window.focusWidget(), Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier)
     assert editor.hasFocus() and editor.toPlainText() == "BV1j4411W7F7"
 

@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-当前源码版本为 **1.7.2**，统一 GUI、CLI 和安装器的应用图标，使用原创蓝色下载篮和浅蓝白色圆角底板。此次小范围更新按维护者要求执行定向验证，具体范围见 [1.7.2 记录](docs/validation-1.7.2.md)。下载及公开渠道状态以 [v1.7.2 发行页](https://github.com/Koril33/bilix/releases/tag/v1.7.2) 和 PyPI 为准。
+当前源码版本为 **1.7.3**，GUI 改为紧凑主窗口与统一下载列表，选集、文件预览、详情和设置按需打开，保留现有下载内核及命令行行为。本版按维护者要求执行定向检查，实际验证范围与公开渠道状态见 [1.7.3 记录](docs/validation-1.7.3.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.2-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.3-1_amd64.deb
 bilix-gui
 ```
 
@@ -47,7 +47,7 @@ uv run --locked --extra gui bilix-gui
 
 GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
 
-首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 仅更新应用图标；指南 B-01 至 B-07 顺延至后续功能版，见 [CLI/GUI 开发路线](docs/roadmap.md)。
+首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一应用图标，1.7.3 集中改善 GUI 交互与布局；指南 B-01 至 B-07 顺延至后续功能版，见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
 ## 快速开始
 
@@ -91,7 +91,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
 | 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
-| 1.7.3 GUI 简洁布局、交互与开发验收（待实现） | [更新指南](docs/gui-update-guide-1.7.3.md) |
+| 1.7.3 GUI 简洁布局、交互与开发验收 | [更新指南](docs/gui-update-guide-1.7.3.md) |
 | 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |
 | 模块职责与下载事务 | [架构说明](docs/architecture.md) |
 | 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |

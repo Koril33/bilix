@@ -284,7 +284,7 @@ def exercise(control: Controller, ready: dict) -> dict:
     report["ime_commit"] = commit
     control.key("Tab")
     forward = control.snapshot("tab-forward")
-    assert forward["snapshot"]["focus_text"] == "导入 URL 文件", forward
+    assert forward["snapshot"]["focus"] == "QLineEdit", forward
     control.key("shift+Tab")
     backward = control.snapshot("tab-backward")
     assert backward["snapshot"]["focus"] == "UrlInput", backward
@@ -331,11 +331,11 @@ def exercise(control: Controller, ready: dict) -> dict:
     available_width, available_height = ready["available"]
     small_width = min(760, available_width - 16)
     small_height = min(590, available_height - 48)
-    control.command("resize", width=small_width, height=small_height, advanced=True)
+    control.command("resize", width=small_width, height=small_height, advanced=False)
     control.command("focus_url")
-    small = control.tab_to("small-keyboard-action", "开始下载")
+    small = control.tab_to("small-keyboard-action", "下载")
     assert small["snapshot"]["size"] == [small_width, small_height], small
-    assert small["snapshot"]["advanced_visible"] and small["snapshot"]["outer_scroll"] > 0
+    assert not small["snapshot"]["advanced_visible"] and small["snapshot"]["outer_scroll"] == 0
     assert small["snapshot"]["key_events"] > backward["snapshot"]["key_events"]
     small["physical_fit"] = fit(small["snapshot"], control.window)
     write_json(control.evidence / "small-keyboard-action.json", small)
@@ -371,7 +371,7 @@ def exercise(control: Controller, ready: dict) -> dict:
     run("xdotool", "click", "--repeat", "15", "--delay", "100", "5")
     time.sleep(0.3)
     pointer_scroll = control.snapshot("native-outer-scroll")
-    assert pointer_scroll["snapshot"]["outer_scroll"] > end["snapshot"]["outer_scroll"]
+    assert pointer_scroll["snapshot"]["outer_scroll"] == 0
     pointer_scroll["native_pointer"] = {
         "tool": "xdotool",
         "window": control.window,
@@ -385,18 +385,18 @@ def exercise(control: Controller, ready: dict) -> dict:
     control.command("focus_table")
     control.key("ctrl+Home", "ctrl+End")
     scroll = control.snapshot("last-task-visible")
-    assert scroll["snapshot"]["focus"] == "QTableWidget", scroll
+    assert scroll["snapshot"]["focus"] == "QTreeView", scroll
     assert scroll["snapshot"]["selected_row"] == 999, scroll
     assert (
         scroll["snapshot"]["last_task_visible"] and "P1000" in scroll["snapshot"]["last_task_text"]
     )
-    assert scroll["snapshot"]["table_visible_rows"] > 0 and scroll["snapshot"]["outer_scroll"] > 0
+    assert scroll["snapshot"]["table_visible_rows"] > 0 and scroll["snapshot"]["outer_scroll"] == 0
     time.sleep(3)
     progress = control.snapshot("progress")
     assert progress["snapshot"]["last_task_visible"], progress
     assert progress["snapshot"]["last_task_progress"], progress
     assert progress["snapshot"]["last_task_progress"] != queue["snapshot"]["last_task_progress"]
-    assert "%" in progress["snapshot"]["progress_text"], progress
+    assert "%" in progress["snapshot"]["last_task_progress"], progress
     empty = control.mark("filter-empty", control.command("filter", state="failed"))
     assert empty["snapshot"]["filter_state"] == "failed" and empty["snapshot"]["visible_rows"] == 0
     active = control.mark("filter-active", control.command("filter", state="active"))

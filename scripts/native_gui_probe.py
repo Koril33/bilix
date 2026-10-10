@@ -67,7 +67,7 @@ def main() -> int:
     os.environ["BILIX_DOWNLOAD_DIR"] = str(args.output / "下载 中文 空格")
     from PySide6.QtCore import QEvent, QObject, Qt, QTimer
     from PySide6.QtGui import QTextLayout
-    from PySide6.QtWidgets import QApplication, QScrollArea
+    from PySide6.QtWidgets import QApplication
 
     from djhx_bilix import __version__
     from djhx_bilix.gui.app import MainWindow
@@ -121,27 +121,25 @@ def main() -> int:
     def snapshot() -> dict:
         screen = window.screen()
         focus = application.focusWidget()
-        table = getattr(window, "jobs_table", None)
-        rows = table.rowCount() if table else 0
-        last = rows - 1
-        viewport = table.viewport() if table else None
-        region = viewport.visibleRegion() if viewport else None
-        on_screen = (
-            [
-                r
-                for r in range(rows)
-                if not table.isRowHidden(r)
-                and region.intersects(table.visualItemRect(table.item(r, 0)))
-            ]
-            if table
-            else []
-        )
+        table = window.jobs_view
+        nodes = list(window.history_model.tasks.values())
+        rows = len(nodes)
+        indexes = [
+            window.history_filter.mapFromSource(window.history_model.row_index(node))
+            for node in nodes
+        ]
+        last_index = indexes[-1] if indexes else None
+        region = table.viewport().visibleRegion()
+        on_screen = [
+            index
+            for index in indexes
+            if index.isValid() and region.intersects(table.visualRect(index))
+        ]
         last_visible = bool(
-            table
-            and last >= 0
-            and not table.isRowHidden(last)
-            and region.contains(table.visualItemRect(table.item(last, 0)))
+            last_index and last_index.isValid() and region.contains(table.visualRect(last_index))
         )
+        current = table.currentIndex()
+        node = current.data(Qt.ItemDataRole.UserRole) if current.isValid() else None
         return dict(
             visible=window.isVisible(),
             active=window.isActiveWindow(),
@@ -162,11 +160,11 @@ def main() -> int:
                 screen.availableGeometry().height(),
             ],
             advanced_visible=window.advanced_group.isVisible(),
-            visible_rows=sum(not table.isRowHidden(r) for r in range(rows)) if table else 0,
+            visible_rows=sum(index.isValid() for index in indexes),
             table_visible_rows=len(on_screen),
             last_task_visible=last_visible,
-            last_task_text=table.item(last, 0).text() if last >= 0 else None,
-            last_task_progress=table.item(last, 2).text() if last >= 0 else None,
+            last_task_text=nodes[-1].title if nodes else None,
+            last_task_progress=nodes[-1].progress if nodes else None,
             filter_state=window.filter_combo.currentData(),
             task_states=dict(Counter(t.latest.state for t in window.session.tasks.values())),
             device_pixel_ratio=window.devicePixelRatioF(),
@@ -175,13 +173,13 @@ def main() -> int:
             url_text=window.urls_edit.toPlainText(),
             placeholder=window.urls_edit.placeholderText(),
             focus_text=focus.text() if focus and hasattr(focus, "text") else None,
-            outer_scroll=window.findChild(QScrollArea).verticalScrollBar().value(),
-            selected_row=table.currentRow() if table else None,
-            progress_text=window.progress_bar.text(),
+            outer_scroll=0,
+            selected_row=node.row if node and node.kind == "task" else None,
+            progress_text=window.status_text.full_text,
             font_family=window.font().family(),
             cjk_fonts=cjk_fonts,
             output=window.output_edit.text(),
-            rows=table.rowCount() if table else None,
+            rows=rows,
             table_scroll=table.verticalScrollBar().value() if table else None,
             memory_bytes=memory(),
             key_events=record["key_events"],
@@ -234,7 +232,7 @@ def main() -> int:
                 window.urls_edit.setFocus(Qt.FocusReason.OtherFocusReason)
             elif action == "resize":
                 window.resize(int(request["width"]), int(request["height"]))
-                window.advanced_toggle.setChecked(bool(request.get("advanced", False)))
+                window._options_dialog.setVisible(bool(request.get("advanced", False)))
             elif action == "directory":
                 QTimer.singleShot(0, window._choose_output)
             elif action == "queue":
@@ -263,7 +261,6 @@ def main() -> int:
                     for state in ("queued", "loading", "downloading"):
                         window.session.event(task_id, window._on_event, state=state)
                 window.session.source_state(source_id, "discovered", window._on_event)
-                window.history_tabs.setCurrentIndex(2)
                 tick = 0
             elif action == "finish_queue":
                 for task_id in ids:
@@ -281,7 +278,7 @@ def main() -> int:
                     raise ValueError("Unknown task filter: " + str(request["state"]))
                 window.filter_combo.setCurrentIndex(index)
             elif action == "focus_table":
-                window.jobs_table.setFocus(Qt.FocusReason.OtherFocusReason)
+                window.jobs_view.setFocus(Qt.FocusReason.OtherFocusReason)
             elif action == "settings_dpi":
                 os.startfile("ms-settings:display")
             elif action == "download":
