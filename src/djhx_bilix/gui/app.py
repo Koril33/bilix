@@ -125,6 +125,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self._settings = None
         self._thread = self._worker = self._cancel = self._active_kind = None
         self._close_pending = False
+        self._exit_requested = False
         self._qr_dialog = self._qr_label = self._qr_status = None
         self._busy_buttons = []
         self.session = Session()
@@ -187,7 +188,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         controls.addWidget(self._button("打开配置目录", self._open_config_folder))
         controls.addStretch()
         layout.addLayout(controls)
-        self.tray_check = QCheckBox("最小化到托盘")
+        self.tray_check = QCheckBox("关闭或最小化到托盘")
         self.notify_check = QCheckBox("下载结束通知")
         layout.addWidget(self.tray_check)
         layout.addWidget(self.notify_check)
@@ -382,8 +383,8 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
 
     def _set_account(self, text, chip):
         self.account_label.setText(text)
-        self.account_button.setText(chip + " ▾")
-        self.account_button.setToolTip(text)
+        self.account_status.setText(chip)
+        self.account_status.setToolTip(text)
 
     def _reset_part_checks(self) -> None:
         for index, metadata in self._metadata.items():
@@ -539,8 +540,8 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self.history_filter.set_state(self.filter_combo.currentData())
         self._update_retry_button()
 
-    def _show_attempts(self):
-        task = self._selected_task()
+    def _show_attempts(self, task=None):
+        task = task or self._selected_task()
         if task:
             self.info_text.setPlainText(
                 "\n\n".join(
@@ -563,12 +564,15 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
     def _open_details(self, *_args):
         index = self.jobs_view.currentIndex()
         node = index.data(NODE_ROLE) if index.isValid() else None
+        self._open_node_details(node)
+
+    def _open_node_details(self, node, batch_id=None):
         if node is None:
             return
         self.batch_combo.clear()
         self.batch_combo.addItem("所属批次", None)
         self.batch_text.clear()
-        task = self._selected_task()
+        task = self.session.tasks.get(node.identity) if node.kind == "task" else None
         if task:
             attempt = task.latest
             text = (
@@ -578,7 +582,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
                 f"{attempt.detail} {attempt.action}\n"
                 f"输出：{attempt.output or '尚无输出'}"
             )
-            self._show_attempts()
+            self._show_attempts(task)
             batch_ids = list(dict.fromkeys(a.batch_id for a in task.attempts))
         else:
             request = self.session.requests.get(node.identity)
@@ -596,7 +600,11 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         for batch_id in batch_ids:
             self.batch_combo.addItem(f"批次 {batch_id[:8]}", batch_id)
         self.batch_combo.setCurrentIndex(len(batch_ids))
+        if batch_id in batch_ids:
+            self.batch_combo.setCurrentIndex(self.batch_combo.findData(batch_id))
         self._details_dialog.show()
+        self._details_dialog.raise_()
+        self._details_dialog.activateWindow()
 
     def _activate_row(self, index):
         node = index.data(NODE_ROLE)

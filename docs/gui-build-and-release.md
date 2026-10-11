@@ -53,7 +53,7 @@ uv run --locked --extra gui --group build python scripts/package_gui_windows.py
 
 第二步在 `dist/gui/` 生成单文件绿色 EXE、Inno Setup 安装器 EXE、许可证和对应源码 ZIP，以及 `SHA256SUMS-windows.txt`、`release-manifest-windows.json`。**单文件 EXE 与许可证/源码 ZIP 必须一并提供**；安装器将这些材料纳入安装目录。若暂时没有 Inno Setup，可用 `scripts/package_gui_windows.py --portable-only` 先生成绿色版及其配套材料，这不等于安装版已经完成。
 
-绿色版无需安装 Python/Qt。关闭程序后替换 EXE 即为手动升级；默认账号、设置与下载目录在用户目录，不随 EXE 移动。安装版按当前用户安装到 `%LOCALAPPDATA%\Programs\BiliX`，建立开始菜单项，可选桌面快捷方式与系统卸载项；开发预发布使用单独的 `BiliX Preview` 身份和目录，避免覆盖稳定版。升级安装版前先结束下载任务并退出应用，再运行新版安装器。卸载保留用户配置和已下载文件。
+绿色版无需安装 Python/Qt。通过文件或托盘菜单“退出”后替换 EXE 即为手动升级；1.7.5 起标题栏关闭默认只进入托盘。默认账号、设置与下载目录在用户目录，不随 EXE 移动。安装版按当前用户安装到 `%LOCALAPPDATA%\Programs\BiliX`，建立开始菜单项，可选桌面快捷方式与系统卸载项；开发预发布使用单独的 `BiliX Preview` 身份和目录，避免覆盖稳定版。升级安装版前先结束下载任务并从菜单退出应用，再运行新版安装器。卸载保留用户配置和已下载文件。
 
 发行前应在无 Python、Qt 和构建工具的干净 Windows x64 用户环境检查：绿色版冷启动与重复启动、中文/空格路径、二维码与取消、批量/多 P 下载、账号状态、FFmpeg、文件校验、旧版本升级、安装/卸载及配置保留。安装版还需执行真实安装、升级、降级阻止与卸载流程；只编译出 Setup EXE 不等于这些场景已通过。
 

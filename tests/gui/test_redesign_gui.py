@@ -133,11 +133,11 @@ def test_token_auto_validation_once_and_failure_distinction(
     wait_parsed(qtbot, window)
     assert len(calls) == 1
     if state == "valid":
-        assert "大会员" in window.account_button.text()
+        assert "大会员" in window.account_status.text()
     elif state == "expired":
-        assert "失效" in window.account_button.text()
+        assert "失效" in window.account_status.text()
     else:
-        assert "待验证" in window.account_button.text()
+        assert "待验证" in window.account_status.text()
         assert settings.token_file.exists()
     window._open_settings(0)
     qtbot.wait(30)
@@ -161,7 +161,7 @@ def test_external_credential_delete_rejects_old_status_result(qtbot, monkeypatch
     settings.token_file.unlink()
     release.set()
     qtbot.waitUntil(lambda: window._thread is None)
-    assert window.account_button.text() == "未登录 ▾"
+    assert window.account_status.text() == "未登录"
 
 
 def test_minimize_restore_lost_tray_and_close_draft_keep_worker(qtbot, monkeypatch, video_info):
@@ -193,6 +193,7 @@ def test_notifications_are_once_per_batch_and_cancel_has_no_completed_notice(qtb
         SimpleNamespace(
             supportsMessages=lambda: True,
             showMessage=lambda *args: messages.append(args),
+            show=lambda: None,
             hide=lambda: None,
         ),
     )

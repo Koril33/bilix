@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-当前稳定版本为 **1.7.4**，GUI 以下载列表为中心，新建下载在单一对话框完成，支持链接自动解析、凭据自动验证、最小化到托盘与批次结束通知。下载内核及 CLI 行为沿用原实现。本版按维护者要求执行定向检查，实际范围与发布状态见 [1.7.4 记录](docs/validation-1.7.4.md)。
+当前版本为 **1.7.5**，GUI 修复通知详情、进度条方向与重复菜单箭头；标题栏关闭默认进入托盘，账号状态只读展示，关于窗口与诊断分开。保留链接自动解析、凭据自动验证及批次结束通知，下载内核及 CLI 行为沿用原实现。本版采用简化定向检查，实际范围与发布状态见 [1.7.5 记录](docs/validation-1.7.5.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.4-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.5-1_amd64.deb
 bilix-gui
 ```
 

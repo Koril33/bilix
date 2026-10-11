@@ -182,7 +182,7 @@ def test_close_running_can_return_without_cancel(qtbot, monkeypatch):
     monkeypatch.setattr(
         app.QMessageBox, "question", lambda *_a, **_k: app.QMessageBox.StandardButton.No
     )
-    window.close()
+    window._request_exit()
     assert not window._cancel.cancelled() and not window._close_pending
     window._cancel_active()
     wait(qtbot, window)

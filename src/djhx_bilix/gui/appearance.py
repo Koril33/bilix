@@ -107,7 +107,9 @@ class TaskDelegate(QStyledItemDelegate):
             label = "视频" if name == "video" else "音频"
             value = f"{bar.progress}%" if total else f"{done / 1048576:.1f} MiB"
             bar.text, bar.textVisible = f"{label} {value}", True
-            bar.state = option.state
+            bar.state = option.state | QStyle.StateFlag.State_Horizontal
+            bar.direction = Qt.LayoutDirection.LeftToRight
+            bar.textAlignment = Qt.AlignmentFlag.AlignCenter
             option.widget.style().drawControl(
                 QStyle.ControlElement.CE_ProgressBar, bar, painter, option.widget
             )

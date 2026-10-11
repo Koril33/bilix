@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from djhx_bilix import __version__
 from djhx_bilix.models import QUALITY_NAMES
 
 from .appearance import TaskDelegate, action_icon
@@ -53,11 +54,19 @@ class ElidedLabel(QLabel):
         self.setText(text)
 
     def setText(self, text):
+        changed = text != self.full_text
         self.full_text = text
         self.setToolTip(text)
         super().setText(
             self.fontMetrics().elidedText(text, Qt.TextElideMode.ElideRight, max(1, self.width()))
         )
+        if changed:
+            self.updateGeometry()
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        size.setWidth(self.fontMetrics().horizontalAdvance(self.full_text))
+        return size
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -81,12 +90,13 @@ class CompactUi:
         self.setAcceptDrops(True)
         self._build_draft(input_type)
         self._build_details()
+        self._build_about()
         self._settings_dialog, settings_layout, _close = self._dialog("BiliX 设置", 560, 440)
         self.settings_tabs = QTabWidget()
         for page, title in (
             (self._make_account_tab(), "账号"),
             (self._make_settings_tab(), "下载"),
-            (self._make_doctor_tab(), "关于与诊断"),
+            (self._make_doctor_tab(), "诊断"),
         ):
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
@@ -130,7 +140,7 @@ class CompactUi:
         self.import_action.setShortcut("Ctrl+O")
         files.addAction("打开下载目录", self._open_default_folder)
         files.addSeparator()
-        files.addAction("退出", self.close)
+        self.exit_action = files.addAction("退出", self._request_exit)
         self.account_menu = self.menuBar().addMenu("账号")
         self.login_action = self.account_menu.addAction("扫码登录", self._start_login)
         self.status_action = self.account_menu.addAction("重新验证账号", self._start_status)
@@ -141,7 +151,7 @@ class CompactUi:
         self.doctor_action = tools.addAction("运行诊断", self._open_doctor)
         tools.addAction("打开配置目录", self._open_config_folder)
         help_menu = self.menuBar().addMenu("帮助")
-        help_menu.addAction("关于 BiliX", lambda: self._open_settings(2))
+        self.about_action = help_menu.addAction("关于 BiliX", self._open_about)
         help_menu.addAction("复制诊断信息…", self._copy_diagnostics)
 
         toolbar = QToolBar("下载操作", self)
@@ -155,7 +165,7 @@ class CompactUi:
         self.clear_success_action = toolbar.addAction(
             "清除完成/跳过", lambda: self._clear_records(frozenset({"completed", "skipped"}))
         )
-        self.selection_button = QPushButton("更多操作 ▾")
+        self.selection_button = QPushButton("更多操作")
         self.selection_menu = QMenu(self.selection_button)
         self.open_action = self.selection_menu.addAction("打开文件", self._open_selected_file)
         self.folder_action = self.selection_menu.addAction(
@@ -258,10 +268,13 @@ class CompactUi:
         self.status_text = ElidedLabel("就绪")
         self.status_text.setObjectName("operationStatus")
         self.statusBar().addWidget(self.status_text, 1)
-        self.account_button = QPushButton("未登录 ▾")
-        self.account_button.setMaximumWidth(210)
-        self.account_button.setMenu(self.account_menu)
-        self.statusBar().addPermanentWidget(self.account_button)
+        self.account_status = ElidedLabel("未登录")
+        self.account_status.setMinimumWidth(72)
+        self.account_status.setMaximumWidth(250)
+        self.account_status.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
+        self.statusBar().addPermanentWidget(self.account_status)
         self.cancel_button = QPushButton("取消")
         self.cancel_button.clicked.connect(self._cancel_active)
         self.statusBar().addPermanentWidget(self.cancel_button)
@@ -423,6 +436,38 @@ class CompactUi:
         layout.addWidget(self.batch_text)
         layout.addStretch()
         layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
+
+    def _build_about(self):
+        self._about_dialog, layout, close = self._dialog("关于 BiliX", 480, 380)
+        logo = QLabel()
+        logo.setPixmap(
+            QIcon(str(Path(__file__).parents[1] / "assets/bilix-128.png")).pixmap(64, 64)
+        )
+        layout.addWidget(logo, 0, Qt.AlignmentFlag.AlignCenter)
+        self.about_name = QLabel("<h2>BiliX</h2>")
+        self.about_version = QLabel(f"版本 {__version__}")
+        layout.addWidget(self.about_name, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.about_version, 0, Qt.AlignmentFlag.AlignCenter)
+        form = QFormLayout()
+        for name, value, url in (
+            ("官网", "djhx.site/project/bilix.html", "https://djhx.site/project/bilix.html"),
+            ("GitHub", "github.com/Koril33/bilix", "https://github.com/Koril33/bilix"),
+            ("作者", "dingjinghui", None),
+            ("邮箱", "dingjinghui33@163.com", "mailto:dingjinghui33@163.com"),
+        ):
+            label = QLabel(f'<a href="{url}">{value}</a>' if url else value)
+            label.setOpenExternalLinks(True)
+            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+            form.addRow(name, label)
+        layout.addLayout(form)
+        layout.addStretch()
+        layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
+
+    def _open_about(self):
+        self._restore_main()
+        self._about_dialog.show()
+        self._about_dialog.raise_()
+        self._about_dialog.activateWindow()
 
     def _open_settings(self, section=1):
         if not self._settings_dialog.isVisible():

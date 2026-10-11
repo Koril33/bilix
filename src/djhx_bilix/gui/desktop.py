@@ -1,7 +1,6 @@
 """GUI scheduling, draft state and desktop lifecycle; download engine stays unchanged."""
 
 import hashlib
-import json
 import sys
 from collections import Counter
 from functools import partial
@@ -694,7 +693,7 @@ class DesktopActions:
         menu.addAction("新建下载", self._open_draft)
         menu.addAction("打开默认下载目录", self._open_default_folder)
         menu.addSeparator()
-        menu.addAction("退出", self.close)
+        self.tray_exit_action = menu.addAction("退出", self._request_exit)
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(self._tray_activated)
         self.tray.messageClicked.connect(self._notification_clicked)
@@ -737,14 +736,16 @@ class DesktopActions:
         elif event.type() == QEvent.Type.PaletteChange and hasattr(self, "new_button"):
             self._refresh_icons()
 
-    def _hide_to_tray(self):
+    def _hide_to_tray(self, *, closing=False):
         if (
             self._close_pending
-            or not self.isMinimized()
+            or not (closing or self.isMinimized())
             or not self._tray_enabled
             or not self._tray_available()
         ):
             return
+        if closing:
+            self._tray_normal_state = self.windowState() & ~Qt.WindowState.WindowMinimized
         self.tray.show()
         self._tray_hidden_windows = [w for w in self.findChildren(QDialog) if w.isVisible()]
         for window in self._tray_hidden_windows:
@@ -803,12 +804,23 @@ class DesktopActions:
     def _notification_clicked(self):
         self._restore_main()
         batch = self.session.batches.get(self._last_notified_batch)
-        if batch:
+        if not batch:
+            return
+        nodes = [self.history_model.tasks[i] for i in batch.tasks if i in self.history_model.tasks]
+        nodes += [
+            self.history_model.sources[i] for i in batch.requests if i in self.history_model.sources
+        ]
+        if nodes:
+            self._open_node_details(nodes[0], batch.batch_id)
+        else:
+            self.details_summary.setText("本批下载记录已清除")
+            self.info_text.clear()
+            self.batch_combo.clear()
+            self.batch_combo.addItem(f"批次 {batch.batch_id[:8]}", batch.batch_id)
+            self._show_batch()
             self._details_dialog.show()
-            self.details_summary.setText("最近通知批次的结束摘要")
-            self.batch_text.setPlainText(
-                json.dumps(dict(batch.summary), ensure_ascii=False, indent=2)
-            )
+            self._details_dialog.raise_()
+            self._details_dialog.activateWindow()
 
     def _copy_diagnostics(self):
         text = (
@@ -839,7 +851,18 @@ class DesktopActions:
                 self._draft_dialog if self._draft_dialog.isVisible() else self, "BiliX", message
             )
 
+    def _request_exit(self):
+        self._exit_requested = True
+        self.close()
+
     def closeEvent(self, event):
+        if not self._exit_requested and self._tray_enabled and not self._close_pending:
+            event.ignore()
+            if self._tray_available():
+                self._hide_to_tray(closing=True)
+            else:
+                self.showMinimized()
+            return
         if self._thread is not None:
             if not self._close_pending:
                 if self._active_kind == "download":
@@ -852,6 +875,7 @@ class DesktopActions:
                         QMessageBox.StandardButton.No,
                     )
                     if answer != QMessageBox.StandardButton.Yes:
+                        self._exit_requested = False
                         event.ignore()
                         return
                 self._close_pending = True

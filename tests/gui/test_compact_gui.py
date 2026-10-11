@@ -131,7 +131,7 @@ def test_busy_settings_cancel_and_account_chip(qtbot, settings):
     settings.token_file.write_text("SESSDATA=FAKE_OFFLINE_DUMMY", encoding="utf-8")
     window = MainWindow()
     qtbot.addWidget(window)
-    assert window.account_button.text() == "凭据待验证 ▾"
+    assert window.account_status.text() == "凭据待验证"
     window._start_operation("test", lambda emit, cancel: cancel.wait(5))
     assert not window.start_button.isEnabled() and not window.default_output_edit.isEnabled()
     window._open_settings()

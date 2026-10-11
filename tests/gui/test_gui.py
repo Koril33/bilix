@@ -73,7 +73,7 @@ def test_close_requests_cancellation_and_waits_for_worker(qtbot, monkeypatch):
     monkeypatch.setattr(
         app.QMessageBox, "question", lambda *_a, **_k: app.QMessageBox.StandardButton.Yes
     )
-    window.close()
+    window._request_exit()
     assert window._close_pending
     qtbot.waitUntil(lambda: window._thread is None and not window.isVisible(), timeout=5000)
 
