@@ -12,6 +12,7 @@ BiliX 自身采用 GPL-3.0-only（见 `LICENSE`）。各第三方组件保留自
 | qrcode | BSD | https://github.com/lincolnloop/python-qrcode |
 | Typer | MIT | https://github.com/fastapi/typer |
 | Rich | MIT | https://github.com/Textualize/rich |
+| cryptography（可选 GUI 更新验签依赖） | Apache-2.0 OR BSD-3-Clause；wheel 内附对应许可及 OpenSSL 许可 | https://github.com/pyca/cryptography |
 | PySide6-Essentials（可选 GUI 依赖） | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only；本项目按 GPL-3.0-only 选项分发 | https://code.qt.io/cgit/pyside/pyside-setup.git/ |
 | shiboken6（PySide6 传递依赖） | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only；本项目按 GPL-3.0-only 选项分发 | https://code.qt.io/cgit/pyside/pyside-setup.git/ |
 | Qt 6 基础库、Widgets 及平台插件（GUI 二进制内含） | 按各实际模块的开源许可；本项目使用 GPL-3.0 可用的模块 | https://www.qt.io/licensing/ |

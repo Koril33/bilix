@@ -1,8 +1,8 @@
 # 项目页面维护
 
-`bilix.html` 是项目介绍/下载页面的唯一交付文件，目标替换现有 `/project/bilix.html`。它保留现有页面的深色背景、原背景图、半透明介绍面板、绿色按钮、GitHub/Gitea 链接和使用示例布局，更新过时的安装与命令说明。
+`bilix.html` 是项目介绍/下载页面的唯一交付文件，官网为 `https://bilix.djhx.site/`，对应 `/var/www/bilix.djhx.site/index.html`。它保留现有页面的深色背景、原背景图、半透明介绍面板、绿色按钮、GitHub/Gitea 链接和使用示例布局。
 
-CSS、JavaScript 和原背景图（JPEG data URI）全部内嵌，没有构建步骤、外部字体或框架。背景图无需额外上传。下载按钮始终指向 GitHub 最新发行页，让用户明确选择 CLI、GUI、操作系统与配套源码；页面只在加载时尝试显示最新正式版本号。离线、超时或 API 限流时仍保留可用的发行页链接。命令与说明在关闭 JavaScript 后仍可读。
+CSS、JavaScript 和原背景图（JPEG data URI）全部内嵌，没有构建步骤、外部字体或框架。背景图无需额外上传。下载按钮始终指向 GitHub 最新发行页，页面另列官网同版本备用文件、配套源码与 SHA256。版本号在加载时查询 GitHub；离线、超时或 API 限流时仍保留下载链接。命令、更新和 APT 说明在关闭 JavaScript 后仍可读。每次发行须同步备用链接的版本，并在资源已完整发布后部署页面。
 
 ## 本地预览
 

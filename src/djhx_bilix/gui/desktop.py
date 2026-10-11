@@ -62,6 +62,7 @@ class DesktopActions:
             else QSettings("djhx", "BiliX-GUI")
         )
         self._prefs.beginGroup("v1")
+        self._auto_update_enabled = self._pref("automaticUpdates", True, bool)
         self._tray_enabled = self._pref("minimizeToTray", True, bool)
         self._notify_enabled = self._pref("completionNotification", True, bool)
         for name, combo in (
@@ -255,7 +256,11 @@ class DesktopActions:
         self._drain_pending()
 
     def _drain_pending(self):
-        if self._close_pending or self._thread is not None:
+        if (
+            self._close_pending
+            or self._thread is not None
+            or getattr(self, "_update_install_pending", False)
+        ):
             self._update_draft_actions()
             return
         if self._pending_account:
@@ -379,7 +384,11 @@ class DesktopActions:
         return tuple(specs)
 
     def _update_draft_actions(self):
-        idle = self._thread is None and not getattr(self, "_pending_account", False)
+        idle = (
+            self._thread is None
+            and not getattr(self, "_pending_account", False)
+            and not getattr(self, "_update_install_pending", False)
+        )
         ready = bool(self._retry_context) or bool(
             self._parse_complete
             and self._info_generation == self._input_generation
@@ -414,7 +423,11 @@ class DesktopActions:
             self._start_download()
 
     def _start_download(self, dry_run=False, specs=None):
-        if self._thread is not None or self._close_pending:
+        if (
+            self._thread is not None
+            or self._close_pending
+            or getattr(self, "_update_install_pending", False)
+        ):
             return
         if self._retry_context:
             if dry_run:
@@ -672,6 +685,7 @@ class DesktopActions:
     def _discard_gui_settings(self):
         self.tray_check.setChecked(self._tray_enabled)
         self.notify_check.setChecked(self._notify_enabled)
+        self.auto_update_check.setChecked(self._auto_update_enabled)
 
     def _discard_settings(self):
         self._load_settings_view()
@@ -885,6 +899,9 @@ class DesktopActions:
             event.ignore()
             return
         self._close_pending = True
+        if not self._stop_updater():
+            event.ignore()
+            return
         self._pending_parse = self._pending_account = False
         self._parse_timer.stop()
         self._tray_watch.stop()

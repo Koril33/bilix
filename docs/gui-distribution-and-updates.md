@@ -1,5 +1,7 @@
 # PySide6 桌面版的发行、安装与升级调研
 
+2026-10-11 补充：维护者已确认更新功能方案并批准代码实施，见[《更新方案》](application-update-plan.md)与[开发指南](application-update-development.md)。新方案采用固定域名 `https://bilix.djhx.site`，应用直接下载改为 GitHub 优先、自有服务器备用，并细化渠道元数据、签名、Windows 两种包和 APT 源。本文保留历史调研，其中“服务器主源、GitHub 镜像”的建议不再作为新更新功能的源优先级；历史“尚未实现”的描述不代表当前开发状态。
+
 调研日期：2026-10-03。范围：Windows、Ubuntu/Debian；macOS 留待后续。本文保留方案形成时的调研与后续升级建议。源码实现和实际验证状态以 [GUI 构建与发行](gui-build-and-release.md) 为准；调研中的“建议”不代表已有产物或已完成安装、升级实测。
 
 1.6.0 已交付绿色 EXE、Inno Setup 和 deb，采用手动升级；没有应用内检查/下载更新、MSI、APT 源或自动替换 helper。Inno 模板目前没有显式比较已安装版本的降级保护。实际完成情况见[首版复核](validation-1.6.0.md)，升级/更新优先级见[版本建议](roadmap.md)，新实现须按[测试规范](testing.md)补验。本文记录当时的工具/平台资料，依赖升级前重新核对官方来源。

@@ -6,11 +6,11 @@
 
 Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫码登录、批量与多 P 下载、清晰度/编码/音轨选择，以及下载后的媒体校验。
 
-[项目主页](https://djhx.site/project/bilix.html) · [GitHub](https://github.com/Koril33/bilix) · [PyPI](https://pypi.org/project/djhx-bilix/) · [Windows 下载](https://github.com/Koril33/bilix/releases) · [更新记录](CHANGELOG.md)
+[项目主页](https://bilix.djhx.site) · [GitHub](https://github.com/Koril33/bilix) · [PyPI](https://pypi.org/project/djhx-bilix/) · [Windows 下载](https://github.com/Koril33/bilix/releases) · [更新记录](CHANGELOG.md)
 
 ## 项目状态
 
-当前稳定版本为 **1.7.5**，GUI 修复通知详情、进度条方向与重复菜单箭头；标题栏关闭默认进入托盘，账号状态只读展示，关于窗口与诊断分开。保留链接自动解析、凭据自动验证及批次结束通知，下载内核及 CLI 行为沿用原实现。本版采用简化定向检查，实际范围与发布状态见 [1.7.5 记录](docs/validation-1.7.5.md)。
+**1.7.6**新增 GUI 自动检查和下载更新、签名校验及 Windows/Linux 安装重启流程。GitHub 优先，官网服务器备用；下载内核及 CLI 行为沿用原实现。本轮执行完整离线回归和实际升级验收，范围与结果见 [1.7.6 记录](docs/validation-1.7.6.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.5-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.6-1_amd64.deb
 bilix-gui
 ```
 
@@ -45,7 +45,9 @@ uv sync --locked --extra gui --group gui-test
 uv run --locked --extra gui bilix-gui
 ```
 
-GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。首版使用手动升级：绿色版退出后替换 EXE，安装版运行新安装器，deb 通过 `apt` 安装新包；用户配置与下载文件独立保存。
+GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使用说明](docs/gui-usage.md)，更新设置、手动升级和签名 APT 源见[安装与更新](docs/gui-updating.md)，源码构建发行文件见[GUI 构建与发行](docs/gui-build-and-release.md)。用户配置与下载文件独立保存。
+
+自动更新从 1.7.6 GUI 发行版开始支持，旧版请手动安装新版；不受支持的系统不提供更新兼容。CLI 和 pip/源码环境使用原安装方式升级。
 
 首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一应用图标，1.7.3 集中改善 GUI 交互与布局；指南 B-01 至 B-07 顺延至后续功能版，见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
@@ -98,6 +100,8 @@ blx completion powershell | Out-String | Invoke-Expression
 | 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |
 | GUI 技术与版本选择 | [GUI 技术评估](docs/gui-technology-evaluation.md) |
 | Windows/Linux 发行方式与升级方案 | [GUI 发行调研](docs/gui-distribution-and-updates.md) |
+| 应用更新已确认方案、双源与 APT 源 | [更新方案](docs/application-update-plan.md) |
+| 更新器实现、签名与首次上线步骤 | [更新开发指南](docs/application-update-development.md) |
 | GUI 本地构建和打包 | [GUI 构建与发行](docs/gui-build-and-release.md) |
 | Ubuntu/Debian 虚拟机验收 | [Linux 测试矩阵](docs/gui-vm-validation.md) |
 | Windows 10 虚拟机验收 | [Windows 测试流程](docs/gui-win10-validation.md) |
@@ -113,7 +117,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 安全报告与凭据保护 | [安全政策](SECURITY.md) |
 | 依赖与 FFmpeg 分发材料 | [第三方声明](THIRD_PARTY_NOTICES.md) |
 
-项目页面源码为 [site/bilix.html](site/bilix.html)，沿用线上布局与背景图，更新当前命令说明。CSS、背景图与脚本内嵌，无需构建；版本查询失败时仍保留发行页链接。发布时复制到现有网站的 `/project/bilix.html`，见 [页面维护说明](site/README.md)。
+项目页面源码为 [site/bilix.html](site/bilix.html)，CSS、背景图与脚本内嵌，无需构建；版本查询失败时仍保留发行页链接。官网使用 `https://bilix.djhx.site/`，对应服务器文件 `/var/www/bilix.djhx.site/index.html`；见 [页面维护说明](site/README.md)。
 
 ## 开发
 

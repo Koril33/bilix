@@ -118,7 +118,7 @@ def test_about_is_independent_and_contains_requested_metadata(qtbot):
     for expected in (
         "BiliX",
         __version__,
-        "https://djhx.site/project/bilix.html",
+        "https://bilix.djhx.site",
         "https://github.com/Koril33/bilix",
         "dingjinghui",
         "dingjinghui33@163.com",

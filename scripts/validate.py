@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         test_args = ["-m", "pytest", "-q", "--junitxml", str(evidence / "pytest.xml")]
         test_args.extend(["--basetemp", str(evidence / "pytest-temp")])
         if args.profile == "cli":
-            test_args.extend(["--ignore", "tests/gui"])
+            test_args.extend(["--ignore", "tests/gui", "--ignore", "tests/updates"])
         run("pytest", test_args)
         record["pytest"] = pytest_summary(evidence / "pytest.xml")
         if args.strict_skips and record["pytest"]["skipped"]:

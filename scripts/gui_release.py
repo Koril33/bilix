@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GUI_ENTRY = ROOT / "scripts" / "gui_entry.py"
 STANDALONE_NAME = "gui_entry.dist"
 RUNTIME_PACKAGES = (
+    "cryptography",
     "curl-cffi",
     "platformdirs",
     "pypng",
@@ -93,6 +94,26 @@ def deb_version() -> str:
     """Map PEP 440 dev releases below the matching stable Debian version."""
     _, preview = version_parts()
     return f"{__version__.replace('.dev', '~dev')}-1" if preview else f"{__version__}-1"
+
+
+def write_update_identity(output: Path, artifact_id: str) -> Path:
+    """Build-only payload: source/wheel installs must never look like frozen packages."""
+    from djhx_bilix.updater.protocol import ARTIFACT_IDS, trusted_keys
+
+    if artifact_id not in ARTIFACT_IDS:
+        raise RuntimeError("Unknown GUI distribution identity")
+    trusted_keys()  # Refuse to produce a release without its embedded trust root.
+    output.mkdir(parents=True, exist_ok=True)
+    identity = output / "update-identity.json"
+    identity.write_text(
+        json.dumps(
+            {"schema": 1, "product": "bilix", "version": __version__, "artifact_id": artifact_id},
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return identity
 
 
 def sha256(path: Path) -> str:

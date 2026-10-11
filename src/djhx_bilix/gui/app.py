@@ -41,6 +41,7 @@ from .appearance import apply_theme
 from .desktop import DesktopActions
 from .history import NODE_ROLE
 from .panels import CompactUi, duration
+from .updates import UpdateActions
 from .worker import (
     DownloadOptions,
     OperationWorker,
@@ -108,7 +109,7 @@ class UrlInput(QPlainTextEdit):
         self.compositionChanged.emit()
 
 
-class MainWindow(DesktopActions, CompactUi, QMainWindow):
+class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
     """One active background operation; downloads form a serial, visible queue."""
 
     closed = Signal()
@@ -137,6 +138,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self._build_ui(UrlInput)
         self._load_settings_view()
         self._init_desktop()
+        self._init_updater()
         self._offline_account()
         self.urls_edit.textChanged.connect(self._invalidate_info)
         self.urls_edit.compositionChanged.connect(self._ime_changed)
@@ -192,6 +194,8 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self.notify_check = QCheckBox("下载结束通知")
         layout.addWidget(self.tray_check)
         layout.addWidget(self.notify_check)
+        self.auto_update_check = QCheckBox("自动检查更新（启动时及每 30 分钟）")
+        layout.addWidget(self.auto_update_check)
         capability = QLabel("桌面不支持托盘或通知时，使用普通最小化和列表结束摘要。")
         capability.setWordWrap(True)
         layout.addWidget(capability)
@@ -267,14 +271,17 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self._load_settings_view()
         self._tray_enabled = self.tray_check.isChecked()
         self._notify_enabled = self.notify_check.isChecked()
+        self._auto_update_enabled = self.auto_update_check.isChecked()
         self._prefs.setValue("minimizeToTray", self._tray_enabled)
         self._prefs.setValue("completionNotification", self._notify_enabled)
+        self._prefs.setValue("automaticUpdates", self._auto_update_enabled)
         self._prefs.sync()
         if self._prefs.status() != self._prefs.Status.NoError:
             self._error("业务设置已保存，但 GUI 偏好无法写入，请检查配置目录权限")
             return False
         if not self._tray_enabled and not self.isVisible():
             self._restore_main()
+        self._configure_update_timer()
         self._message("设置已保存，与 CLI 共用", 5000)
         return True
 
@@ -727,7 +734,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self._start_operation("doctor", run_doctor)
 
     def _start_operation(self, kind: str, operation: Any) -> bool:
-        if self._thread is not None:
+        if self._thread is not None or getattr(self, "_update_install_pending", False):
             self._error("请等待当前操作结束，或先取消")
             return False
         self._active_kind = kind
@@ -982,6 +989,8 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
         self._set_busy(False)
         if self._close_pending:
             QTimer.singleShot(0, self.close)
+        elif self._maybe_apply_update():
+            self._set_busy(True)
         else:
             QTimer.singleShot(0, self._drain_pending)
 
@@ -990,7 +999,7 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
             return
         self._update_counts()
         self._update_draft_actions()
-        idle = self._thread is None
+        idle = self._thread is None and not getattr(self, "_update_install_pending", False)
         states = self.history_model.counts
         reread = {r.origin_request_id for r in self.session.requests.values()}
         sources = [r for i, r in self.session.requests.items() if i not in reread]
@@ -1027,7 +1036,8 @@ class MainWindow(DesktopActions, CompactUi, QMainWindow):
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     smoke_test = arguments == ["--smoke-test"]
-    if arguments and not smoke_test:
+    updated = len(arguments) == 2 and arguments[0] == "--updated"
+    if arguments and not smoke_test and not updated:
         _report_startup_error("用法：bilix-gui [--smoke-test]")
         return 2
     application = QApplication.instance() or QApplication([sys.argv[0]])
@@ -1069,6 +1079,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"BiliX GUI {__version__} 自检通过")
         return 0
     window.show()
+    if updated:
+        from djhx_bilix.updater.apply import startup_result
+        from djhx_bilix.updater.protocol import UpdateError
+
+        def record_startup():
+            try:
+                startup_result(Path(arguments[1]).resolve())
+            except (UpdateError, OSError):
+                pass  # Keep normal startup usable; the coordinator records missing acknowledgement.
+
+        QTimer.singleShot(0, record_startup)
     return application.exec()
 
 

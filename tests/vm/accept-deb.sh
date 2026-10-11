@@ -42,6 +42,7 @@ sha256sum "$deb" | tee "$record_root/deb-sha256.txt"
 
 # No build dependencies are preinstalled in acceptance VMs. apt must be able to
 # resolve every declared runtime dependency using that distro's own repository.
+sudo apt-get update 2>&1 | tee "$record_root/apt-update.log"
 sudo apt-get install -y "$deb" 2>&1 | tee "$record_root/apt-install.log"
 dpkg-query -W -f='${Package} ${Version} ${Status}\n' djhx-bilix-gui \
     | tee "$record_root/dpkg-installed.txt"

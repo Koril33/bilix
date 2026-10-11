@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def verify_cli_report(report: Path) -> None:
     """Keep the optional Qt front end out of the CLI-only executable."""
     module_names = {module.get("name", "") for module in ET.parse(report).iter("module")}
-    forbidden = ("djhx_bilix.gui", "PySide6", "shiboken6")
+    forbidden = ("djhx_bilix.gui", "djhx_bilix.updater", "PySide6", "shiboken6", "cryptography")
     included = sorted(
         name
         for name in module_names
@@ -113,6 +113,7 @@ def main():
         "--include-windows-runtime-dlls=yes",
         "--include-package=djhx_bilix",
         "--nofollow-import-to=djhx_bilix.gui",
+        "--nofollow-import-to=djhx_bilix.updater",
         "--python-flag=isolated",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets/ffmpeg.exe'}="
         "djhx_bilix/assets/ffmpeg.exe",

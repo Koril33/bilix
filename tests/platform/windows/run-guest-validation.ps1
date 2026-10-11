@@ -10,7 +10,8 @@ param(
     [switch] $Install,
     [switch] $RequireWindows10,
     [string] $PriorSetup,
-    [switch] $InstallerTransactions
+    [switch] $InstallerTransactions,
+    [switch] $UpdateTransactions
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +32,7 @@ finally {
     Remove-Item -LiteralPath $CredentialFile -Force -ErrorAction SilentlyContinue
 }
 
-$validatorName = if ($InstallerTransactions) { 'validate-installer-transactions.ps1' } else { 'validate-gui.ps1' }
+$validatorName = if ($UpdateTransactions) { 'validate-updates.ps1' } elseif ($InstallerTransactions) { 'validate-installer-transactions.ps1' } else { 'validate-gui.ps1' }
 $validator = Join-Path $PSScriptRoot $validatorName
 if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
     throw "Missing validator: $validator"
@@ -39,7 +40,7 @@ if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
 $arguments = @(
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', (Quote-Argument $validator),
-    $(if ($InstallerTransactions) { '-FixtureRoot' } else { '-ArtifactDir' }), (Quote-Argument $ArtifactDir),
+    $(if ($InstallerTransactions -or $UpdateTransactions) { '-FixtureRoot' } else { '-ArtifactDir' }), (Quote-Argument $ArtifactDir),
     '-ResultDir', (Quote-Argument $ResultDir)
 )
 if ($Install) { $arguments += '-Install' }

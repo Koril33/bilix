@@ -152,6 +152,9 @@ class CompactUi:
         tools.addAction("打开配置目录", self._open_config_folder)
         help_menu = self.menuBar().addMenu("帮助")
         self.about_action = help_menu.addAction("关于 BiliX", self._open_about)
+        self.check_update_action = help_menu.addAction(
+            "检查更新", lambda: self._check_update(manual=True)
+        )
         help_menu.addAction("复制诊断信息…", self._copy_diagnostics)
 
         toolbar = QToolBar("下载操作", self)
@@ -450,7 +453,7 @@ class CompactUi:
         layout.addWidget(self.about_version, 0, Qt.AlignmentFlag.AlignCenter)
         form = QFormLayout()
         for name, value, url in (
-            ("官网", "djhx.site/project/bilix.html", "https://djhx.site/project/bilix.html"),
+            ("官网", "bilix.djhx.site", "https://bilix.djhx.site"),
             ("GitHub", "github.com/Koril33/bilix", "https://github.com/Koril33/bilix"),
             ("作者", "dingjinghui", None),
             ("邮箱", "dingjinghui33@163.com", "mailto:dingjinghui33@163.com"),

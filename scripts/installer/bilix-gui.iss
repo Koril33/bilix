@@ -80,11 +80,20 @@ Name: "{group}\{#DisplayName}"; Filename: "{app}\runtime\BiliX-GUI.exe"
 Name: "{autodesktop}\{#DisplayName}"; Filename: "{app}\runtime\BiliX-GUI.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\runtime\BiliX-GUI.exe"; Description: "启动 {#DisplayName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\runtime\BiliX-GUI.exe"; Description: "启动 {#DisplayName}"; Flags: nowait postinstall skipifsilent; Check: not IsUpdaterInstall
 
 [Code]
 var
   RuntimeBackedUp, InstallComplete: Boolean;
+
+function IsUpdaterInstall: Boolean;
+var I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/BILIXUPDATE') = 0 then
+      Result := True;
+end;
 
 function UninstallKey: String;
 begin

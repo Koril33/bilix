@@ -7,6 +7,11 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] in {"--apply-update", "--install-deb"}:
+        from djhx_bilix.updater.apply import dispatch
+
+        return dispatch(arguments)
     try:
         from .app import main as run_app
     except ModuleNotFoundError as error:

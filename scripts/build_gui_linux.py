@@ -11,7 +11,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gui_release import GUI_ENTRY, ROOT, STANDALONE_NAME, require_version_identity, sha256
+from gui_release import (
+    GUI_ENTRY,
+    ROOT,
+    STANDALONE_NAME,
+    require_version_identity,
+    sha256,
+    write_update_identity,
+)
 
 BUILD = ROOT / "build" / "gui" / "linux"
 NUITKA = "4.2.2"
@@ -92,6 +99,7 @@ def main() -> None:
     env = os.environ.copy()
     env["NUITKA_CACHE_DIR"] = str(ROOT / "build" / "nuitka-cache")
     env["NUITKA_UPDATE_CHECK"] = "never"
+    identity = write_update_identity(BUILD, "linux-amd64-deb")
     command = [
         sys.executable,
         "-X",
@@ -106,6 +114,9 @@ def main() -> None:
         "--noinclude-qt-plugins=egldeviceintegrations,platformthemes,printsupport",
         "--lto=no",
         "--include-package=djhx_bilix",
+        f"--include-data-files={identity}=djhx_bilix/assets/distribution.json",
+        f"--include-data-files={ROOT / 'src/djhx_bilix/assets/update-keys.json'}"
+        "=djhx_bilix/assets/update-keys.json",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets' / 'bilix-*.png'}=djhx_bilix/assets/",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets/action-*.svg'}=djhx_bilix/assets/",
         "--python-flag=isolated",

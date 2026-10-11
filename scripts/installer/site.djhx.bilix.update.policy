@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>BiliX</vendor>
+  <vendor_url>https://bilix.djhx.site</vendor_url>
+  <action id="site.djhx.bilix.install-update">
+    <description>Install a verified BiliX GUI update</description>
+    <message>Authentication is required to update BiliX GUI</message>
+    <message xml:lang="zh_CN">更新 BiliX GUI 需要管理员授权</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/djhx-bilix-gui/bilix-gui</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">--install-deb</annotate>
+  </action>
+</policyconfig>

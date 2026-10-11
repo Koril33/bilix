@@ -34,10 +34,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gui = ["PySide6-Essentials==6.11.2"]
+gui = ["PySide6-Essentials==6.11.2", "cryptography==50.0.2"]
 
 [project.urls]
-Homepage = "https://djhx.site/project/bilix.html"
+Homepage = "https://bilix.djhx.site"
 Repository = "https://github.com/Koril33/bilix"
 Issues = "https://github.com/Koril33/bilix/issues"
 Documentation = "https://github.com/Koril33/bilix/blob/main/README.md"

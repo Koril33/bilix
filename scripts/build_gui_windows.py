@@ -20,6 +20,7 @@ from gui_release import (
     require_version_identity,
     sha256,
     version_parts,
+    write_update_identity,
 )
 
 EXPECTED_NUITKA = "4.2.2"
@@ -99,6 +100,10 @@ def build(mode: str, root_output: Path) -> Path:
     environment["NUITKA_CACHE_DIR"] = str(ROOT / "build" / "nuitka-cache")
     environment["NUITKA_UPDATE_CHECK"] = "never"
     file_version, _ = version_parts()
+    identity = write_update_identity(
+        output,
+        f"windows-x64-{'portable' if mode == 'onefile' else 'installer'}",
+    )
     command = [
         sys.executable,
         "-X",
@@ -114,6 +119,9 @@ def build(mode: str, root_output: Path) -> Path:
         "--assume-yes-for-downloads",
         "--include-windows-runtime-dlls=yes",
         "--include-package=djhx_bilix",
+        f"--include-data-files={identity}=djhx_bilix/assets/distribution.json",
+        f"--include-data-files={ROOT / 'src/djhx_bilix/assets/update-keys.json'}"
+        "=djhx_bilix/assets/update-keys.json",
         "--python-flag=isolated",
         f"--include-data-files={FFMPEG}=djhx_bilix/assets/ffmpeg.exe",
         f"--include-data-files={ROOT / 'src/djhx_bilix/assets' / 'bilix-*.png'}=djhx_bilix/assets/",

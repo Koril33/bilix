@@ -276,7 +276,13 @@
         <pre><code>.\bilix.exe download BV1j4411W7F7 --dry-run</code></pre>
         <h3>图形版安装与使用</h3>
         <p>图形版提供逐视频选集、只读冲突预览和当前窗口会话内的任务历史。可筛选失败或取消的任务并精确重试，默认沿用原参数；清理记录不会删除下载文件。关闭窗口后会话记录不保存。编码、音轨、选集规则与覆盖等高级选项可展开设置，参数摘要始终可见。</p>
-        <p>从发行页选择 Windows 10 x64 绿色版或安装版，或适用于 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 <code>.deb</code>。绿色版下载 EXE 时请同时保存许可证与源码 ZIP；Linux 可运行 <code>sudo apt install ./djhx-bilix-gui_版本_amd64.deb</code>。安装后启动 <code>bilix-gui</code>，在“账号”页扫码登录，在“下载”页输入视频链接并选择画质、编码与音轨。详细步骤见 <a href="https://github.com/Koril33/bilix/blob/main/docs/gui-usage.md">图形版说明</a>。</p>
+        <p>从发行页选择 Windows 10 或以上 x64 绿色版或安装版，或适用于 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 <code>.deb</code>。绿色版下载 EXE 时请同时保存许可证与源码 ZIP；Linux 可运行 <code>sudo apt install ./djhx-bilix-gui_版本_amd64.deb</code>。安装后启动 <code>bilix-gui</code>，通过账号菜单扫码登录，点击“新建下载”输入链接并选择画质、编码与音轨。详细步骤见 <a href="https://github.com/Koril33/bilix/blob/main/docs/gui-usage.md">图形版说明</a>。</p>
+        <h3>GUI 更新与官网备用下载</h3>
+        <p>1.7.6 起，GUI 默认启动及每 30 分钟检查，发现新版后后台下载；签名和完整性校验通过后，点击左下角“更新”安装并重启。当前整批任务会先完成。设置可关闭自动检查，帮助菜单可手动检查。GitHub 不可用时自动改用官网；1.7.5 及更早版本先手动安装新版。CLI、pip 和源码环境使用原安装方式更新。</p>
+        <p>官网 1.7.6 备用文件：<a href="https://bilix.djhx.site/releases/v1.7.6/BiliX-GUI-Portable-1.7.6-windows-x64.exe">Windows 绿色版</a> · <a href="https://bilix.djhx.site/releases/v1.7.6/BiliX-GUI-Setup-1.7.6-windows-x64.exe">Windows 安装版</a> · <a href="https://bilix.djhx.site/releases/v1.7.6/BiliX-GUI-licenses-and-source-1.7.6-windows-x64.zip">Windows 许可与源码</a> · <a href="https://bilix.djhx.site/releases/v1.7.6/djhx-bilix-gui_1.7.6-1_amd64.deb">Linux deb</a> · <a href="https://bilix.djhx.site/releases/v1.7.6/djhx-bilix-gui_1.7.6_source.tar.gz">Linux 源码</a> · <a href="https://bilix.djhx.site/releases/v1.7.6/SHA256SUMS.txt">SHA256 校验文件</a>。</p>
+        <h3>Ubuntu/Debian 系统更新源</h3>
+        <p>可选的签名 APT 源为 <code>https://bilix.djhx.site/apt/</code>，采用 stable/main、amd64。首次配置后可随系统运行 <code>sudo apt update &amp;&amp; sudo apt upgrade</code>；仍保留下载 deb 本地安装。完整配置命令和公钥核对见 <a href="https://github.com/Koril33/bilix/blob/main/docs/gui-updating.md">安装与更新说明</a>。独立 APT 公钥指纹：</p>
+        <pre><code>201A 20E1 04EF 3C72 CE57 3F7E 6132 3BAA 3BB8 7821</code></pre>
         <h3>Python 版安装（Windows / macOS / Linux）</h3>
         <pre><code>uv tool install djhx-bilix
 blx --help

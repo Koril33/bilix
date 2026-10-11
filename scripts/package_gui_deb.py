@@ -130,6 +130,16 @@ def shared_library_dependencies(source_root: Path, runtime: Path) -> list[str]:
     return sorted(dependencies)
 
 
+def normalize_package_permissions(package_root: Path) -> None:
+    """Root's update entry must not load writable libraries or trust files."""
+    package_root.chmod(0o755)
+    for path in package_root.rglob("*"):
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o755 if path.stat().st_mode & 0o111 else 0o644)
+
+
 def stage_package(source_root: Path, maintainer: str) -> tuple[Path, Path]:
     package_root = source_root / "debian" / PACKAGE
     runtime = package_root / "usr" / "lib" / PACKAGE
@@ -170,6 +180,9 @@ def stage_package(source_root: Path, maintainer: str) -> tuple[Path, Path]:
     )
     icon.parent.mkdir(parents=True)
     assets = ROOT / "src" / "djhx_bilix" / "assets"
+    policy = package_root / "usr/share/polkit-1/actions/site.djhx.bilix.update.policy"
+    policy.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / "scripts/installer/site.djhx.bilix.update.policy", policy)
     shutil.copy2(assets / "bilix.svg", icon)
     for size in (16, 24, 32, 48, 64, 128, 256, 512):
         png = icon.parents[2] / f"{size}x{size}" / "apps" / f"{PACKAGE}.png"
@@ -194,13 +207,13 @@ def stage_package(source_root: Path, maintainer: str) -> tuple[Path, Path]:
         "Standards-Version: 4.7.0\n\n"
         f"Package: {PACKAGE}\n"
         "Architecture: any\n"
-        "Depends: ${shlibs:Depends}, ffmpeg\n"
+        "Depends: ${shlibs:Depends}, ffmpeg, pkexec | policykit-1\n"
         "Description: BiliX desktop video downloader\n"
         " PySide6 frontend for the BiliX downloader.\n",
         encoding="utf-8",
     )
     dynamic_deps = shared_library_dependencies(source_root, runtime)
-    required = ["ffmpeg", *dynamic_deps]
+    required = ["ffmpeg", "pkexec | policykit-1", *dynamic_deps]
     required = list(dict.fromkeys(required))
     if not any(dep.startswith("libc6 ") or dep == "libc6" for dep in required):
         raise RuntimeError("Generated dependencies did not include libc6; inspect the ELF scan")
@@ -225,6 +238,7 @@ def stage_package(source_root: Path, maintainer: str) -> tuple[Path, Path]:
         " Ubuntu/Debian package declared above.\n",
         encoding="utf-8",
     )
+    normalize_package_permissions(package_root)
     return package_root, source_dir
 
 
@@ -246,7 +260,7 @@ def main() -> None:
         package_root, source_dir = stage_package(temporary, args.maintainer)
         deb = DIST / f"{PACKAGE}_{deb_version()}_{ARCH}.deb"
         subprocess.run(
-            ["dpkg-deb", "--build", "--root-owner-group", str(package_root), str(deb)],
+            ["dpkg-deb", "-Zxz", "--build", "--root-owner-group", str(package_root), str(deb)],
             check=True,
         )
         source_archive = DIST / f"{PACKAGE}_{__version__}_source.tar.gz"
