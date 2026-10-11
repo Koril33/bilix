@@ -39,6 +39,7 @@ sudo apt install ./djhx-bilix-gui_1.7.6-1_amd64.deb
 本源已经上线，Ubuntu 22.04/24.04 和 Debian 12/13 的 Signed-By 验签与跨版本升级均通过，详见 [验收记录](validation-1.7.6.md)。首次配置：
 
 ```bash
+sudo apt update
 sudo apt install curl gnupg
 sudo install -d -m 755 /etc/apt/keyrings
 curl -fsSLo /tmp/bilix-archive-key.asc \

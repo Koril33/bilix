@@ -1,6 +1,6 @@
 # GUI 本地构建、安装与发布
 
-2026-10-11：更新器已进入实施。下一份具备更新功能的 GUI 包须嵌入发行身份和公钥，最终产物签名及双源发布按 [更新开发与发布指南](application-update-development.md) 执行。现有 1.7.5 公开产物仍采用手动升级；本轮未发布新版本或激活 APT 源。
+2026-10-11：1.7.6 已发布 GUI 更新器与签名 APT 源，全面更新验收和两处公开下载复验见 [1.7.6 记录](validation-1.7.6.md)。各 GUI 包嵌入发行身份和公钥，最终产物签名及双源发布按 [更新开发与发布指南](application-update-development.md) 执行，用户安装方法见 [更新使用指南](gui-updating.md)。1.7.5 及更早版本需手动安装一次新版。本文下方保留首版构建基线，实际后续验收范围以各版本记录为准。
 
 GUI 与 CLI 共用 Python 下载内核。本文件说明首个图形界面版本 `1.6.0` 的构建方式；正式发行须完成下述跨平台安装验证并发布准确的哈希。1.5.0 不包含 GUI。
 
@@ -21,7 +21,7 @@ GUI 与 CLI 共用 Python 下载内核。本文件说明首个图形界面版本
 | Windows FFmpeg | 仓库内 `src/djhx_bilix/assets/ffmpeg.exe`（7.1.5）；同时提供对应源码与许可材料 |
 | Linux FFmpeg | 系统 `ffmpeg` 包；deb 声明依赖，普通用户无需自行编译 |
 
-本轮验收目标是 Windows 10 22H2 x64，以及 Ubuntu 22.04/24.04 与 Debian 12/13 的 amd64 桌面。Linux 在 Ubuntu 22.04 amd64 构建，以该系统作为 glibc 基线；仍需在每个目标发行版做干净环境安装测试。Windows 11、macOS、ARM、MSI 与自动更新留待后续。CLI 的 Python 最低要求仍为 3.11；只有 GUI **发行构建**固定 3.14.8。GUI 的 PySide6 依赖放在可选 `gui` extra，普通 CLI 安装不会额外安装 Qt。
+首版验收目标是 Windows 10 22H2 x64，以及 Ubuntu 22.04/24.04 与 Debian 12/13 的 amd64 桌面。Linux 在 Ubuntu 22.04 amd64 构建，以该系统作为 glibc 基线；每个目标发行版均须安装验证，是否使用全新镜像在版本记录中明确。Windows 11 的独立实测、macOS、ARM、MSI 留待后续；GUI 自动更新已由 1.7.6 实现。CLI 的 Python 最低要求仍为 3.11；只有 GUI **发行构建**固定 3.14.8。GUI 的 PySide6 与 cryptography 依赖放在可选 `gui` extra，普通 CLI 安装不会额外安装 Qt 或更新器签名依赖。
 
 所有发行操作由维护者在本地执行，推送提交或标签不会自动构建、上传或部署。运行构建脚本前先检查 Git 工作树、版本、许可材料和凭据；不要把本地账号配置目录放进构建输入。
 

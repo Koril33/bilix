@@ -173,6 +173,7 @@ sh scripts/publish_apt.sh /path/to/djhx-bilix-gui_X.Y.Z-1_amd64.deb \
 公布独立 APT 公钥完整指纹后，用户首次配置：
 
 ```bash
+sudo apt update
 sudo apt install curl gnupg
 sudo install -d -m 755 /etc/apt/keyrings
 curl -fsSLo /tmp/bilix-archive-key.asc \
