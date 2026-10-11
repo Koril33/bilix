@@ -21,8 +21,19 @@
 - 相关 Python 文件 Ruff 检查/格式、文档相对链接和工作树 Gitleaks 8.30.1 扫描通过，秘密扫描为 0 项。
 - 账号与媒体结果均为本地可控模拟，不使用真实 token 或传输媒体；原生截图和本地结果位于忽略目录 `build/release-1.7.5/`。
 
-未重复真实账号/下载权限、完整安装故障、原生 IME/全部 DPI、Linux 多发行版/Wayland 或大列表性能矩阵。构建启动与公开发行文件核对完成后补记；单次模拟不代表操作系统通知必定送达。
+未重复真实账号/下载权限、完整安装故障、原生 IME/全部 DPI、Linux 多发行版/Wayland 或大列表性能矩阵。单次模拟不代表操作系统通知必定送达。
 
 ## 构建与发布状态
 
-尚未公开发布。发行集合沿用八项：Windows GUI 绿色版、安装器、许可/配套源码 ZIP，Linux deb、配套源码，以及 CLI ZIP、Python wheel/sdist。以最终 `release-manifest.json` 和 `SHA256SUMS.txt` 为准；网站由维护者部署，Gitea 同步代码与标签。
+发行集合沿用八项：Windows GUI 绿色版、安装器、许可/配套源码 ZIP，Linux deb、配套源码，以及 CLI ZIP、Python wheel/sdist。以最终 `release-manifest.json` 和 `SHA256SUMS.txt` 为准；网站由维护者部署，Gitea 同步代码与标签。
+
+## 最终组装与公开发布
+
+2026-10-11 已正式发布。源码提交 `7f0c151fe78542f2ca777b6b7fafe6c8ecebdfdb`，标签 `v1.7.5` 与代码已同步 GitHub 和 Gitea。以下为公开后补记；标签及公开文件不变，发行源码中的本记录保留打包时的候选快照。
+
+- Windows GUI onefile/standalone 与 Ubuntu 22.04 GUI 最终冻结程序离线启动检查退出码均为 0；Windows CLI 新版本构建及原有入口/帮助/版本/FFmpeg/补全检查通过，编译报告核对不包含 Qt。Windows 安装器由通过启动检查的 standalone 程序打包。
+- 完整八项发行文件经原有集合脚本核对归档路径、许可、版本、大小和 SHA256，证据为 `assembly.log`、`artifact-verification.json`。Windows 配套源码与 Python sdist 各有 144 份、Linux 配套源码有 143 份选定文件与标签工作区逐字节一致；wheel 的 43 份程序/资源文件与当前源文件一致，见 `source-verification.json`。
+- [GitHub v1.7.5](https://github.com/Koril33/bilix/releases/tag/v1.7.5) 为最新正式发行。匿名页面可访问，认证 API 核对八项产物及两个清单文件的大小和 SHA256 全部一致，清单与校验文件匿名完整回下载通过；未完整回下载全部 GitHub 大型二进制。证据为 `public-verification.json`。
+- [PyPI 1.7.5](https://pypi.org/project/djhx-bilix/1.7.5/) wheel/sdist 两项完整回下载，SHA256 与最终清单一致，Python 版本及 GUI extra 元数据通过。JSON 查询短暂出现旧的 404 缓存，使用官方 API 的等价规范化包名及 simple 索引核对实际文件，没有替换公开文件。
+- 独立 CPython 3.11.2 环境重新安装公开回下载的 wheel，安装版本、CLI 版本和 GUI 离线启动均通过，证据为 `pypi-verification.json`、`public-wheel-smoke.json`。
+- 本轮材料和证据位于忽略目录 `dist/release-1.7.5/`、`build/release-1.7.5/`。Ubuntu 构建 VM 已正常关闭。本版未修改或部署网站。
