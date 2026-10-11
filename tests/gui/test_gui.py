@@ -166,8 +166,9 @@ def test_config_write_error_does_not_show_raw_os_path(qtbot, monkeypatch):
         "save_settings",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(PermissionError("private/profile")),
     )
+    window.default_output_edit.setText("another-download-directory")
     window._save_settings()
-    assert messages == ["无法保存设置，请检查配置目录权限"]
+    assert messages == ["业务设置无法保存，请检查配置与目录权限；界面偏好尚未保存"]
 
 
 def test_unknown_worker_error_has_no_third_party_details(qtbot):

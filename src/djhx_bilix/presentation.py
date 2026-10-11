@@ -8,13 +8,13 @@ from rich.progress import (
     BarColumn,
     DownloadColumn,
     Progress,
+    ProgressColumn,
     TextColumn,
-    TimeRemainingColumn,
-    TransferSpeedColumn,
 )
 from rich.table import Table
 from rich.text import Text
 
+from .feedback import TransferEstimator, format_eta, format_speed
 from .models import CODECS, QUALITY_NAMES, VideoInfo
 
 console = Console(highlight=False)
@@ -77,15 +77,55 @@ def download_progress(quiet: bool = False):
         TextColumn("{task.description}"),
         BarColumn(),
         DownloadColumn(),
-        TransferSpeedColumn(),
-        TimeRemainingColumn(),
+        SharedFeedbackColumn(False),
+        SharedFeedbackColumn(True),
         console=console,
     ) as progress:
-        tasks = {}
+        tasks, totals = {}, {}
+        estimator, identity = TransferEstimator(), None
 
         def update(name, completed, total):
+            if name in tasks and totals[name] != total:
+                progress.remove_task(tasks.pop(name))
             if name not in tasks:
-                tasks[name] = progress.add_task(name, total=total)
+                tasks[name] = progress.add_task(name, total=total, estimator=estimator, stream=name)
+                totals[name] = total
             progress.update(tasks[name], completed=completed, total=total)
 
+        def feedback(samples, attempt_id):
+            nonlocal estimator, identity
+            if identity != attempt_id:
+                estimator, identity = TransferEstimator(), attempt_id
+                for task in tasks.values():
+                    progress.remove_task(task)
+                tasks.clear()
+                totals.clear()
+            for sample in samples:
+                if not estimator.ingest(sample):
+                    continue
+                total = sample.total_bytes or (
+                    sample.completed_bytes if sample.phase == "finished" else None
+                )
+                update(sample.stream, sample.completed_bytes, total)
+
+        update.feedback = feedback
         yield update
+
+
+class SharedFeedbackColumn(ProgressColumn):
+    def __init__(self, eta):
+        super().__init__()
+        self.eta = eta
+
+    def render(self, task):
+        estimator = task.fields.get("estimator")
+        if estimator is None:
+            return Text("—")
+        value = next(
+            (s for s in estimator.snapshot().streams if s.stream == task.fields.get("stream")), None
+        )
+        if value is None:
+            return Text("—")
+        if value.phase == "finished":
+            return Text("传输结束")
+        return Text(format_eta(value.eta) if self.eta else format_speed(value.speed))

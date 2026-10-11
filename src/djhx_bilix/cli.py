@@ -304,8 +304,10 @@ def download_command(
             def emit(event):
                 kind = event["type"]
                 if kind == "progress":
-                    for stream, (done, total) in event["streams"].items():
-                        if progress:
+                    if progress and event.get("samples"):
+                        progress.feedback(event["samples"], event["attempt"].attempt_id)
+                    elif progress:
+                        for stream, (done, total) in event["streams"].items():
                             progress(stream, done, total)
                 elif kind in {"plan", "preview"}:
                     for warning in event.get("warnings", ()):

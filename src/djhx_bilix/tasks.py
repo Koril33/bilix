@@ -18,6 +18,7 @@ from uuid import uuid4
 from .bilibili.client import BilibiliClient
 from .config import load_settings
 from .errors import InputError, OperationCancelled, safe_error
+from .feedback import TransferSample
 from .models import CODECS, QUALITY_NAMES, DownloadPlan, VideoInfo, VideoTarget
 from .operations import CancellationToken
 from .planner import build_plan
@@ -357,12 +358,15 @@ def summary_text(counts: dict[str, int]) -> str:
 
 def progress_sink(session: Session, task_id: str, emit: EventSink) -> Callable:
     counts: dict[str, tuple[int, int | None]] = {}
+    samples: dict[str, TransferSample] = {}
     last_sent = 0.0
     lock = threading.Lock()
 
     def update(stream: str, completed: int, total: int | None) -> None:
         nonlocal last_sent
         with lock:
+            if samples:
+                return  # Structured feedback is authoritative; keep legacy adapters compatible.
             counts[stream] = completed, total
             now = time.monotonic()
             if completed != total and now - last_sent < 0.15:
@@ -371,6 +375,36 @@ def progress_sink(session: Session, task_id: str, emit: EventSink) -> Callable:
             snapshot = dict(counts)
         session.event(task_id, emit, kind="progress", streams=snapshot)
 
+    def feedback(sample: TransferSample):
+        nonlocal last_sent
+        with lock:
+            previous = samples.get(sample.stream)
+            if previous and (sample.stream_attempt, sample.stream_sequence) <= (
+                previous.stream_attempt,
+                previous.stream_sequence,
+            ):
+                return
+            samples[sample.stream] = sample
+            counts[sample.stream] = (
+                sample.completed_bytes,
+                (
+                    sample.total_bytes
+                    or (sample.completed_bytes if sample.phase == "finished" else None)
+                ),
+            )
+            important = (
+                previous is None
+                or previous.phase != sample.phase
+                or previous.stream_attempt != sample.stream_attempt
+                or previous.total_bytes != sample.total_bytes
+            )
+            if not important and sample.sampled_at - last_sent < 0.15:
+                return
+            last_sent = sample.sampled_at
+            snapshot, latest = dict(counts), tuple(samples.values())
+        session.event(task_id, emit, kind="progress", streams=snapshot, samples=latest)
+
+    update.feedback = feedback
     return update
 
 

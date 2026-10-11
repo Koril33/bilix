@@ -6,7 +6,7 @@ from collections import Counter
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QSettings, Qt, QTimer, qVersion
+from PySide6.QtCore import QEvent, Qt, QTimer, qVersion
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -24,6 +24,8 @@ from djhx_bilix.credentials import normalize_cookie
 from djhx_bilix.errors import BilixError, InputError
 from djhx_bilix.urls import normalize_url, parse_pages
 
+from .appearance import apply_theme
+from .preferences import GuiPreferences
 from .worker import JobSpec, run_info
 
 
@@ -56,12 +58,10 @@ class DesktopActions:
         self._message_timer = QTimer(self)
         self._message_timer.setSingleShot(True)
         self._message_timer.timeout.connect(lambda: self.status_text.setText(self._last_summary))
-        self._prefs = (
-            QSettings(str(self._settings.config_dir / "gui.ini"), QSettings.Format.IniFormat)
-            if self._settings
-            else QSettings("djhx", "BiliX-GUI")
-        )
-        self._prefs.beginGroup("v1")
+        self._prefs = GuiPreferences()
+        self._theme_mode = self._prefs.theme()
+        self._remember_options = self._pref("rememberMediaOptions", True, bool)
+        self._show_feedback = self._pref("showTransferFeedback", True, bool)
         self._auto_update_enabled = self._pref("automaticUpdates", True, bool)
         self._tray_enabled = self._pref("minimizeToTray", True, bool)
         self._notify_enabled = self._pref("completionNotification", True, bool)
@@ -70,12 +70,20 @@ class DesktopActions:
             ("codec", self.codec_combo),
             ("audio", self.audio_combo),
         ):
-            raw = self._prefs.value(name, "")
+            raw = self._prefs.value(name, "") if self._remember_options else ""
             value = int(raw) if name == "quality" and str(raw).isdigit() else raw or None
             index = combo.findData(value)
             if index >= 0:
                 combo.setCurrentIndex(index)
-        self.strict_check.setChecked(self._pref("strict", False, bool))
+        self.strict_check.setChecked(self._remember_options and self._pref("strict", False, bool))
+        self.advanced_toggle.setChecked(self._pref("advancedExpanded", False, bool))
+        self.advanced_toggle.toggled.connect(
+            lambda checked: self._prefs.setValue("advancedExpanded", checked)
+        )
+        self._apply_appearance()
+        self._feedback_timer = QTimer(self)
+        self._feedback_timer.setInterval(250)
+        self._feedback_timer.timeout.connect(self._refresh_feedback)
         geometry = self._prefs.value("geometry")
         if geometry is not None and isinstance(geometry, bytes | type(self.saveGeometry())):
             self.restoreGeometry(geometry)
@@ -93,12 +101,66 @@ class DesktopActions:
         self._init_tray()
         self._update_draft_actions()
         self._update_counts()
+        if self._prefs.status() == self._prefs.Status.FormatError:
+            QTimer.singleShot(
+                0,
+                lambda: self._message(
+                    "界面偏好格式错误，已使用安全默认；可在设置中恢复界面默认", 10000
+                ),
+            )
 
     def _pref(self, name, default, kind):
+        return self._prefs.read(name, default, kind)
+
+    def _apply_appearance(self):
+        apply_theme(QApplication.instance(), self._theme_mode)
+        delegate = self.jobs_view.itemDelegate()
+        delegate.show_feedback = self._show_feedback
+        self.jobs_view.setColumnWidth(2, self.jobs_view.columnWidth(2))
+        self.jobs_view.doItemsLayout()
+        self.jobs_view.viewport().update()
+
+    def _system_theme_changed(self, *_args):
+        self._apply_appearance()
+
+    def _refresh_feedback(self):
+        active = [
+            row
+            for row in self.history_model.tasks.values()
+            if row.state == "downloading" and row.estimator is not None
+        ]
+        for row in active:
+            self.history_model.refresh_feedback(row)
+        if not active:
+            self._feedback_timer.stop()
+
+    def _restore_interface_defaults(self):
+        answer = QMessageBox.question(
+            self,
+            "恢复界面默认",
+            "恢复主题、媒体默认、进度显示、展开状态和窗口布局？\n"
+            "账号、业务配置、托盘、通知及自动更新开关将保留。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
         try:
-            return self._prefs.value(name, default, type=kind)
-        except (TypeError, ValueError):
-            return default
+            if not self._prefs.reset_interface():
+                raise OSError
+        except OSError:
+            self._error("界面偏好无法恢复，请检查配置目录权限")
+            return
+        self._theme_mode, self._remember_options, self._show_feedback = "system", True, True
+        self.jobs_view.setColumnWidth(1, 155)
+        self.jobs_view.setColumnWidth(2, 220)
+        self.resize(
+            min(860, self.screen().availableGeometry().width()),
+            min(660, self.screen().availableGeometry().height()),
+        )
+        self._discard_gui_settings()
+        self._apply_appearance()
+        self._message("界面默认已恢复；媒体默认在下一次空白草稿生效", 5000)
 
     def _message(self, text, timeout=0):
         text = text.replace("\n", " · ")
@@ -122,6 +184,8 @@ class DesktopActions:
     def _open_draft(self, checked=False, *, text=None, read_clipboard=True):
         if self._close_pending:
             return
+        if not self._retry_context and not self.urls_edit.toPlainText().strip():
+            self._restore_media_options()
         self._check_credentials()
         self._restore_main()
         if text is None and read_clipboard and not self.urls_edit.toPlainText().strip():
@@ -572,6 +636,8 @@ class DesktopActions:
         self._check_credentials()
 
     def _set_busy(self, busy):
+        for control in self._business_controls:
+            control.setEnabled(not busy and self._settings is not None)
         for button in self._busy_buttons:
             button.setEnabled(not busy)
         labels = {
@@ -674,6 +740,8 @@ class DesktopActions:
             )
 
     def _remember_media_options(self):
+        if not self._remember_options:
+            return
         for name, combo in (
             ("quality", self.quality_combo),
             ("codec", self.codec_combo),
@@ -682,10 +750,26 @@ class DesktopActions:
             self._prefs.setValue(name, combo.currentData() or "")
         self._prefs.setValue("strict", self.strict_check.isChecked())
 
+    def _restore_media_options(self):
+        for name, combo, default in (
+            ("quality", self.quality_combo, None),
+            ("codec", self.codec_combo, None),
+            ("audio", self.audio_combo, "aac"),
+        ):
+            raw = self._prefs.value(name, default) if self._remember_options else default
+            value = int(raw) if name == "quality" and str(raw).isdigit() else raw or default
+            index = combo.findData(value)
+            combo.setCurrentIndex(index if index >= 0 else combo.findData(default))
+        self.strict_check.setChecked(self._remember_options and self._pref("strict", False, bool))
+        self.advanced_toggle.setChecked(self._pref("advancedExpanded", False, bool))
+
     def _discard_gui_settings(self):
         self.tray_check.setChecked(self._tray_enabled)
         self.notify_check.setChecked(self._notify_enabled)
         self.auto_update_check.setChecked(self._auto_update_enabled)
+        self.theme_combo.setCurrentIndex(self.theme_combo.findData(self._theme_mode))
+        self.remember_check.setChecked(self._remember_options)
+        self.feedback_check.setChecked(self._show_feedback)
 
     def _discard_settings(self):
         self._load_settings_view()
@@ -905,6 +989,7 @@ class DesktopActions:
         self._pending_parse = self._pending_account = False
         self._parse_timer.stop()
         self._tray_watch.stop()
+        self._feedback_timer.stop()
         self._prefs.setValue("geometry", self.saveGeometry())
         for column in (1, 2):
             self._prefs.setValue(f"column{column}", self.jobs_view.columnWidth(column))

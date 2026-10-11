@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QIcon, QPainter, QPalette, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionProgressBar
 
-from .history import NODE_ROLE, STREAMS_ROLE
+from .history import FEEDBACK_ROLE, NODE_ROLE, STREAMS_ROLE
 
 ASSETS = Path(__file__).parents[1] / "assets"
 
@@ -32,9 +32,19 @@ def action_icon(name, palette):
     return icon
 
 
-def apply_theme(application):
+def apply_theme(application, mode="system"):
+    # Keep borrowed PySide wrappers alive: a temporary accessibility wrapper can delete
+    # the object returned by subsequent calls on some Qt/PySide builds.
+    if not hasattr(application, "_bilix_style_hints"):
+        application._bilix_style_hints = application.styleHints()
+        application._bilix_accessibility = application._bilix_style_hints.accessibility()
     application.setStyle("Fusion")
-    dark = application.styleHints().colorScheme() == Qt.ColorScheme.Dark
+    dark = mode == "dark" or (
+        mode == "system" and application._bilix_style_hints.colorScheme() == Qt.ColorScheme.Dark
+    )
+    high = (
+        application._bilix_accessibility.contrastPreference() == Qt.ContrastPreference.HighContrast
+    )
     palette = application.style().standardPalette()
     if dark:
         for role, color in (
@@ -55,8 +65,52 @@ def apply_theme(application):
             QPalette.ColorRole.ButtonText,
         ):
             palette.setColor(QPalette.ColorGroup.Disabled, role, QColor("#89919c"))
+    else:
+        # Fusion's standard palette may follow a dark OS preference even when the
+        # user explicitly chooses light. Set both surfaces and text in this branch.
+        for role, color in (
+            (QPalette.ColorRole.Window, "#f4f5f7"),
+            (QPalette.ColorRole.Base, "#ffffff"),
+            (QPalette.ColorRole.AlternateBase, "#eef1f5"),
+            (QPalette.ColorRole.Button, "#e7eaf0"),
+            (QPalette.ColorRole.Text, "#1f2530"),
+            (QPalette.ColorRole.WindowText, "#1f2530"),
+            (QPalette.ColorRole.ButtonText, "#1f2530"),
+            (QPalette.ColorRole.ToolTipBase, "#ffffff"),
+            (QPalette.ColorRole.ToolTipText, "#1f2530"),
+            (QPalette.ColorRole.Light, "#ffffff"),
+            (QPalette.ColorRole.Midlight, "#dde2ea"),
+            (QPalette.ColorRole.Mid, "#ccd2dc"),
+            (QPalette.ColorRole.Dark, "#939baa"),
+            (QPalette.ColorRole.Shadow, "#647081"),
+        ):
+            palette.setColor(role, QColor(color))
+        for role in (
+            QPalette.ColorRole.Text,
+            QPalette.ColorRole.WindowText,
+            QPalette.ColorRole.ButtonText,
+        ):
+            palette.setColor(QPalette.ColorGroup.Disabled, role, QColor("#717a89"))
     palette.setColor(QPalette.ColorRole.Highlight, QColor("#739fff" if dark else "#2859c5"))
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#101c35" if dark else "white"))
+    if high:
+        for role in (
+            QPalette.ColorRole.Window,
+            QPalette.ColorRole.Base,
+            QPalette.ColorRole.AlternateBase,
+            QPalette.ColorRole.Button,
+            QPalette.ColorRole.ToolTipBase,
+        ):
+            palette.setColor(role, QColor("black"))
+        for role in (
+            QPalette.ColorRole.Text,
+            QPalette.ColorRole.WindowText,
+            QPalette.ColorRole.ButtonText,
+            QPalette.ColorRole.ToolTipText,
+        ):
+            palette.setColor(role, QColor("white"))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor("#ffff00"))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("black"))
     application.setPalette(palette)
     application.setStyleSheet("""
         QPushButton, QToolButton { min-height: 28px; padding: 2px 9px; }
@@ -77,9 +131,12 @@ def apply_theme(application):
 class TaskDelegate(QStyledItemDelegate):
     """Paint bounded per-stream progress and a selected-row menu without widgets."""
 
+    show_feedback = True
+
     def sizeHint(self, option, index):
         size = super().sizeHint(option, index)
-        return QSize(size.width(), max(40, option.fontMetrics.height() * 2 + 8))
+        lines = 3 if self.show_feedback else 2
+        return QSize(size.width(), max(40, option.fontMetrics.height() * lines + 12))
 
     def paint(self, painter, option, index):
         super().paint(painter, option, index)
@@ -95,6 +152,9 @@ class TaskDelegate(QStyledItemDelegate):
         if index.column() != 2 or not streams or node.state != "downloading":
             return
         available = option.rect.adjusted(4, 3, -4, -3)
+        feedback = index.data(FEEDBACK_ROLE) if self.show_feedback else ""
+        if feedback:
+            available.setBottom(available.bottom() - option.fontMetrics.height() - 3)
         height = max(15, available.height() // len(streams))
         for row, (name, (done, total)) in enumerate(streams.items()):
             bar = QStyleOptionProgressBar()
@@ -113,3 +173,25 @@ class TaskDelegate(QStyledItemDelegate):
             option.widget.style().drawControl(
                 QStyle.ControlElement.CE_ProgressBar, bar, painter, option.widget
             )
+        if feedback:
+            painter.save()
+            selected = option.state & QStyle.StateFlag.State_Selected
+            painter.setPen(
+                option.palette.color(
+                    QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
+                )
+            )
+            text_rect = QRect(
+                available.left(),
+                available.bottom() + 2,
+                available.width(),
+                option.fontMetrics.height() + 2,
+            )
+            painter.drawText(
+                text_rect,
+                Qt.AlignmentFlag.AlignLeft,
+                option.fontMetrics.elidedText(
+                    feedback, Qt.TextElideMode.ElideRight, text_rect.width()
+                ),
+            )
+            painter.restore()

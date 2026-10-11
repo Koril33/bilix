@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, QSortFilterProxyModel, Qt, QTimer
 
+from djhx_bilix.feedback import TransferEstimator, feedback_text, format_eta, format_speed
+
 STATES = {
     "queued": "等待",
     "loading": "读取中",
@@ -22,6 +24,7 @@ STATES = {
 NODE_ROLE = Qt.ItemDataRole.UserRole
 STATE_ROLE = Qt.ItemDataRole.UserRole + 1
 STREAMS_ROLE = Qt.ItemDataRole.UserRole + 2
+FEEDBACK_ROLE = Qt.ItemDataRole.UserRole + 3
 
 
 @dataclass(eq=False)
@@ -39,6 +42,8 @@ class Row:
     counts: Counter = field(default_factory=Counter)
     streams: dict = field(default_factory=dict)
     superseded: bool = False
+    estimator: TransferEstimator | None = None
+    feedback: str = ""
 
 
 class HistoryModel(QAbstractItemModel):
@@ -84,9 +89,24 @@ class HistoryModel(QAbstractItemModel):
             return row.state
         if role == STREAMS_ROLE:
             return row.streams
+        if role == FEEDBACK_ROLE:
+            return row.feedback
         if index.column() == 3:
             return "选中后打开操作菜单" if role == Qt.ItemDataRole.ToolTipRole else None
         if role == Qt.ItemDataRole.ToolTipRole:
+            if index.column() == 2 and row.estimator is not None:
+                value = row.estimator.snapshot()
+                return "\n".join(
+                    [
+                        feedback_text(value),
+                        *(
+                            f"{'视频' if s.stream == 'video' else '音频'} · "
+                            f"{format_speed(s.speed)} · "
+                            f"{format_eta(s.eta)}"
+                            for s in value.streams
+                        ),
+                    ]
+                )
             return row.title if index.column() == 0 else row.detail or STATES.get(row.state, "")
         if role == Qt.ItemDataRole.DisplayRole:
             if row.children:
@@ -137,7 +157,9 @@ class HistoryModel(QAbstractItemModel):
         self.dataChanged.emit(self.row_index(row), self.row_index(row, 2))
         return row
 
-    def task(self, task, attempt, request, *, title=None, progress=None, streams=None):
+    def task(
+        self, task, attempt, request, *, title=None, progress=None, streams=None, samples=None
+    ):
         row = self.tasks.get(task.task_id)
         state_changed = row is None or row.state != attempt.state
         if row is None:
@@ -168,6 +190,19 @@ class HistoryModel(QAbstractItemModel):
             row.streams = dict(streams)
         elif attempt.state != "downloading":
             row.streams = {}
+        if samples and attempt.state == "downloading":
+            if row.estimator is None:
+                row.estimator = TransferEstimator()
+            for sample in samples:
+                row.estimator.ingest(sample)
+            row.feedback = feedback_text(row.estimator.snapshot())
+            # Session event emission and stream sampling may arrive in different orders.
+            row.streams = {
+                s.stream: (s.completed, s.total or (s.completed if s.phase == "finished" else None))
+                for s in row.estimator.snapshot().streams
+            }
+        elif attempt.state != "downloading":
+            row.estimator, row.feedback = None, ""
         roles = [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole]
         if state_changed:
             roles.append(STATE_ROLE)
@@ -178,6 +213,14 @@ class HistoryModel(QAbstractItemModel):
             [Qt.ItemDataRole.DisplayRole],
         )
         return row
+
+    def refresh_feedback(self, row):
+        row.feedback = feedback_text(row.estimator.snapshot())
+        self.dataChanged.emit(
+            self.row_index(row, 2),
+            self.row_index(row, 2),
+            [FEEDBACK_ROLE, Qt.ItemDataRole.ToolTipRole],
+        )
 
     def rebuild(self, session):
         self.beginResetModel()

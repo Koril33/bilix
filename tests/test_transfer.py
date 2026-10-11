@@ -60,6 +60,24 @@ def test_backup_after_http_error(tmp_path):
     assert (tmp_path / "video.m4s").read_bytes() == b"abcd"
 
 
+def test_structured_feedback_resets_before_backup_connection(tmp_path):
+    reports = []
+    with server(Handler) as url:
+        transfer(
+            Stream(32, 7, 100, (url + "/truncated", url + "/ok")),
+            tmp_path / "video.m4s",
+            {},
+            attempts=2,
+            feedback=reports.append,
+        )
+    starts = [s for s in reports if s.phase == "connecting"]
+    assert [(s.stream_attempt, s.completed_bytes) for s in starts] == [(1, 0), (2, 0)]
+    assert any(s.phase == "retrying" and s.stream_attempt == 1 for s in reports)
+    assert reports[-1].phase == "finished"
+    assert reports[-1].completed_bytes == reports[-1].total_bytes == 4
+    assert all(s.stream == "video" for s in reports)
+
+
 def test_failed_http_keeps_existing_result(tmp_path):
     target = tmp_path / "video.m4s"
     target.write_bytes(b"previous attempt")

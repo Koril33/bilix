@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-**1.7.6**新增 GUI 自动检查和下载更新、签名校验及 Windows/Linux 安装重启流程。GitHub 优先，官网服务器备用；下载内核及 CLI 行为沿用原实现。本轮执行完整离线回归和实际升级验收，范围与结果见 [1.7.6 记录](docs/validation-1.7.6.md)。
+**1.7.7**完善 GUI 偏好、固定快捷键和跟随系统/浅色/深色主题，下载列表显示速度与当前视频的传输剩余时间；GUI 与 CLI 共用估算器。1.7.6 的签名自动更新及 APT 源继续可用，相关说明见[图形版使用说明](docs/gui-usage.md)和[安装与更新](docs/gui-updating.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.6-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.7-1_amd64.deb
 bilix-gui
 ```
 
@@ -49,7 +49,7 @@ GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使�
 
 自动更新从 1.7.6 GUI 发行版开始支持，旧版请手动安装新版；不受支持的系统不提供更新兼容。CLI 和 pip/源码环境使用原安装方式升级。
 
-首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一应用图标，1.7.3 集中改善 GUI 交互与布局；指南 B-01 至 B-07 顺延至后续功能版，见 [CLI/GUI 开发路线](docs/roadmap.md)。
+首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一图标，1.7.3 改善交互与布局，1.7.7 补齐 GUI 偏好、主题及共享传输反馈；运行中追加、单项取消和结构化输出等继续独立排期，见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
 ## 快速开始
 

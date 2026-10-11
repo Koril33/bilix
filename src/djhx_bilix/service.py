@@ -117,6 +117,7 @@ def execute(
                     headers,
                     progress,
                     **({"cancel": cancel} if cancel else {}),
+                    **({"feedback": progress.feedback} if hasattr(progress, "feedback") else {}),
                 )
                 for stream, target in ((plan.video, video), (plan.audio, audio))
             ]

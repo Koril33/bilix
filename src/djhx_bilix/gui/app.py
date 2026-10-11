@@ -13,6 +13,7 @@ from PySide6.QtGui import QDesktopServices, QIcon, QInputMethodEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 from djhx_bilix import __version__, auth
 from djhx_bilix.config import load_settings, save_settings
 from djhx_bilix.errors import BilixError, InputError
+from djhx_bilix.feedback import feedback_text, format_eta, format_speed
 from djhx_bilix.media import FFmpeg, find_ffmpeg
 from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import parse_quality
@@ -41,6 +43,7 @@ from .appearance import apply_theme
 from .desktop import DesktopActions
 from .history import NODE_ROLE
 from .panels import CompactUi, duration
+from .preferences import GuiPreferences
 from .updates import UpdateActions
 from .worker import (
     DownloadOptions,
@@ -138,6 +141,12 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self._build_ui(UrlInput)
         self._load_settings_view()
         self._init_desktop()
+        QApplication.instance()._bilix_style_hints.colorSchemeChanged.connect(
+            self._system_theme_changed
+        )
+        QApplication.instance()._bilix_accessibility.contrastPreferenceChanged.connect(
+            self._system_theme_changed
+        )
         self._init_updater()
         self._offline_account()
         self.urls_edit.textChanged.connect(self._invalidate_info)
@@ -186,6 +195,20 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self.config_path_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         form.addRow("配置文件", self.config_path_label)
         layout.addLayout(form)
+        self._business_controls = [self.default_output_edit, self.ffmpeg_edit]
+        interface = QFormLayout()
+        self.theme_combo = QComboBox()
+        for label, value in (("跟随系统", "system"), ("浅色", "light"), ("深色", "dark")):
+            self.theme_combo.addItem(label, value)
+        interface.addRow("界面主题", self.theme_combo)
+        self.remember_check = QCheckBox("记住画质、编码、音轨和严格匹配")
+        self.feedback_check = QCheckBox("显示下载速度和传输剩余时间")
+        interface.addRow(self.remember_check)
+        interface.addRow(self.feedback_check)
+        reset = QPushButton("恢复界面默认…")
+        reset.clicked.connect(self._restore_interface_defaults)
+        interface.addRow(reset)
+        layout.addLayout(interface)
         controls = QHBoxLayout()
         controls.addWidget(self._button("打开配置目录", self._open_config_folder))
         controls.addStretch()
@@ -228,6 +251,7 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
             self._settings = None
             self.settings_hint.setText(f"配置无法读取：{error}。请修正配置文件后重新打开程序。")
             self._message("配置需要修正")
+            self._business_snapshot = (self.default_output_edit.text(), self.ffmpeg_edit.text())
             return
         self._settings = settings
         self.default_output_edit.setText(
@@ -246,44 +270,53 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self.settings_hint.setVisible(bool(overrides))
         self.config_path_label.setToolTip(str(settings.config_file))
         self.config_path_label.setText("config.toml（与 CLI 共用）")
+        self._business_snapshot = (self.default_output_edit.text(), self.ffmpeg_edit.text())
 
-    def _save_settings(self) -> None:
-        if self._thread is not None:
-            return
-        if self._settings is None:
-            self._error("请先修正配置文件并重新打开程序")
-            return
-        if not self.default_output_edit.text().strip():
-            self._error("请填写默认下载目录")
-            return
-        try:
-            save_settings(
-                self._settings,
-                download_dir=Path(self.default_output_edit.text().strip()).expanduser(),
-                ffmpeg=self.ffmpeg_edit.text().strip() or None,
+    def _save_settings(self) -> bool:
+        business_changed = (self.default_output_edit.text(), self.ffmpeg_edit.text()) != (
+            self._business_snapshot
+        )
+        deferred = business_changed and self._thread is not None
+        if business_changed and not deferred:
+            if self._settings is None or not self.default_output_edit.text().strip():
+                self._error("请修正配置并填写默认下载目录")
+                return False
+            try:
+                save_settings(
+                    self._settings,
+                    download_dir=Path(self.default_output_edit.text().strip()).expanduser(),
+                    ffmpeg=self.ffmpeg_edit.text().strip() or None,
+                )
+            except (BilixError, OSError):
+                self._error("业务设置无法保存，请检查配置与目录权限；界面偏好尚未保存")
+                return False
+            self._load_settings_view()
+        values = {
+            "minimizeToTray": self.tray_check.isChecked(),
+            "completionNotification": self.notify_check.isChecked(),
+            "automaticUpdates": self.auto_update_check.isChecked(),
+            "themeMode": self.theme_combo.currentData(),
+            "rememberMediaOptions": self.remember_check.isChecked(),
+            "showTransferFeedback": self.feedback_check.isChecked(),
+        }
+        if not self._prefs.commit(values):
+            self._error(
+                ("业务设置已保存；" if business_changed and not deferred else "")
+                + "GUI 偏好无法写入，请检查配置目录权限"
             )
-        except BilixError as error:
-            self._error(str(error))
-            return
-        except OSError:
-            self._error("无法保存设置，请检查配置目录权限")
-            return
-        self._load_settings_view()
+            return False
         self._tray_enabled = self.tray_check.isChecked()
         self._notify_enabled = self.notify_check.isChecked()
         self._auto_update_enabled = self.auto_update_check.isChecked()
-        self._prefs.setValue("minimizeToTray", self._tray_enabled)
-        self._prefs.setValue("completionNotification", self._notify_enabled)
-        self._prefs.setValue("automaticUpdates", self._auto_update_enabled)
-        self._prefs.sync()
-        if self._prefs.status() != self._prefs.Status.NoError:
-            self._error("业务设置已保存，但 GUI 偏好无法写入，请检查配置目录权限")
-            return False
+        self._theme_mode = self.theme_combo.currentData()
+        self._remember_options = self.remember_check.isChecked()
+        self._show_feedback = self.feedback_check.isChecked()
+        self._apply_appearance()
         if not self._tray_enabled and not self.isVisible():
             self._restore_main()
         self._configure_update_timer()
-        self._message("设置已保存，与 CLI 共用", 5000)
-        return True
+        self._message("界面偏好已保存；业务设置需空闲后应用" if deferred else "设置已保存", 5000)
+        return not deferred
 
     def _choose_output(self) -> None:
         directory = QFileDialog.getExistingDirectory(self, "选择保存目录", self.output_edit.text())
@@ -589,6 +622,17 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
                 f"{attempt.detail} {attempt.action}\n"
                 f"输出：{attempt.output or '尚无输出'}"
             )
+            if node.estimator is not None and attempt.state == "downloading":
+                feedback = node.estimator.snapshot()
+                text += "\n" + feedback_text(feedback)
+                for stream in feedback.streams:
+                    label = "视频" if stream.stream == "video" else "音频"
+                    status = (
+                        "传输完成"
+                        if stream.phase == "finished"
+                        else f"{format_speed(stream.speed)} · {format_eta(stream.eta)}"
+                    )
+                    text += f"\n{label}：{status}"
             self._show_attempts(task)
             batch_ids = list(dict.fromkeys(a.batch_id for a in task.attempts))
         else:
@@ -848,6 +892,8 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         if node and attempt.number < node.attempt:
             return
         self._event_versions[task.task_id] = attempt.attempt_id, attempt.sequence
+        if node is not None and node.attempt != attempt.number:
+            node.estimator = None
         progress = None
         if kind == "progress":
             names = {"video": "视频", "audio": "音频"}
@@ -863,7 +909,10 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
             title=event.get("title"),
             progress=progress,
             streams=event.get("streams"),
+            samples=event.get("samples"),
         )
+        if kind == "progress" and row.estimator is not None and not self._feedback_timer.isActive():
+            self._feedback_timer.start()
         self.jobs_view.expand(
             self.history_filter.mapFromSource(self.history_model.row_index(row.parent))
         )
@@ -1049,8 +1098,7 @@ def main(argv: list[str] | None = None) -> int:
     for size in (16, 24, 32, 48, 64, 128, 256):
         icon.addFile(str(assets / f"bilix-{size}.png"))
     application.setWindowIcon(icon)
-    apply_theme(application)
-    application.styleHints().colorSchemeChanged.connect(lambda scheme: apply_theme(application))
+    apply_theme(application, GuiPreferences().theme())
     window = MainWindow()
     window.closed.connect(application.quit)
     if smoke_test:

@@ -133,7 +133,8 @@ def main() -> None:
             timings["retry_model"].append((time.perf_counter() - started) * 1000)
         for width, height, advanced in ((1100, 760, False), (800, 600, False), (800, 600, True)):
             window.resize(width, height)
-            window._options_dialog.setVisible(advanced)
+            window.advanced_toggle.setChecked(advanced)
+            window._draft_dialog.setVisible(advanced)
             application.processEvents()
             window.grab().save(str(args.output / f"{count}-{width}x{height}-{advanced}.png"))
             scroll = window.jobs_view

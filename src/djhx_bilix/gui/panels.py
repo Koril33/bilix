@@ -84,7 +84,23 @@ class CompactUi:
         close = QPushButton("关闭")
         close.clicked.connect(dialog.reject)
         close.setAutoDefault(False)
+        help_key = QShortcut(QKeySequence("F1"), dialog)
+        help_key.setAutoRepeat(False)
+        help_key.activated.connect(self._open_shortcuts)
         return dialog, layout, close
+
+    def _open_shortcuts(self):
+        if not hasattr(self, "_shortcuts_dialog"):
+            self._shortcuts_dialog, layout, close = self._dialog("快捷键", 560, 470)
+            text = QPlainTextEdit()
+            text.setReadOnly(True)
+            text.setPlainText("\n".join(f"{key}  {label}" for key, label in self._shortcut_help))
+            layout.addWidget(text)
+            layout.addWidget(QLabel("列表快捷键仅在列表有焦点时生效；不可用动作不会执行。"))
+            layout.addWidget(close)
+        self._shortcuts_dialog.show()
+        self._shortcuts_dialog.raise_()
+        self._shortcuts_dialog.activateWindow()
 
     def _build_ui(self, input_type):
         self.setAcceptDrops(True)
@@ -95,7 +111,7 @@ class CompactUi:
         self.settings_tabs = QTabWidget()
         for page, title in (
             (self._make_account_tab(), "账号"),
-            (self._make_settings_tab(), "下载"),
+            (self._make_settings_tab(), "常规"),
             (self._make_doctor_tab(), "诊断"),
         ):
             scroll = QScrollArea()
@@ -141,6 +157,8 @@ class CompactUi:
         files.addAction("打开下载目录", self._open_default_folder)
         files.addSeparator()
         self.exit_action = files.addAction("退出", self._request_exit)
+        self.exit_action.setShortcut("Ctrl+Q")
+        self.exit_action.setAutoRepeat(False)
         self.account_menu = self.menuBar().addMenu("账号")
         self.login_action = self.account_menu.addAction("扫码登录", self._start_login)
         self.status_action = self.account_menu.addAction("重新验证账号", self._start_status)
@@ -151,6 +169,9 @@ class CompactUi:
         self.doctor_action = tools.addAction("运行诊断", self._open_doctor)
         tools.addAction("打开配置目录", self._open_config_folder)
         help_menu = self.menuBar().addMenu("帮助")
+        self.shortcuts_action = help_menu.addAction("快捷键…", self._open_shortcuts)
+        self.shortcuts_action.setShortcut("F1")
+        self.shortcuts_action.setAutoRepeat(False)
         self.about_action = help_menu.addAction("关于 BiliX", self._open_about)
         self.check_update_action = help_menu.addAction(
             "检查更新", lambda: self._check_update(manual=True)
@@ -189,6 +210,25 @@ class CompactUi:
         )
         self.clear_failed_action = self.selection_menu.addAction(
             "清除失败/取消记录", lambda: self._clear_records(frozenset({"failed", "canceled"}))
+        )
+        self._list_shortcuts = (
+            (self.details_action, "Ctrl+D", "查看选中项详情（列表）"),
+            (self.retry_selected_action, "Ctrl+R", "按原参数重试选中项（列表）"),
+            (self.folder_action, "Ctrl+Shift+O", "打开所在目录（列表）"),
+            (self.copy_action, "Ctrl+Shift+C", "复制文件路径（列表）"),
+        )
+        self._shortcut_help = (
+            ("Ctrl+N", "新建下载"),
+            ("Ctrl+O", "导入链接文件"),
+            ("Ctrl+,", "设置"),
+            ("Ctrl+V", "粘贴链接 / 编辑框普通粘贴"),
+            ("Ctrl+Enter / Ctrl+Return", "提交下载（下载窗口）"),
+            ("Shift+F10 / 菜单键", "打开列表菜单"),
+            *((key, label) for _, key, label in self._list_shortcuts),
+            ("F1", "快捷键帮助"),
+            ("Ctrl+Q", "退出（主窗口）"),
+            ("Esc", "关闭当前对话框"),
+            ("Tab / Shift+Tab", "移动焦点"),
         )
         self.selection_button.setMenu(self.selection_menu)
         self.selection_menu.aboutToShow.connect(self._update_retry_button)
@@ -240,8 +280,13 @@ class CompactUi:
             self.jobs_view.header().setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
         self.jobs_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         self.jobs_view.setColumnWidth(1, 155)
-        self.jobs_view.setColumnWidth(2, 175)
+        self.jobs_view.setColumnWidth(2, 220)
         self.jobs_view.setColumnWidth(3, 45)
+        for action, key, _ in self._list_shortcuts:
+            self.jobs_view.addAction(action)
+            action.setShortcut(key)
+            action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            action.setAutoRepeat(False)
         self.jobs_view.doubleClicked.connect(self._activate_row)
         self.jobs_view.clicked.connect(self._row_menu)
         self.jobs_view.selectionModel().selectionChanged.connect(self._update_retry_button)
@@ -411,6 +456,8 @@ class CompactUi:
         self.download_shortcut.activated.connect(self._shortcut_download)
         self.download_enter_shortcut = QShortcut(QKeySequence("Ctrl+Enter"), self._draft_dialog)
         self.download_enter_shortcut.activated.connect(self._shortcut_download)
+        self.download_shortcut.setAutoRepeat(False)
+        self.download_enter_shortcut.setAutoRepeat(False)
         for combo in (self.quality_combo, self.codec_combo, self.audio_combo):
             combo.currentIndexChanged.connect(self._update_option_summary)
         for check in (self.strict_check, self.overwrite_check):
