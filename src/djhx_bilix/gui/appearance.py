@@ -53,6 +53,7 @@ def apply_theme(application, mode="system"):
             (QPalette.ColorRole.AlternateBase, "#353a41"),
             (QPalette.ColorRole.Button, "#353a41"),
             (QPalette.ColorRole.Text, "#f2f3f5"),
+            (QPalette.ColorRole.PlaceholderText, "#b0b8c4"),
             (QPalette.ColorRole.WindowText, "#f2f3f5"),
             (QPalette.ColorRole.ButtonText, "#f2f3f5"),
             (QPalette.ColorRole.ToolTipBase, "#30343a"),
@@ -74,6 +75,7 @@ def apply_theme(application, mode="system"):
             (QPalette.ColorRole.AlternateBase, "#eef1f5"),
             (QPalette.ColorRole.Button, "#e7eaf0"),
             (QPalette.ColorRole.Text, "#1f2530"),
+            (QPalette.ColorRole.PlaceholderText, "#667080"),
             (QPalette.ColorRole.WindowText, "#1f2530"),
             (QPalette.ColorRole.ButtonText, "#1f2530"),
             (QPalette.ColorRole.ToolTipBase, "#ffffff"),
@@ -107,6 +109,7 @@ def apply_theme(application, mode="system"):
             QPalette.ColorRole.WindowText,
             QPalette.ColorRole.ButtonText,
             QPalette.ColorRole.ToolTipText,
+            QPalette.ColorRole.PlaceholderText,
         ):
             palette.setColor(role, QColor("white"))
         palette.setColor(QPalette.ColorRole.Highlight, QColor("#ffff00"))

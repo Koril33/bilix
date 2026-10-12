@@ -116,6 +116,63 @@ def test_pause_then_cancel_wakes_local_control_only():
     assert not parent.cancelled()
 
 
+def test_cancel_waiting_for_same_output_does_not_wait_for_paused_owner(
+    tmp_path, video_info, monkeypatch
+):
+    session = Session()
+    batch = session.begin(
+        (JobSpec(video_info.url), JobSpec(video_info.url)), options(tmp_path, concurrency=2)
+    )
+    release = threading.Event()
+    waiting = threading.Event()
+    canceled = threading.Event()
+
+    def emit(_event):
+        states = [task.latest.state for task in session.tasks.values()]
+        if "downloading" in states and "loading" in states:
+            waiting.set()
+        if "canceled" in states:
+            canceled.set()
+
+    def execute(plan, *_args, stage, **_kwargs):
+        stage(StageEvent("downloading"))
+        assert release.wait(5)
+        return successful(plan, stage=stage)
+
+    monkeypatch.setattr(tasks, "execute", execute)
+    with ThreadPoolExecutor(1) as pool:
+        future = pool.submit(
+            run_batch,
+            session,
+            batch,
+            emit,
+            CancellationToken(),
+            client=SimpleNamespace(fetch=lambda _u: video_info),
+        )
+        owner = None
+        try:
+            assert waiting.wait(3)
+            owner = next(
+                task.task_id
+                for task in session.tasks.values()
+                if task.latest.state == "downloading"
+            )
+            session.pause_item(owner, True, emit)
+            task_id = next(
+                task.task_id for task in session.tasks.values() if task.latest.state == "loading"
+            )
+            session.cancel_item(task_id, emit)
+            assert canceled.wait(2)
+            assert not future.done()
+            assert session.tasks[owner].latest.paused
+        finally:
+            if owner:
+                session.pause_item(owner, False, emit)
+            release.set()
+        result = future.result(timeout=3)
+    assert result["completed"] == result["canceled"] == 1
+
+
 class RangeHandler(BaseHTTPRequestHandler):
     body = b"a" * (512 * 1024)
     requests = []
