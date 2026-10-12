@@ -142,10 +142,35 @@ class TaskDelegate(QStyledItemDelegate):
         super().paint(painter, option, index)
         node = index.data(NODE_ROLE)
         if index.column() == 3:
-            if option.state & QStyle.StateFlag.State_Selected:
+            if node is not None:
                 painter.save()
-                painter.setPen(option.palette.color(QPalette.ColorRole.HighlightedText))
-                painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "⋯")
+                selected = option.state & QStyle.StateFlag.State_Selected
+                painter.setPen(
+                    option.palette.color(
+                        QPalette.ColorRole.HighlightedText if selected else QPalette.ColorRole.Text
+                    )
+                )
+                label = {
+                    "completed": "目录",
+                    "skipped": "目录",
+                    "failed": "重试",
+                    "canceled": "重试",
+                }.get(node.state, "恢复" if node.paused else "暂停")
+                if node.kind == "source" and node.state not in {"failed", "canceled"}:
+                    label = "取消"
+                painter.drawText(
+                    option.rect.adjusted(0, 0, -32, 0), Qt.AlignmentFlag.AlignCenter, label
+                )
+                if option.state & (
+                    QStyle.StateFlag.State_Selected
+                    | QStyle.StateFlag.State_MouseOver
+                    | QStyle.StateFlag.State_HasFocus
+                ):
+                    painter.drawText(
+                        option.rect.adjusted(option.rect.width() - 32, 0, 0, 0),
+                        Qt.AlignmentFlag.AlignCenter,
+                        "⋯",
+                    )
                 painter.restore()
             return
         streams = index.data(STREAMS_ROLE)

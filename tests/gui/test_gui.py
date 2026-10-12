@@ -18,20 +18,16 @@ from djhx_bilix.gui import app, worker  # noqa: E402
 from djhx_bilix.operations import CancellationToken  # noqa: E402
 
 
-def test_input_validation_and_page_override(qtbot):
+def test_input_validation_preserves_url_selection_until_discovery(qtbot):
     window = app.MainWindow()
     qtbot.addWidget(window)
     window.urls_edit.setPlainText(
         "# note\nBV1j4411W7F7\n\nhttps://www.bilibili.com/video/BV1j4411W7F7?p=2"
     )
-    window.page_edit.setText("all")
     specs = window._inputs()
     assert len(specs) == 2
-    assert [spec.page for spec in specs] == ["all", "all"]
-    window.page_edit.setText("3-1")
-    with pytest.raises(InputError):
-        window._inputs()
-    window.page_edit.setText("")
+    assert [spec.page for spec in specs] == [None, None]
+    assert not hasattr(window, "page_edit")
     window.urls_edit.setPlainText("https://evil.example/steal")
     with pytest.raises(InputError, match="第 1 行"):
         window._inputs()
@@ -161,8 +157,10 @@ def test_config_write_error_does_not_show_raw_os_path(qtbot, monkeypatch):
     qtbot.addWidget(window)
     messages = []
     monkeypatch.setattr(window, "_error", messages.append)
+    from djhx_bilix.gui import features
+
     monkeypatch.setattr(
-        app,
+        features,
         "save_settings",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(PermissionError("private/profile")),
     )

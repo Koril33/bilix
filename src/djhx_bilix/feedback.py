@@ -51,7 +51,8 @@ class TransferEstimator:
             sample.stream not in self.required
             or sample.stream_attempt < 1
             or sample.stream_sequence < 1
-            or sample.phase not in {"connecting", "receiving", "retrying", "finished", "failed"}
+            or sample.phase
+            not in {"connecting", "receiving", "retrying", "finished", "failed", "paused"}
             or sample.completed_bytes < 0
             or not math.isfinite(sample.sampled_at)
             or (sample.total_bytes is not None and sample.total_bytes <= 0)

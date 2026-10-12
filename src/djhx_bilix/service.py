@@ -3,11 +3,14 @@
 import os
 import shutil
 import tempfile
+import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 from .bilibili.client import USER_AGENT, BilibiliClient
+from .config import load_settings
 from .downloader import ProgressCallback, transfer
 from .errors import BilixError, DownloadError, MediaError, OperationCancelled
 from .media import FFmpeg, find_ffmpeg
@@ -82,6 +85,7 @@ def execute(
     *,
     cancel: CancellationToken | None = None,
     stage: Callable[[StageEvent], None] | None = None,
+    proxy: str | None = None,
 ) -> DownloadResult:
     if cancel:
         cancel.raise_if_cancelled()
@@ -105,6 +109,34 @@ def execute(
     checked_video, checked_audio = work / "video.checked.mp4", work / "audio.checked.mp4"
     output = work / "result.mp4"
     headers = {"User-Agent": USER_AGENT, "Referer": plan.info.url}
+    refresh_guard = threading.Lock()
+
+    def refresh_stream(original):
+        with refresh_guard:
+            client = BilibiliClient(replace(load_settings(), proxy=proxy), cancel=cancel)
+            info = client.fetch(plan.info.url)
+            if (info.bvid, info.cid, info.episode_id) != (
+                plan.info.bvid,
+                plan.info.cid,
+                plan.info.episode_id,
+            ):
+                raise DownloadError("来源身份已变化，无法恢复媒体流")
+            if info.is_preview or info.is_drm:
+                raise DownloadError("当前权限无法恢复原媒体流")
+            candidates = info.videos if original.codec else info.audios
+            stream = next(
+                (
+                    s
+                    for s in candidates
+                    if (s.quality, s.codec, s.audio_kind)
+                    == (original.quality, original.codec, original.audio_kind)
+                ),
+                None,
+            )
+            if stream is None:
+                raise DownloadError("原媒体格式已不可获取，请调整参数后重新下载")
+            return stream
+
     try:
         if stage:
             stage(StageEvent("downloading", ffmpeg=str(executable)))
@@ -117,6 +149,12 @@ def execute(
                     headers,
                     progress,
                     **({"cancel": cancel} if cancel else {}),
+                    **({"proxy": proxy} if proxy is not None else {}),
+                    **(
+                        {"refresh": lambda s=stream: refresh_stream(s)}
+                        if hasattr(cancel, "paused")
+                        else {}
+                    ),
                     **({"feedback": progress.feedback} if hasattr(progress, "feedback") else {}),
                 )
                 for stream, target in ((plan.video, video), (plan.audio, audio))
@@ -137,6 +175,8 @@ def execute(
                 raise DownloadError("媒体流写入失败")
         if stage:
             stage(StageEvent("checking_video"))
+        if cancel:
+            cancel.checkpoint()
         video_duration = media.check_stream(
             video, checked_video, "v", plan.info.duration, **({"cancel": cancel} if cancel else {})
         )
@@ -144,6 +184,8 @@ def execute(
             cancel.raise_if_cancelled()
         if stage:
             stage(StageEvent("checking_audio"))
+        if cancel:
+            cancel.checkpoint()
         audio_duration = media.check_stream(
             audio, checked_audio, "a", plan.info.duration, **({"cancel": cancel} if cancel else {})
         )
@@ -151,6 +193,8 @@ def execute(
             raise MediaError("音视频时长不一致，未提交 MP4")
         if stage:
             stage(StageEvent("muxing"))
+        if cancel:
+            cancel.checkpoint()
         try:
             media.mux(
                 checked_video, checked_audio, output, **({"cancel": cancel} if cancel else {})
@@ -169,7 +213,7 @@ def execute(
         if stage:
             stage(StageEvent("committing"))
         if cancel:
-            cancel.raise_if_cancelled()
+            cancel.checkpoint()
         committed = commit_file(output, plan.output, overwrite)
     except OperationCancelled:
         shutil.rmtree(work, ignore_errors=True)

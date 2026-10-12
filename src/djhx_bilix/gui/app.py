@@ -37,10 +37,11 @@ from djhx_bilix.media import FFmpeg, find_ffmpeg
 from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import parse_quality
 from djhx_bilix.tasks import Session, summary_text
-from djhx_bilix.urls import parse_pages, url_page
+from djhx_bilix.urls import parse_pages
 
 from .appearance import apply_theme
 from .desktop import DesktopActions
+from .features import FeatureActions
 from .history import NODE_ROLE
 from .panels import CompactUi, duration
 from .preferences import GuiPreferences
@@ -112,7 +113,7 @@ class UrlInput(QPlainTextEdit):
         self.compositionChanged.emit()
 
 
-class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
+class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
     """One active background operation; downloads form a serial, visible queue."""
 
     closed = Signal()
@@ -141,6 +142,7 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self._build_ui(UrlInput)
         self._load_settings_view()
         self._init_desktop()
+        self._init_features()
         QApplication.instance()._bilix_style_hints.colorSchemeChanged.connect(
             self._system_theme_changed
         )
@@ -416,8 +418,6 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
             values.append("严格匹配画质和编码")
         if self.overwrite_check.isChecked():
             values.append("替换同名文件")
-        if self.page_edit.text():
-            values.append("选集范围 " + self.page_edit.text())
         self.option_summary.setText(" · ".join(values))
         self.option_summary.setVisible(bool(values))
 
@@ -425,29 +425,6 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self.account_label.setText(text)
         self.account_status.setText(chip)
         self.account_status.setToolTip(text)
-
-    def _reset_part_checks(self) -> None:
-        for index, metadata in self._metadata.items():
-            root = self.metadata_tree.topLevelItem(index)
-            if root is None:
-                continue
-            try:
-                raw = self.page_edit.text().strip() or None
-                selected = parse_pages(raw)
-                if raw is None:
-                    part = url_page(metadata["url"])
-                    selected = (part,) if part else None
-            except BilixError:
-                continue
-            for j in range(root.childCount()):
-                child = root.child(j)
-                number = child.data(0, Qt.ItemDataRole.UserRole)
-                child.setCheckState(
-                    0,
-                    Qt.CheckState.Checked
-                    if selected is None or number in selected
-                    else Qt.CheckState.Unchecked,
-                )
 
     def _show_metadata(self, item=None, *_args):
         if item is None:
@@ -519,7 +496,7 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
 
     def _select_parts(self, mode):
         root = self._part_root()
-        if root is None or self._thread is not None:
+        if root is None or (self._thread is not None and self._active_kind != "download"):
             return
         for i in range(root.childCount()):
             child = root.child(i)
@@ -563,7 +540,7 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self._retry_matching("failed")
 
     def _retry_matching(self, state: str) -> None:
-        tasks = tuple(i for i, t in self.session.tasks.items() if t.latest.state == state)
+        tasks = tuple(i for i, t in self.session.snapshot()[0].items() if t.latest.state == state)
         sources = tuple(
             i
             for i, r in self.session.requests.items()
@@ -1080,6 +1057,10 @@ class MainWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         self.folder_action.setEnabled(self.jobs_view.currentIndex().isValid() and folder.is_dir())
         self.details_action.setEnabled(self.jobs_view.currentIndex().isValid())
         self.selection_button.setEnabled(True)
+
+
+class MainWindow(FeatureActions, BaseWindow):
+    """Desktop window with scoped discovery and download queue controls."""
 
 
 def main(argv: list[str] | None = None) -> int:

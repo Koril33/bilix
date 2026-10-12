@@ -73,7 +73,11 @@ def login(
     os.close(descriptor)
     image_path = Path(name)
     try:
-        with requests.Session(headers={"User-Agent": USER_AGENT}, impersonate="chrome") as session:
+        with requests.Session(
+            headers={"User-Agent": USER_AGENT},
+            impersonate="chrome",
+            **({"proxy": settings.proxy} if settings.proxy else {}),
+        ) as session:
             if cancel:
                 cancel.raise_if_cancelled()
             response = session.get(

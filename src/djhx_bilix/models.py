@@ -59,6 +59,7 @@ class VideoInfo:
     season_id: str = ""
     is_preview: bool = False
     is_drm: bool = False
+    cover: str = ""
 
     def public_dict(self) -> dict:
         """Metadata export deliberately excludes signed CDN URLs and credentials."""
@@ -70,6 +71,7 @@ class VideoInfo:
             "duration": self.duration,
             "description": self.description,
             "owner": self.owner,
+            "cover": self.cover,
             "episode_id": self.episode_id,
             "season_id": self.season_id,
             "is_preview": self.is_preview,

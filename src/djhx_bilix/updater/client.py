@@ -179,15 +179,75 @@ class _Redirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(request, fp, code, message, headers, newurl)
 
 
+class _ProxyResponse:
+    """Bounded streaming adapter with the updater's URL and TLS rules intact."""
+
+    def __init__(self, url, timeout, proxy):
+        from djhx_bilix.network import session
+
+        self.connection = session(proxy=proxy)
+        self.buffer = b""
+        try:
+            for _ in range(6):
+                safe_download_url(url)
+                response = self.connection.get(
+                    url,
+                    timeout=timeout,
+                    stream=True,
+                    allow_redirects=False,
+                    headers={
+                        "User-Agent": f"BiliX-Updater/{__version__}",
+                        "Accept-Encoding": "identity",
+                    },
+                )
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    from urllib.parse import urljoin
+
+                    target = urljoin(url, response.headers.get("Location", ""))
+                    response.close()
+                    safe_download_url(target)
+                    url = target
+                    continue
+                response.raise_for_status()
+                self.response = response
+                self.blocks = response.iter_content()
+                return
+            raise UpdateError("更新重定向过多")
+        except Exception:
+            self.connection.close()
+            raise UpdateError("更新代理连接失败或响应不安全") from None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        self.response.close()
+        self.connection.close()
+
+    def read1(self, size):
+        if not self.buffer:
+            try:
+                self.buffer = next(self.blocks, b"")
+            except Exception:
+                raise UpdateError("更新代理传输中断") from None
+        result, self.buffer = self.buffer[:size], self.buffer[size:]
+        return result
+
+
 class Transport:
     """No Bilibili session, token, cookies, or relaxed TLS settings are reused."""
 
     def __init__(self, cancel: Event):
         self.cancel = cancel
         self.opener = urllib.request.build_opener(_Redirects())
+        from djhx_bilix.config import load_settings
+
+        self.proxy = load_settings().proxy
 
     def _open(self, url: str, timeout: float):
         self.check_cancel()
+        if self.proxy:
+            return _ProxyResponse(url, timeout, self.proxy)
         request = urllib.request.Request(
             safe_download_url(url),
             headers={

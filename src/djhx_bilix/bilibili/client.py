@@ -3,13 +3,13 @@
 from dataclasses import replace
 from urllib.parse import urlsplit
 
-from curl_cffi import requests
 from curl_cffi.requests.exceptions import RequestException
 
 from ..config import Settings
 from ..credentials import normalize_cookie
 from ..errors import APIError, BilixError, NetworkError
 from ..models import Page, VideoInfo
+from ..network import session as request_session
 from ..operations import CancellationToken
 from ..urls import normalize_url
 from .parser import apply_playback, parse_video
@@ -52,7 +52,7 @@ class BilibiliClient:
             return url
         try:
             # A short-link request never receives the user's Bilibili credentials.
-            with requests.Session() as session:
+            with request_session(proxy=self.settings.proxy or "") as session:
                 response = session.get(url, timeout=15, headers={"User-Agent": USER_AGENT})
                 self._check_cancel()
                 response.raise_for_status()
@@ -68,7 +68,7 @@ class BilibiliClient:
         self._check_cancel()
         url = self.resolve(url)
         try:
-            with requests.Session() as session:
+            with request_session(proxy=self.settings.proxy or "") as session:
                 response = session.get(url, headers=self.headers(url), timeout=20)
                 self._check_cancel()
                 response.raise_for_status()
@@ -105,7 +105,7 @@ class BilibiliClient:
         self._check_cancel()
         host = "passport.bilibili.com" if passport else "api.bilibili.com"
         try:
-            with requests.Session() as session:
+            with request_session(proxy=self.settings.proxy or "") as session:
                 response = session.get(
                     f"https://{host}/{path}", params=params, headers=self.headers(), timeout=15
                 )

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -71,6 +72,14 @@ class ElidedLabel(QLabel):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.setText(self.full_text)
+
+
+class RangeInput(QLineEdit):
+    composing = False
+
+    def inputMethodEvent(self, event):
+        self.composing = bool(event.preeditString())
+        super().inputMethodEvent(event)
 
 
 class CompactUi:
@@ -143,7 +152,14 @@ class CompactUi:
         preview_layout.addWidget(QLabel("预览是读取时刻的快照；执行和提交时会重新检查。"))
         self.preview_text = QPlainTextEdit()
         self.preview_text.setReadOnly(True)
-        preview_layout.addWidget(self.preview_text)
+        self.preview_text.hide()
+        self.preview_table = QTreeWidget()
+        self.preview_table.setHeaderLabels(["文件名", "目标路径", "结果"])
+        self.preview_table.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        preview_layout.addWidget(self.preview_table)
+        order = QPushButton("按来源顺序")
+        order.clicked.connect(self._preview_source_order)
+        preview_layout.addWidget(order)
         preview_layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
         self._preview_dialog.rejected.connect(
             lambda: self._cancel_active() if self._active_kind == "plan" else None
@@ -268,6 +284,7 @@ class CompactUi:
         self.history_filter = HistoryFilter(self)
         self.history_filter.setSourceModel(self.history_model)
         self.jobs_view = QTreeView()
+        self.jobs_view.setMouseTracking(True)
         self.jobs_view.setObjectName("downloadList")
         self.jobs_view.setModel(self.history_filter)
         self.jobs_view.setItemDelegate(TaskDelegate(self.jobs_view))
@@ -281,7 +298,7 @@ class CompactUi:
         self.jobs_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         self.jobs_view.setColumnWidth(1, 155)
         self.jobs_view.setColumnWidth(2, 220)
-        self.jobs_view.setColumnWidth(3, 45)
+        self.jobs_view.setColumnWidth(3, 100)
         for action, key, _ in self._list_shortcuts:
             self.jobs_view.addAction(action)
             action.setShortcut(key)
@@ -313,6 +330,9 @@ class CompactUi:
         self.list_stack.addWidget(self.empty_label)
         self.list_stack.addWidget(self.jobs_view)
         layout.addWidget(self.list_stack, 1)
+        self.total_progress = QProgressBar()
+        self.total_progress.hide()
+        layout.addWidget(self.total_progress)
         self.status_text = ElidedLabel("就绪")
         self.status_text.setObjectName("operationStatus")
         self.statusBar().addWidget(self.status_text, 1)
@@ -327,6 +347,13 @@ class CompactUi:
         self.cancel_button.clicked.connect(self._cancel_active)
         self.statusBar().addPermanentWidget(self.cancel_button)
         self.cancel_button.hide()
+        self.pause_queue_button = QPushButton("暂停队列")
+        self.pause_queue_button.clicked.connect(self._toggle_queue_pause)
+        self.statusBar().addPermanentWidget(self.pause_queue_button)
+        self.pause_queue_button.hide()
+        self.cancel_button.setMenu(QMenu(self.cancel_button))
+        self.cancel_button.menu().addAction("取消当前批次", self._cancel_active)
+        self.cancel_button.menu().addAction("取消全部运行及等待任务", self._cancel_all)
         self.paste_shortcut = QShortcut(QKeySequence("Ctrl+V"), self)
         self.paste_shortcut.activated.connect(self._paste_draft)
         self.menu_shortcut = QShortcut(QKeySequence("Shift+F10"), self.jobs_view)
@@ -372,28 +399,32 @@ class CompactUi:
         self.metadata_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.metadata_tree.currentItemChanged.connect(self._show_metadata)
         self.metadata_tree.itemChanged.connect(self._update_parse_summary)
+        self.metadata_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.metadata_tree.customContextMenuRequested.connect(self._metadata_menu)
         layout.addWidget(self.metadata_tree, 1)
         actions = QHBoxLayout()
         for text, mode in (("全选", "all"), ("全不选", "none"), ("反选", "invert")):
             actions.addWidget(
-                self._button(text, lambda checked=False, mode=mode: self._select_parts(mode))
+                self._button(text, lambda checked=False, mode=mode: self._select_parts(mode), False)
             )
-        self.part_range_edit = QLineEdit()
+        self.part_range_edit = RangeInput()
         self.part_range_edit.setPlaceholderText("1,3,5-7")
         actions.addWidget(self.part_range_edit, 1)
-        actions.addWidget(self._button("应用", self._apply_part_range))
-        actions.addWidget(self._button("应用到全部", self._apply_all_ranges))
+        actions.addWidget(self._button("对所有视频使用此范围", self._apply_all_ranges, False))
         layout.addLayout(actions)
-        hint = QLabel("普通多 P 默认全部；链接指定 P 时仅该 P。范围须点击应用。")
+        hint = QLabel("普通多 P 默认全部；链接指定 P 时仅该 P。范围输入自动更新勾选。")
         hint.setWordWrap(True)
         layout.addWidget(hint)
+        self.range_error = QLabel()
+        self.range_error.setWordWrap(True)
+        layout.addWidget(self.range_error)
         self.parts_info = QPlainTextEdit()
         self.parts_info.setReadOnly(True)
         self.parts_info.setMaximumHeight(65)
         self.parts_info.hide()
         details = QCheckBox("来源信息")
         details.toggled.connect(self.parts_info.setVisible)
-        layout.addWidget(details)
+        details.hide()
         layout.addWidget(self.parts_info)
         copy_info = self._button("复制来源信息 JSON", self._copy_metadata, False)
         copy_info.setVisible(False)
@@ -427,9 +458,6 @@ class CompactUi:
         for text, value in (("AAC", "aac"), ("FLAC", "flac"), ("Dolby", "dolby"), ("最佳", "best")):
             self.audio_combo.addItem(text, value)
         form.addRow("音频格式", self.audio_combo)
-        self.page_edit = QLineEdit()
-        self.page_edit.setPlaceholderText("选集范围通过上方应用，不自动改变勾选")
-        self.page_edit.hide()
         self.strict_check = QCheckBox("严格匹配画质和编码")
         self.overwrite_check = QCheckBox("替换同名文件（新文件校验成功后才替换）")
         form.addRow(self.strict_check)

@@ -41,6 +41,7 @@ def build_plan(
     codec: str | None = None,
     strict: bool = False,
     audio: str = "aac",
+    naming_template: str = "{title}",
 ) -> DownloadPlan:
     if info.is_drm:
         raise InputError(
@@ -115,5 +116,18 @@ def build_plan(
     if selected_audio.audio_kind != "aac":
         suffix += f"_{selected_audio.audio_kind.upper()}"
     suffix += ".mp4"
-    output = save / (safe_filename(title) + suffix)
+    from .filenames import render_template
+
+    name = render_template(
+        naming_template,
+        title=title,
+        owner=info.owner,
+        part=current.title if current else "",
+        page=str(current.number if current else 1),
+        bvid=info.bvid,
+        cid=info.cid,
+        quality=QUALITY_NAMES.get(video.quality, str(video.quality)),
+        codec=CODECS.get(video.codec, str(video.codec)),
+    )
+    output = save / (name + suffix)
     return DownloadPlan(info, video, selected_audio, output, tuple(warnings))

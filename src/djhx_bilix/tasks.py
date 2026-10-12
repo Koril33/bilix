@@ -10,6 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -20,7 +21,7 @@ from .config import load_settings
 from .errors import InputError, OperationCancelled, safe_error
 from .feedback import TransferSample
 from .models import CODECS, QUALITY_NAMES, DownloadPlan, VideoInfo, VideoTarget
-from .operations import CancellationToken
+from .operations import CancellationToken, TaskControl
 from .planner import build_plan
 from .service import discover, execute
 from .urls import normalize_url
@@ -58,9 +59,19 @@ class DownloadOptions:
     overwrite: bool
     ffmpeg: str | None
     dry_run: bool = False
+    naming_template: str = "{title}"
+    proxy: str | None = None
+    concurrency: int = 1
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "save", self.save.expanduser().absolute())
+        from .filenames import validate_template
+        from .network import validate_proxy
+
+        validate_template(self.naming_template)
+        validate_proxy(self.proxy)
+        if type(self.concurrency) is not int or not 1 <= self.concurrency <= 4:
+            raise InputError("同时下载数必须为 1 到 4 的整数")
 
     def description(self) -> str:
         return (
@@ -115,6 +126,7 @@ class Attempt:
     planned_output: str = ""
     output: str = ""
     resolved_ffmpeg: str = ""
+    paused: bool = False
 
 
 @dataclass(frozen=True)
@@ -148,21 +160,29 @@ class Session:
         self.batches: dict[str, Batch] = {}
         self.active_batch: str | None = None
         self._lock = threading.RLock()
+        self.pending: list[str] = []
+        self.controls: dict[str, TaskControl] = {}
+        self.schedule = TaskControl()
+        self._path_locks: dict[Path, threading.Lock] = {}
 
-    def _begin(self) -> str:
-        if self.active_batch is not None:
+    def _begin(self, enqueue: bool = False) -> str:
+        if self.active_batch is not None and not enqueue:
             raise InputError("请等待当前批次结束，或先取消")
         batch_id = new_id()
         self.batches[batch_id] = Batch(batch_id)
-        self.active_batch = batch_id
+        self.controls[batch_id] = TaskControl()
+        if enqueue:
+            self.pending.append(batch_id)
+        else:
+            self.active_batch = batch_id
         return batch_id
 
-    def begin(self, specs: tuple[JobSpec, ...], options: DownloadOptions) -> str:
+    def begin(self, specs: tuple[JobSpec, ...], options: DownloadOptions, *, enqueue=False) -> str:
         if not specs:
             raise InputError("至少需要一个来源")
         normalized = tuple(JobSpec(normalize_url(s.source), s.page) for s in specs)
         with self._lock:
-            batch_id = self._begin()
+            batch_id = self._begin(enqueue)
             ids = []
             for spec in normalized:
                 request_id = new_id()
@@ -176,6 +196,8 @@ class Session:
         task_ids: tuple[str, ...],
         request_ids: tuple[str, ...] = (),
         options: DownloadOptions | None = None,
+        *,
+        enqueue: bool = False,
     ) -> str:
         with self._lock:
             selected = [self.tasks[i] for i in dict.fromkeys(task_ids)]
@@ -186,7 +208,7 @@ class Session:
                 raise InputError("只能重试失败或取消的任务")
             if any(r.state not in {"failed", "canceled"} for r in sources):
                 raise InputError("只能重新读取失败或取消的来源")
-            batch_id = self._begin()
+            batch_id = self._begin(enqueue)
             for task in selected:
                 attempt = Attempt(
                     new_id(), batch_id, task.latest.number + 1, options or task.latest.options
@@ -209,6 +231,74 @@ class Session:
                 tasks=tuple(t.task_id for t in selected),
             )
             return batch_id
+
+    def next_batch(self) -> str | None:
+        with self._lock:
+            if self.active_batch or self.schedule.paused:
+                return None
+            while self.pending:
+                batch_id = self.pending.pop(0)
+                if not self.batches[batch_id].finished:
+                    self.active_batch = batch_id
+                    return batch_id
+            return None
+
+    def snapshot(self):
+        with self._lock:
+            return dict(self.tasks), dict(self.requests), dict(self.batches)
+
+    def control(self, identity: str, parent: str, external=None) -> TaskControl:
+        with self._lock:
+            if identity not in self.controls:
+                parents = [self.controls[parent]]
+                if external is not None:
+                    parents.append(external)
+                self.controls[identity] = TaskControl(*parents)
+            elif external is not None and external not in self.controls[identity].parents:
+                self.controls[identity].parents += (external,)
+            return self.controls[identity]
+
+    def cancel_item(self, identity: str, emit: EventSink) -> None:
+        with self._lock:
+            task = self.tasks.get(identity)
+            source = self.requests.get(identity)
+            if task:
+                self.control(task.latest.attempt_id, task.latest.batch_id).cancel()
+                queued = task.latest.state == "queued"
+            elif source:
+                self.control(identity, source.batch_id).cancel()
+                children = [t.task_id for t in self.tasks.values() if t.request_id == identity]
+                queued = source.state == "queued"
+            else:
+                return
+        if task and queued:
+            self.event(identity, emit, state="canceled", detail="已取消")
+        elif source:
+            if queued:
+                self.source_state(identity, "canceled", emit)
+            for child in children:
+                self.cancel_item(child, emit)
+
+    def pause_item(self, identity: str, paused: bool, emit: EventSink) -> None:
+        with self._lock:
+            task = self.tasks.get(identity)
+            if task is None or task.latest.state in TERMINAL:
+                return
+            control = self.control(task.latest.attempt_id, task.latest.batch_id)
+            (control.pause if paused else control.resume)()
+        self.event(identity, emit, paused=paused)
+
+    def cancel_batch(self, batch_id: str, emit: EventSink) -> None:
+        with self._lock:
+            batch = self.batches[batch_id]
+            self.controls[batch_id].cancel()
+        for identity in (*batch.requests, *batch.tasks):
+            self.cancel_item(identity, emit)
+
+    def path_lock(self, output: Path):
+        key = output.resolve()
+        with self._lock:
+            return self._path_locks.setdefault(key, threading.Lock())
 
     def source_state(
         self, request_id: str, state: str, emit: EventSink, error: Exception | None = None
@@ -271,7 +361,15 @@ class Session:
                 k: v
                 for k, v in values.items()
                 if k
-                in {"detail", "error_code", "action", "planned_output", "output", "resolved_ffmpeg"}
+                in {
+                    "detail",
+                    "error_code",
+                    "action",
+                    "planned_output",
+                    "output",
+                    "resolved_ffmpeg",
+                    "paused",
+                }
             }
             attempt = replace(
                 attempt, **fields, state=state or attempt.state, sequence=attempt.sequence + 1
@@ -316,15 +414,17 @@ class Session:
                 discovery_complete=int(all(r.state == "discovered" for r in sources)),
             )
             self.batches[batch_id] = replace(batch, finished=True, summary=tuple(summary.items()))
-            self.active_batch = None
+            if self.active_batch == batch_id:
+                self.active_batch = None
             return summary
 
     def clear(self, states: frozenset[str]) -> None:
         with self._lock:
-            if self.active_batch:
+            if self.active_batch or self.pending:
                 raise InputError("运行期间不能清理记录")
             # Keep historical batch summaries immutable. No filesystem operations here.
             self.tasks = {i: t for i, t in self.tasks.items() if t.latest.state not in states}
+            self._path_locks.clear()
             referenced = {t.request_id for t in self.tasks.values()}
             self.requests = {
                 i: r for i, r in self.requests.items() if r.state not in states or i in referenced
@@ -417,18 +517,64 @@ def run_batch(
     client: BilibiliClient | None = None,
 ) -> dict[str, int]:
     batch = session.batches[batch_id]
+    external_cancel = cancel
+    cancel = TaskControl(cancel, session.controls[batch_id])
     cached: dict[str, VideoInfo | None] = {}
     seen_paths: set[Path] = set()
+    paths_guard = threading.Lock()
+    workers = max(
+        [session.requests[i].options.concurrency for i in batch.requests]
+        + [session.tasks[i].latest.options.concurrency for i in batch.tasks]
+        + [1]
+    )
+
+    def scoped_client(control, options):
+        if client is not None and not isinstance(client, BilibiliClient):
+            return client
+        settings = replace(
+            client.settings if isinstance(client, BilibiliClient) else load_settings(),
+            proxy=options.proxy,
+        )
+        return BilibiliClient(settings, cancel=control)
 
     def process(task_ids):
+        if workers > 1:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [executor.submit(process_one, task_id) for task_id in task_ids]
+                for future in futures:
+                    future.result()
+        else:
+            for task_id in task_ids:
+                process_one(task_id)
+
+    def process_one(task_id):
+        # Keep the legacy serial cancellation contract for unknown cancellation causes.
+        task = session.tasks[task_id]
+        if task.latest.state in TERMINAL:
+            return
+        control = session.control(task.latest.attempt_id, batch_id, cancel)
+        while session.schedule.paused and not control.cancelled():
+            control.wait(0.1)
+        try:
+            control.checkpoint()
+        except OperationCancelled:
+            session.event(task_id, emit, state="canceled", detail="已取消")
+            if cancel.cancelled():
+                raise
+            return
+        process_serial((task_id,), control)
+
+    def process_serial(task_ids, control):
         for task_id in task_ids:
-            cancel.raise_if_cancelled()
+            control.checkpoint()
             task = session.tasks[task_id]
             options = task.latest.options
             session.event(task_id, emit, state="loading")
             try:
-                video = cached.get(task_id) or client.fetch(task.target_url)
-                cancel.raise_if_cancelled()
+                video = cached.get(task_id) or scoped_client(control, options).fetch(
+                    task.target_url
+                )
+                control.checkpoint()
                 if not task.identity.matches(video):
                     raise InputError(
                         "来源选集身份已变化，请重新读取来源并创建新任务",
@@ -443,10 +589,12 @@ def run_batch(
                     options.codec,
                     options.strict,
                     options.audio,
+                    options.naming_template,
                 )
                 decision = conflict(plan.output, options.overwrite)
-                duplicate = plan.output in seen_paths
-                seen_paths.add(plan.output)
+                with paths_guard:
+                    duplicate = plan.output in seen_paths
+                    seen_paths.add(plan.output)
                 session.event(
                     task_id,
                     emit,
@@ -464,23 +612,31 @@ def run_batch(
                         error_code="filesystem",
                         action="请调整保存路径",
                     )
-                result = execute(
-                    plan,
-                    options.ffmpeg,
-                    options.overwrite,
-                    progress_sink(session, task_id, emit),
-                    cancel=cancel,
-                    stage=lambda stage, tid=task_id: (
-                        session.event(
-                            tid,
-                            emit,
-                            state=stage.stage,
-                            **({"resolved_ffmpeg": stage.ffmpeg} if stage.ffmpeg else {}),
-                        )
-                        if stage.stage not in TERMINAL
-                        else None
-                    ),
-                )
+                path_guard = session.path_lock(plan.output)
+                while not path_guard.acquire(timeout=0.1):
+                    control.checkpoint()
+                try:
+                    control.checkpoint()
+                    result = execute(
+                        plan,
+                        options.ffmpeg,
+                        options.overwrite,
+                        progress_sink(session, task_id, emit),
+                        cancel=control,
+                        proxy=options.proxy or "",
+                        stage=lambda stage, tid=task_id: (
+                            session.event(
+                                tid,
+                                emit,
+                                state=stage.stage,
+                                **({"resolved_ffmpeg": stage.ffmpeg} if stage.ffmpeg else {}),
+                            )
+                            if stage.stage not in TERMINAL
+                            else None
+                        ),
+                    )
+                finally:
+                    path_guard.release()
                 session.event(
                     task_id,
                     emit,
@@ -489,7 +645,9 @@ def run_batch(
                     detail="已存在，未校验" if result.skipped else "已校验并合并",
                 )
             except OperationCancelled:
-                raise
+                if cancel.cancelled() or not control.cancelled():
+                    raise
+                session.event(task_id, emit, state="canceled", detail="已取消")
             except Exception as error:
                 detail, code, action = safe_error(error)
                 session.event(
@@ -497,18 +655,29 @@ def run_batch(
                 )
 
     try:
-        client = client or BilibiliClient(load_settings(), cancel=cancel)
         for request_id in batch.requests:
             session.source_state(request_id, "queued", emit)
         for task_id in batch.tasks:
             session.event(task_id, emit)
-        process(batch.tasks)
+        if workers == 1:
+            process(batch.tasks)
+        collected = list(batch.tasks)
         for request_id in batch.requests:
             cancel.raise_if_cancelled()
             source = session.requests[request_id]
+            if source.state == "canceled":
+                continue
+            source_control = session.control(request_id, batch_id, cancel)
             session.source_state(request_id, "loading", emit)
             try:
-                targets = discover(client, source.spec.source, source.spec.page, cancel=cancel)
+                source_control.checkpoint()
+                targets = discover(
+                    scoped_client(source_control, source.options),
+                    source.spec.source,
+                    source.spec.page,
+                    cancel=source_control,
+                )
+                source_control.checkpoint()
                 if not targets:
                     raise InputError("未找到可下载的选集")
                 ids = session.register(request_id, targets)
@@ -516,13 +685,21 @@ def run_batch(
                 for task_id, target in zip(ids, targets, strict=True):
                     cached[task_id] = target.cached_info
                     session.event(task_id, emit)
-                process(ids)
+                if workers == 1:
+                    process(ids)
+                else:
+                    collected.extend(ids)
             except OperationCancelled:
-                raise
+                if cancel.cancelled() or not source_control.cancelled():
+                    raise
+                session.source_state(request_id, "canceled", emit)
             except Exception as error:
                 session.source_state(request_id, "failed", emit, error)
+        if workers > 1:
+            process(collected)
     except (OperationCancelled, KeyboardInterrupt):
         cancel.cancel()
+        external_cancel.cancel()
     except Exception as error:
         for request_id in batch.requests:
             session.source_state(request_id, "failed", emit, error)
@@ -549,7 +726,7 @@ def run_preview(
     client: BilibiliClient | None = None,
 ) -> dict[str, int]:
     """Read-only, independent from executable tasks and session history."""
-    client = client or BilibiliClient(load_settings(), cancel=cancel)
+    client = client or BilibiliClient(replace(load_settings(), proxy=options.proxy), cancel=cancel)
     totals = dict(
         completed=0,
         skipped=0,
@@ -597,6 +774,7 @@ def run_preview(
                     options.codec,
                     options.strict,
                     options.audio,
+                    options.naming_template,
                 )
                 decision = conflict(plan.output, options.overwrite)
                 emit(

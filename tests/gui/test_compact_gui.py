@@ -50,7 +50,7 @@ def test_ime_blocks_shortcut(qtbot, monkeypatch):
     assert calls == [True]
 
 
-def test_parts_range_is_explicit_and_selection_stays_per_source(qtbot, video_info):
+def test_parts_range_selection_stays_per_source(qtbot, video_info):
     window = MainWindow()
     qtbot.addWidget(window)
     window.urls_edit.setPlainText(video_info.url + "\n" + video_info.url)
@@ -65,10 +65,18 @@ def test_parts_range_is_explicit_and_selection_stays_per_source(qtbot, video_inf
     window.part_range_edit.setText("2")
     window._apply_part_range()
     assert [s.page for s in window._inputs()] == ["2", "1,2"]
-    window.page_edit.setText("1")
-    assert [s.page for s in window._inputs()] == ["2", "1,2"]
-    window._reset_part_checks()
-    assert [s.page for s in window._inputs()] == ["1", "1"]
+    window.metadata_tree.setCurrentItem(window.metadata_tree.topLevelItem(1))
+    window.part_range_edit.setText("1")
+    window._apply_part_range()
+    assert [s.page for s in window._inputs()] == ["2", "1"]
+    window.metadata_tree.setCurrentItem(window.metadata_tree.topLevelItem(0))
+    assert window.part_range_edit.text() == "2"
+    window.part_range_edit.setText("3-1")
+    assert not window._apply_part_range()
+    assert [s.page for s in window._inputs()] == ["2", "1"]
+    window.part_range_edit.setText("")
+    window._apply_all_ranges()
+    assert [s.page for s in window._inputs()] == ["1,2", "1,2"]
 
 
 def test_source_failure_retry_and_parent_group_scope(qtbot, tmp_path):
@@ -133,7 +141,8 @@ def test_busy_settings_cancel_and_account_chip(qtbot, settings):
     qtbot.addWidget(window)
     assert window.account_status.text() == "凭据待验证"
     window._start_operation("test", lambda emit, cancel: cancel.wait(5))
-    assert not window.start_button.isEnabled() and not window.default_output_edit.isEnabled()
+    assert not window.start_button.isEnabled() and window.default_output_edit.isEnabled()
+    assert window.settings_buttons.button(window.settings_buttons.StandardButton.Apply).isEnabled()
     window._open_settings()
     assert window._settings_dialog.isVisible()
     window._cancel_active()

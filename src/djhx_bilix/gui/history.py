@@ -4,6 +4,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, QSortFilterProxyModel, Qt, QTimer
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QApplication
 
 from djhx_bilix.feedback import TransferEstimator, feedback_text, format_eta, format_speed
 
@@ -44,6 +46,7 @@ class Row:
     superseded: bool = False
     estimator: TransferEstimator | None = None
     feedback: str = ""
+    paused: bool = False
 
 
 class HistoryModel(QAbstractItemModel):
@@ -91,8 +94,20 @@ class HistoryModel(QAbstractItemModel):
             return row.streams
         if role == FEEDBACK_ROLE:
             return row.feedback
+        if role == Qt.ItemDataRole.ForegroundRole and index.column() == 1:
+            palette = QApplication.palette()
+            dark = palette.color(QPalette.ColorRole.Base).lightness() < 128
+            if palette.color(QPalette.ColorRole.Highlight).name() == "#ffff00":
+                return palette.color(QPalette.ColorRole.Text)
+            colors = {
+                "completed": "#75dba1" if dark else "#13713d",
+                "failed": "#ff9292" if dark else "#b12626",
+                "skipped": "#aeb7c3" if dark else "#59616b",
+                "canceled": "#aeb7c3" if dark else "#59616b",
+            }
+            return QColor(colors[row.state]) if row.state in colors else None
         if index.column() == 3:
-            return "选中后打开操作菜单" if role == Qt.ItemDataRole.ToolTipRole else None
+            return "快捷操作；右侧更多菜单" if role == Qt.ItemDataRole.ToolTipRole else None
         if role == Qt.ItemDataRole.ToolTipRole:
             if index.column() == 2 and row.estimator is not None:
                 value = row.estimator.snapshot()
@@ -118,8 +133,8 @@ class HistoryModel(QAbstractItemModel):
                 )
             else:
                 state = STATES.get(row.state, row.state)
-                if row.state == "failed" and row.detail:
-                    state += " · " + row.detail
+                if row.paused:
+                    state = "已暂停" if row.feedback == "已暂停" else "暂停中（处理阶段结束后等待）"
                 symbols = {
                     "completed": "✓ ",
                     "skipped": "! ",
@@ -176,6 +191,12 @@ class HistoryModel(QAbstractItemModel):
             row.parent.counts[row.state] -= 1
             self.counts[row.state] -= 1
         row.state, row.attempt = attempt.state, attempt.number
+        row.paused = attempt.paused and attempt.state not in {
+            "completed",
+            "skipped",
+            "failed",
+            "canceled",
+        }
         row.parent.counts[row.state] += 1
         self.counts[row.state] += 1
         if title:
@@ -195,7 +216,11 @@ class HistoryModel(QAbstractItemModel):
                 row.estimator = TransferEstimator()
             for sample in samples:
                 row.estimator.ingest(sample)
-            row.feedback = feedback_text(row.estimator.snapshot())
+            row.feedback = (
+                "已暂停"
+                if any(s.phase == "paused" for s in row.estimator.snapshot().streams)
+                else feedback_text(row.estimator.snapshot())
+            )
             # Session event emission and stream sampling may arrive in different orders.
             row.streams = {
                 s.stream: (s.completed, s.total or (s.completed if s.phase == "finished" else None))
@@ -204,9 +229,10 @@ class HistoryModel(QAbstractItemModel):
         elif attempt.state != "downloading":
             row.estimator, row.feedback = None, ""
         roles = [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole]
+        roles.append(Qt.ItemDataRole.ForegroundRole)
         if state_changed:
             roles.append(STATE_ROLE)
-        self.dataChanged.emit(self.row_index(row), self.row_index(row, 2), roles)
+        self.dataChanged.emit(self.row_index(row), self.row_index(row, 3), roles)
         self.dataChanged.emit(
             self.row_index(row.parent),
             self.row_index(row.parent, 1),

@@ -288,6 +288,9 @@ def download_command(
         overwrite,
         ffmpeg or settings.ffmpeg,
         dry_run,
+        naming_template=settings.naming_template,
+        proxy=settings.proxy,
+        concurrency=settings.concurrency,
     )
     cancel = CancellationToken()
     previous_handlers = {}

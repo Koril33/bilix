@@ -127,7 +127,7 @@ class DesktopActions:
         active = [
             row
             for row in self.history_model.tasks.values()
-            if row.state == "downloading" and row.estimator is not None
+            if row.state == "downloading" and not row.paused and row.estimator is not None
         ]
         for row in active:
             self.history_model.refresh_feedback(row)
@@ -336,7 +336,11 @@ class DesktopActions:
         self._update_draft_actions()
 
     def _start_info(self):
-        if self._thread is not None or self._retry_context:
+        if (
+            (self._thread is not None and self._active_kind != "download")
+            or self._retry_context
+            or getattr(self, "_aux", None)
+        ):
             return
         self._metadata.clear()
         self.metadata_tree.clear()
@@ -395,11 +399,17 @@ class DesktopActions:
         self._start_operation("info", operation)
         self._update_parse_summary()
 
-    def _retry_parse(self):
-        if self._thread is not None or not self._parse_complete:
+    def _retry_parse(self, checked=False, indices=None):
+        if (
+            (self._thread is not None and self._active_kind != "download")
+            or not self._parse_complete
+            or getattr(self, "_aux", None)
+        ):
             return
         valid = []
-        for index in tuple(self._failed_parse):
+        for index in tuple(
+            self._failed_parse if indices is None else self._failed_parse.intersection(indices)
+        ):
             source = self._parse_sources[index][1]
             try:
                 normalize_url(source)
@@ -429,7 +439,7 @@ class DesktopActions:
             if not specs:
                 raise InputError("请勾选至少一个有效选集")
             return tuple(specs)
-        page = self.page_edit.text().strip() or None if validate_page else None
+        page = None
         if validate_page:
             parse_pages(page)
         specs = []
@@ -488,7 +498,7 @@ class DesktopActions:
 
     def _start_download(self, dry_run=False, specs=None):
         if (
-            self._thread is not None
+            (self._thread is not None and self._active_kind != "download")
             or self._close_pending
             or getattr(self, "_update_install_pending", False)
         ):
@@ -498,7 +508,7 @@ class DesktopActions:
                 return
             tasks, sources = self._retry_context
             try:
-                batch_id = self.session.retry(tasks, sources, self._options(False))
+                batch_id = self.session.retry(tasks, sources, self._options(False), enqueue=True)
             except BilixError as error:
                 self._error(str(error))
                 return
@@ -521,7 +531,7 @@ class DesktopActions:
                 self._preview_dialog.show()
                 self._start_operation("plan", partial(run_download, selected, options))
                 return
-            batch_id = self.session.begin(selected, options)
+            batch_id = self.session.begin(selected, options, enqueue=True)
         except BilixError as error:
             self._error(str(error))
             return
@@ -565,7 +575,7 @@ class DesktopActions:
         self.overwrite_check.setChecked(options.overwrite)
 
     def _retry_ids(self, tasks, sources, current=False):
-        if self._thread is not None:
+        if self._thread is not None and self._active_kind != "download":
             return
         if current:
             if not (tasks or sources):
@@ -591,7 +601,7 @@ class DesktopActions:
             self._open_draft(read_clipboard=False)
             return
         try:
-            batch_id = self.session.retry(tasks, sources)
+            batch_id = self.session.retry(tasks, sources, enqueue=True)
         except BilixError as error:
             self._error(str(error))
             return

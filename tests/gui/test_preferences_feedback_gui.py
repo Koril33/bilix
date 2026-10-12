@@ -31,7 +31,7 @@ def test_theme_can_be_saved_during_download(qtbot, settings):
     value._start_operation("test", lambda emit, cancel: cancel.wait(5))
     value.theme_combo.setCurrentIndex(value.theme_combo.findData("dark"))
     assert value._save_settings()
-    assert not value.default_output_edit.isEnabled()
+    assert value.default_output_edit.isEnabled()
     assert not settings.config_file.exists()
     value._cancel_active()
     qtbot.waitUntil(lambda: value._thread is None)

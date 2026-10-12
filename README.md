@@ -93,6 +93,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
 | 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
+| 1.7.8 待开发：下载交互、任务控制、测试验收与部署发布 | [待开发指南](docs/gui-update-guide-1.7.8.md) |
 | 1.7.4 列表布局、自动解析与托盘设计 | [更新指南](docs/gui-update-guide-1.7.4.md) |
 | 1.7.3 GUI 简洁布局、交互与开发验收 | [更新指南](docs/gui-update-guide-1.7.3.md) |
 | 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |

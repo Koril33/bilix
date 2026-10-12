@@ -142,6 +142,7 @@ def parse_video(document: str, url: str) -> VideoInfo:
         pages,
         description=video.get("desc") or media.get("evaluate", ""),
         owner=(video.get("owner") or {}).get("name", ""),
+        cover=video.get("pic") or media.get("cover") or episode_meta.get("cover") or "",
         episode_id=str(
             episode.get("ep_id")
             or episode_meta.get("episode_id")

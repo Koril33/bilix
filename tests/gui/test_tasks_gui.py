@@ -106,8 +106,8 @@ def test_readable_metadata_and_empty_part_selection_rejected(qtbot, monkeypatch,
     root.child(1).setCheckState(0, Qt.CheckState.Unchecked)
     with pytest.raises(InputError, match="勾选"):
         window._inputs()
-    window.page_edit.setText("all")
-    window._reset_part_checks()
+    window.part_range_edit.setText("")
+    window._apply_part_range()
     assert window._inputs()[0].page == "1,2"
     window._copy_metadata()
     assert "available_streams" in app.QApplication.clipboard().text()

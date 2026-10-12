@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import sys
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -13,11 +17,14 @@ from djhx_bilix.bilibili.client import BilibiliClient
 from djhx_bilix.config import load_settings
 from djhx_bilix.errors import BilixError
 from djhx_bilix.media import FFmpeg, find_ffmpeg
+from djhx_bilix.network import session as request_session
 from djhx_bilix.operations import CancellationToken, OperationCancelled
 from djhx_bilix.tasks import DownloadOptions, JobSpec, Session, run_batch, run_preview
 from djhx_bilix.urls import normalize_url
 
 EventSink = Callable[[dict[str, Any]], None]
+_art_cache = OrderedDict()
+_art_lock = threading.Lock()
 
 
 def run_download(
@@ -40,6 +47,7 @@ def run_info(
 ) -> dict[str, int]:
     client = BilibiliClient(load_settings(), cancel=cancel)
     failures = 0
+    covers = []
     for index, spec in enumerate(specs, 1):
         cancel.raise_if_cancelled()
         try:
@@ -53,6 +61,8 @@ def run_info(
                     "metadata": info.public_dict(),
                 }
             )
+            if info.cover:
+                covers.append((index - 1, info.cover))
         except OperationCancelled:
             raise
         except BilixError as error:
@@ -61,6 +71,61 @@ def run_info(
         except OSError:
             failures += 1
             emit({"type": "info", "index": index - 1, "spec": spec, "error": "文件或目录无法访问"})
+
+    def artwork(item):
+        index, url = item
+        try:
+            url = "https:" + url if url.startswith("//") else url
+            parsed = urlsplit(url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+            ):
+                return
+            if not any(
+                parsed.hostname.endswith("." + domain) or parsed.hostname == domain
+                for domain in ("hdslb.com", "bilibili.com")
+            ):
+                return
+            cancel.raise_if_cancelled()
+            with _art_lock:
+                cached = _art_cache.get(url)
+                if cached is not None:
+                    _art_cache.move_to_end(url)
+            if cached is not None:
+                emit({"type": "cover", "index": index, "data": cached})
+                return
+            with request_session() as connection:
+                response = connection.get(url, timeout=8, stream=True, allow_redirects=False)
+                try:
+                    if response.status_code != 200:
+                        return
+                    data = bytearray()
+                    for chunk in response.iter_content():
+                        cancel.raise_if_cancelled()
+                        data.extend(chunk)
+                        if len(data) > 2 * 1024 * 1024:
+                            return
+                    data = bytes(data)
+                    with _art_lock:
+                        _art_cache[url] = data
+                        while (
+                            len(_art_cache) > 64
+                            or sum(map(len, _art_cache.values())) > 8 * 1024 * 1024
+                        ):
+                            _art_cache.popitem(last=False)
+                    emit({"type": "cover", "index": index, "data": data})
+                finally:
+                    response.close()
+        except OperationCancelled:
+            raise
+        except Exception:
+            return  # Artwork never makes a valid video fail.
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(artwork, covers))
     return {"failed": failures, "total": len(specs)}
 
 
