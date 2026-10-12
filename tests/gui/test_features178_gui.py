@@ -3,6 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QTreeWidgetItem
 
@@ -12,6 +13,57 @@ from djhx_bilix.gui.app import MainWindow
 from djhx_bilix.models import DownloadResult, Page
 from djhx_bilix.operations import StageEvent
 from djhx_bilix.tasks import JobSpec
+
+
+@pytest.mark.parametrize(
+    ("cover", "expected"),
+    [
+        ("http://i1.hdslb.com/cover.jpg", "https://i1.hdslb.com/cover.jpg"),
+        ("http://i1.hdslb.com:80/cover.jpg", "https://i1.hdslb.com/cover.jpg"),
+        ("//i1.hdslb.com/cover.jpg", "https://i1.hdslb.com/cover.jpg"),
+        ("https://i1.hdslb.com/cover.jpg", "https://i1.hdslb.com/cover.jpg"),
+        ("http://hdslb.com.evil.test/cover.jpg", None),
+        ("https://i1.hdslb.com:8080/cover.jpg", None),
+        ("https://FAKE_USER:FAKE_PASSWORD@i1.hdslb.com/cover.jpg", None),
+    ],
+)
+def test_cover_uses_https_on_allowed_hosts_without_account_headers(
+    monkeypatch, video_info, cover, expected
+):
+    from collections import OrderedDict
+    from types import SimpleNamespace
+
+    from djhx_bilix.gui import worker
+    from djhx_bilix.operations import CancellationToken
+
+    received = []
+    events = []
+    info = replace(video_info, cover=cover)
+    monkeypatch.setattr(
+        worker, "BilibiliClient", lambda *_a, **_k: SimpleNamespace(fetch=lambda _: info)
+    )
+    monkeypatch.setattr(worker, "_art_cache", OrderedDict())
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def get(self, url, **kwargs):
+            received.append(url)
+            assert kwargs.get("headers") is None
+            assert kwargs["allow_redirects"] is False
+            return SimpleNamespace(
+                status_code=200, iter_content=lambda: iter([b"test-artwork"]), close=lambda: None
+            )
+
+    monkeypatch.setattr(worker, "request_session", lambda: Connection())
+    result = worker.run_info((JobSpec(info.url),), events.append, CancellationToken())
+    assert result["failed"] == 0
+    assert received == ([] if expected is None else [expected])
+    assert sum(event["type"] == "cover" for event in events) == int(expected is not None)
 
 
 def parsed(qtbot, video_info):

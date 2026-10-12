@@ -78,10 +78,11 @@ def run_info(
             url = "https:" + url if url.startswith("//") else url
             parsed = urlsplit(url)
             if (
-                parsed.scheme != "https"
+                parsed.scheme not in {"http", "https"}
                 or not parsed.hostname
                 or parsed.username
                 or parsed.password
+                or parsed.port not in (None, 80 if parsed.scheme == "http" else 443)
             ):
                 return
             if not any(
@@ -89,6 +90,9 @@ def run_info(
                 for domain in ("hdslb.com", "bilibili.com")
             ):
                 return
+            # Bilibili metadata still advertises HTTP cover URLs. Upgrade only
+            # the allowed CDN hosts before requesting artwork without cookies.
+            url = parsed._replace(scheme="https", netloc=parsed.hostname).geturl()
             cancel.raise_if_cancelled()
             with _art_lock:
                 cached = _art_cache.get(url)
