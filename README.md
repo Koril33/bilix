@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-**1.7.7**完善 GUI 偏好、固定快捷键和跟随系统/浅色/深色主题，下载列表显示速度与当前视频的传输剩余时间；GUI 与 CLI 共用估算器。1.7.6 的签名自动更新及 APT 源继续可用，相关说明见[图形版使用说明](docs/gui-usage.md)和[安装与更新](docs/gui-updating.md)。
+**1.7.8 候选**加入运行中追加队列、单任务取消/暂停恢复、1–4 项并发、实际画质能力提示、范围联动、结构化预览与分组设置；命名模板和代理由 GUI/CLI 共用。1.7.6 的签名自动更新及 APT 源继续可用，相关说明见[图形版使用说明](docs/gui-usage.md)和[安装与更新](docs/gui-updating.md)。
 
 图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
 
@@ -32,7 +32,7 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.7-1_amd64.deb
+sudo apt install ./djhx-bilix-gui_1.7.8-1_amd64.deb
 bilix-gui
 ```
 
@@ -49,7 +49,7 @@ GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使�
 
 自动更新从 1.7.6 GUI 发行版开始支持，旧版请手动安装新版；不受支持的系统不提供更新兼容。CLI 和 pip/源码环境使用原安装方式升级。
 
-首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一图标，1.7.3 改善交互与布局，1.7.7 补齐 GUI 偏好、主题及共享传输反馈；运行中追加、单项取消和结构化输出等继续独立排期，见 [CLI/GUI 开发路线](docs/roadmap.md)。
+首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一图标，1.7.3 改善交互与布局，1.7.7 补齐 GUI 偏好、主题及共享传输反馈；1.7.8 已实现运行中追加、单项取消与本次会话暂停续传；公开 JSONL、跨重启历史等继续独立排期，见 [CLI/GUI 开发路线](docs/roadmap.md)。
 
 ## 快速开始
 
@@ -93,7 +93,7 @@ blx completion powershell | Out-String | Invoke-Expression
 | 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
 | shell 补全与指令纠错 | [终端体验](docs/completion.md) |
 | 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
-| 1.7.8 待开发：下载交互、任务控制、测试验收与部署发布 | [待开发指南](docs/gui-update-guide-1.7.8.md) |
+| 1.7.8：下载交互、任务控制、测试验收与部署发布 | [开发指南](docs/gui-update-guide-1.7.8.md) · [候选验收记录](docs/validation-1.7.8.md) |
 | 1.7.4 列表布局、自动解析与托盘设计 | [更新指南](docs/gui-update-guide-1.7.4.md) |
 | 1.7.3 GUI 简洁布局、交互与开发验收 | [更新指南](docs/gui-update-guide-1.7.3.md) |
 | 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |
