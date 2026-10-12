@@ -859,6 +859,7 @@ class FeatureActions:
             elif root:
                 owner = event["metadata"].get("owner") or "作者未知"
                 root.setText(0, root.text(0) + " · " + owner)
+                root.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_MediaPlay))
             self._update_capabilities()
         elif event["type"] == "preview":
             conflict = event["conflict"]

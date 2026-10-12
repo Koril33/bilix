@@ -19,6 +19,8 @@ INTERFACE_KEYS = (
     "geometry",
     "column1",
     "column2",
+    "defaultQuality",
+    "defaultCodec",
 )
 
 

@@ -164,3 +164,12 @@ def test_queue_statistics_do_not_include_old_history_or_filter(qtbot, video_info
     assert window.total_progress.format() == before
     window._cancel_all()
     qtbot.waitUntil(lambda: window._thread is None and not window.session.pending)
+
+
+def test_reset_interface_clears_explicit_media_defaults(qtbot, video_info):
+    window = parsed(qtbot, video_info)
+    window.default_quality_combo.setCurrentIndex(window.default_quality_combo.findData(80))
+    assert window._save_settings()
+    window._restore_interface_defaults()
+    assert window.default_quality_combo.currentData() is None
+    assert window._prefs.value("defaultQuality") is None
