@@ -24,6 +24,19 @@ vagrant ssh debian12 -c "setsid -f env DISPLAY=:0 XAUTHORITY=/home/vagrant/.Xaut
 
 `desktop-setup.sh` 只在本项目测试 VM 中安装 XFCE/LightDM、中文字体和 X11 操作工具，设置测试用户 `vagrant` 自动登录。维护者可打开该 VM 的 VirtualBox 窗口，或用 `VBoxManage controlvm bilix-validation-debian12 screenshotpng <截图路径>` 获取虚拟显示截图，确认主窗口、中文输入、文件选择器和二维码状态。截图与日志应保存在忽略的 `dist/gui/validation/<目标>/`，标出实际操作内容。服务器型 box 加装 XFCE 的这一步需要较多下载与磁盘空间。
 
+**专用验收 VM 登录说明：** 本项目 `ubuntu2204` 构建/桌面验收机在 2026-10-12 已核对桌面用户名、默认测试密码均为 `vagrant`；这只是本地隔离 Vagrant box 的公开默认测试凭据，不用于生产服务器。自动登录不等于屏幕不会锁定；认证页由维护者手动登录，测试代理不自动填写。更换 box/账号或修改密码后须重新核对，并把非默认凭据放入忽略的本地私密文件，不写入本文。SSH 仍用 `vagrant ssh <目标>` 与该 VM 的专用密钥；不能把默认密码或服务器管理员凭据混用于官网部署。官网常规部署统一使用 bilix，见 [发布流程](releasing.md)。
+
+### 完整 Wayland 桌面验收
+
+`tests/vm/full-wayland-acceptance.py` 必须在已经登录且可见的 GNOME 或 KDE Wayland 会话中，以专用测试用户运行。先准备该桌面、最终 deb 和 `/home/vagrant/bilix-work/.venv` 的离线 GUI 运行环境；它不会自动安装桌面或填写认证页。它检查冻结程序自检及实际 Wayland 窗口配置，再用生产源码窗口验证主题、范围、设置、详情与目录选择。Qt 组件动作不等同于物理输入法测试，系统原生目录选择器可能需要维护者操作。
+
+```powershell
+vagrant ssh ubuntu2204 -c '/home/vagrant/bilix-work/.venv/bin/python /bilix-host/tests/vm/full-wayland-acceptance.py --desktop GNOME'
+vagrant ssh ubuntu2204 -c '/home/vagrant/bilix-work/.venv/bin/python /bilix-host/tests/vm/full-wayland-acceptance.py --desktop KDE'
+```
+
+分别进入对应桌面后执行，结果位于忽略的 `build/validation/native/`。1.7.8 的 Ubuntu 22.04 VM 使用 GNOME/Mutter 42.9 与 Plasma/KWin 5.24.7；实际 1280×800、100% 缩放。此环境需要 VMSVGA 和启用 3D，原 VBoxVGA 设置会造成 GNOME 黑屏。`vagrant up/reload` 会重新应用 Vagrantfile 的显卡配置，维护者须核对实际配置，不能以无头 Weston 结果代替完整桌面。临时延长的锁屏时间、显示管理器及测试管理员凭据在验收后恢复。GUI 更新授权须从实际桌面启动；SSH 会话缺少对应授权代理时应失败并保留安装包，不能用 sudo 安装替代此项验收。
+
 ## 可重复运行
 
 在仓库根目录用 PowerShell 执行：

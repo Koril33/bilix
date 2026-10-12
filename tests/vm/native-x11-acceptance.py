@@ -284,7 +284,8 @@ def exercise(control: Controller, ready: dict) -> dict:
     report["ime_commit"] = commit
     control.key("Tab")
     forward = control.snapshot("tab-forward")
-    assert forward["snapshot"]["focus"] == "QLineEdit", forward
+    assert forward["snapshot"]["focus"] == "QPushButton", forward
+    assert forward["snapshot"]["focus_text"] == "重新识别", forward
     control.key("shift+Tab")
     backward = control.snapshot("tab-backward")
     assert backward["snapshot"]["focus"] == "UrlInput", backward
@@ -329,6 +330,31 @@ def exercise(control: Controller, ready: dict) -> dict:
         clipboard.wait(timeout=5)
 
     available_width, available_height = ready["available"]
+    control.command("fixture")
+    control.command("focus_range")
+    control.key("ctrl+a")
+    run("xdotool", "type", "--clearmodifiers", "--delay", "120", "1-2")
+    time.sleep(0.4)
+    range_valid = control.snapshot("range-valid")
+    assert range_valid["snapshot"]["selected_pages"] == [1, 2], range_valid
+    assert not range_valid["snapshot"]["range_error"], range_valid
+    control.key("ctrl+a")
+    run("xdotool", "type", "--clearmodifiers", "--delay", "120", "zhongwen")
+    time.sleep(0.4)
+    range_composition = control.snapshot("range-ime-composition")
+    assert range_composition["snapshot"]["range_composing"], range_composition
+    assert range_composition["snapshot"]["selected_pages"] == [1, 2], range_composition
+    control.key("space")
+    time.sleep(0.4)
+    range_invalid = control.snapshot("range-ime-invalid-commit")
+    assert range_invalid["snapshot"]["range_error"], range_invalid
+    assert range_invalid["snapshot"]["selected_pages"] == [1, 2], range_invalid
+    report.update(
+        range_valid=range_valid, range_composition=range_composition, range_invalid=range_invalid
+    )
+    control.key("ctrl+a")
+    run("xdotool", "type", "--clearmodifiers", "--delay", "120", "1-2")
+    time.sleep(0.4)
     small_width = min(760, available_width - 16)
     small_height = min(590, available_height - 48)
     control.command("resize", width=small_width, height=small_height, advanced=False)
@@ -403,11 +429,12 @@ def exercise(control: Controller, ready: dict) -> dict:
     assert active["snapshot"]["visible_rows"] == 1000
     finish = control.mark("finish-queue", control.command("finish_queue"))
     assert finish["snapshot"]["task_states"] == {"failed": 1000}, finish
-    assert finish["snapshot"]["visible_rows"] == 0, finish
+    settled_finish = control.snapshot("finish-queue-settled")
+    assert settled_finish["snapshot"]["visible_rows"] == 0, settled_finish
     terminal = control.mark("filter-terminal", control.command("filter", state="failed"))
     assert terminal["snapshot"]["visible_rows"] == terminal["snapshot"]["rows"] == 1000
     control.command("focus_table")
-    control.key("ctrl+Home", "ctrl+End")
+    control.key("ctrl+Home", "Right", "ctrl+End")
     terminal_visible = control.snapshot("terminal-last-task")
     assert terminal_visible["snapshot"]["selected_row"] == 999
     assert terminal_visible["snapshot"]["last_task_visible"], terminal_visible

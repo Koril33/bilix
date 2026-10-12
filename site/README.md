@@ -24,7 +24,14 @@ python -m http.server 8765 --bind 127.0.0.1 --directory site
 - 更新补全章节的最低支持版本。版本提示只显示已正式发布的最新版，不将开发版本标为已发布。
 - CLI/GUI 功能和支持范围对照[1.7.1 验收记录](../docs/validation-1.7.1.md)，候选验收/发布状态分别确认；待实现功能保持在[版本规划](../docs/roadmap.md)。仓库文件、GitHub/PyPI 发行与线上网站部署分别记录。
 
-只需将该 HTML 复制到现有网站的 `project/bilix.html` 并通过网站原有流程发布。仓库不自动部署线上页面。
+当前官网将本文件部署为 `/var/www/bilix.djhx.site/index.html`，仓库不自动部署线上页面。自 2026-10-12 起，页面与安装包、签名更新、APT 统一由 `bilix@djhx.site` 部署；站点根目录和首页已授权给 bilix，日常发布不使用 koril/sudo。完成验收与资源链接核对后，在仓库根目录执行：
+
+```powershell
+python scripts/deploy_site.py --check --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
+python scripts/deploy_site.py --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
+```
+
+脚本核对上传哈希、备份旧首页并原子替换；部署后仍须 HTTPS 回读核对页面与下载链接。管理员仅处理 Nginx、TLS、系统服务或项目权限恢复，详见 [发布流程](../docs/releasing.md#标签镜像与页面)。
 
 页面检查属于[持续测试](../docs/testing.md)的 T0；统一脚本仅检查本地 Markdown 文件链接，不能替代上述页面和远程链接检查。
 

@@ -148,6 +148,8 @@ uv run --locked --extra gui python scripts/publish_update.py `
 
 该工具上传到 `bilix@djhx.site` 的临时目录，服务器校验后移动到 `/releases/vX.Y.Z/`，拒绝覆盖已存在版本，最后更新 `/updates/stable.json[.sig]` 和公开密钥。上传锁防止同时发布；失败的 `.staging-*` 留待维护者核查，工具不递归删除公开版本。两份 stable 文件无法作为一个普通文件原子切换，短暂不同步必须靠验签失败/稍后重试处理，不能跳过签名。
 
+服务器后续常规部署均使用此 bilix 账号，包含下述 APT 发布以及官网首页。2026-10-12 已将站点根目录和首页授权为 bilix 所有，页面用 `scripts/deploy_site.py` 核对哈希、备份并原子替换；无需 koril 或 sudo 密码。专用 SSH 密钥不进入源码/发行材料。管理员只处理服务器配置和权限恢复，当前权限说明见 [部署账号说明](application-update-plan.md#113-当前统一部署账号与官网权限2026-10-12)。
+
 4. 第一次上线由管理员把 [locations 配置](../scripts/server/bilix-update-locations.conf) 加入现有 HTTPS server，再执行 `nginx -t` 和平滑 reload。资源路径缺失必须 404，不能落到官网 HTML 200；JSON 使用 no-cache，版本文件 immutable。不要上传私钥或把发布账户加到 sudo。
 5. 验证服务器所有产物、JSON/签名 HTTPS 地址和 GitHub 草稿资产，发布 GitHub latest。两端切换窗口允许验签失败后重试，整个版本文件齐备前不要让任一渠道入口引用它。首次正式上线期间还须核对 GitHub 实际 CDN 与 TLS 在打包运行时可用。
 

@@ -78,6 +78,17 @@ README作为Python包的长说明进入METADATA/PKG-INFO，最终文档冻结后
 
 项目页面唯一源码为 `site/bilix.html`。完成 [页面验证](../site/README.md) 后复制到现有网站；它不会随包上传或 Git 推送自动部署。正式发布后同步 README、CHANGELOG 和页面的未发布提示，保留 FFmpeg 与许可链接。
 
+自 2026-10-12 起，服务器端常规部署统一使用 **`bilix@djhx.site`** 和维护者本机的 `.ssh/bilix-release-ed25519`：发行文件、签名更新、APT 仓库、官网首页均包含在内。站点根目录和首页已由管理员一次性授权为 `bilix:bilix`（0755 / 0644）；bilix 无 sudo 权限，后续发布无需 koril 密码。Nginx/TLS/服务配置维护另由管理员处理。当前账号权限和恢复范围见 [部署账号说明](application-update-plan.md#113-当前统一部署账号与官网权限2026-10-12)。
+
+官网在验收及链接核对完成后独立原子部署；脚本校验上传/部署哈希并保留旧页面，失败的 staging 保留供核查：
+
+```powershell
+python scripts/deploy_site.py --check --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
+python scripts/deploy_site.py --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
+```
+
+部署后通过 HTTPS 回读页面核对本地 SHA256，复核版本化下载链接和 APT 说明；仅 SSH 命令成功不能证明公网页面已更新。
+
 ## 发布记录
 
 本地记录保存于忽略的 `build`，公开发行说明只包含脱敏结果。实际未运行的系统、解释器、下载权限或二进制测试不得标为通过。当前资料缺口、尚未撤销的凭据或失败检查应阻止正式发布，而不是从记录中省略。

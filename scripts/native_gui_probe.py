@@ -65,6 +65,11 @@ def main() -> int:
     (args.output / "下载 中文 空格").mkdir()
     os.environ["BILIX_CONFIG_DIR"] = str(args.output / "profile")
     os.environ["BILIX_DOWNLOAD_DIR"] = str(args.output / "下载 中文 空格")
+    profile = args.output / "profile"
+    profile.mkdir(parents=True, exist_ok=True)
+    (profile / "gui.ini").write_text(
+        "[v1]\nautomaticUpdates=false\nminimizeToTray=false\n", encoding="utf-8"
+    )
     from PySide6.QtCore import QEvent, QObject, Qt, QTimer
     from PySide6.QtGui import QTextLayout
     from PySide6.QtWidgets import QApplication
@@ -77,6 +82,7 @@ def main() -> int:
     if backend in {"offscreen", "minimal", "vnc"}:
         raise RuntimeError(f"Native desktop required; got {backend}")
     window = MainWindow()
+    window.closed.connect(application.quit)
     try:
         import psutil
     except ImportError:
@@ -119,6 +125,9 @@ def main() -> int:
         temporary.replace(args.output / "result.json")
 
     def snapshot() -> dict:
+        from PySide6.QtGui import QPalette
+        from PySide6.QtWidgets import QScrollArea
+
         screen = window.screen()
         focus = application.focusWidget()
         table = window.jobs_view
@@ -185,6 +194,36 @@ def main() -> int:
             key_events=record["key_events"],
             ime_commits=record["ime_commits"],
             ime_preedits=record["ime_preedits"],
+            contrast_preference=application._bilix_accessibility.contrastPreference().name,
+            color_scheme=application._bilix_style_hints.colorScheme().name,
+            palette={
+                role.name: window.palette().color(role).name()
+                for role in (
+                    QPalette.ColorRole.Text,
+                    QPalette.ColorRole.Base,
+                    QPalette.ColorRole.PlaceholderText,
+                    QPalette.ColorRole.Highlight,
+                    QPalette.ColorRole.HighlightedText,
+                )
+            },
+            draft_visible=window._draft_dialog.isVisible(),
+            draft_size=[window._draft_dialog.width(), window._draft_dialog.height()],
+            draft_horizontal_scroll=[
+                area.horizontalScrollBar().maximum()
+                for area in window._draft_dialog.findChildren(QScrollArea)
+            ],
+            range_text=window.part_range_edit.text(),
+            range_composing=window.part_range_edit.composing,
+            range_error=window.range_error.text(),
+            selected_pages=[
+                i + 1
+                for root in (
+                    window.metadata_tree.topLevelItem(i)
+                    for i in range(window.metadata_tree.topLevelItemCount())
+                )
+                for i in range(root.childCount())
+                if root.child(i).checkState(0) == Qt.CheckState.Checked
+            ],
         )
 
     class Events(QObject):
@@ -229,12 +268,42 @@ def main() -> int:
         try:
             action = request["action"]
             if action == "focus_url":
-                window.urls_edit.setFocus(Qt.FocusReason.OtherFocusReason)
+                window._open_draft(read_clipboard=False)
             elif action == "resize":
                 window.resize(int(request["width"]), int(request["height"]))
-                window._options_dialog.setVisible(bool(request.get("advanced", False)))
+                window.advanced_toggle.setChecked(bool(request.get("advanced", False)))
             elif action == "directory":
                 QTimer.singleShot(0, window._choose_output)
+            elif action == "fixture":
+                from PySide6.QtWidgets import QTreeWidgetItem
+
+                from djhx_bilix.models import Page, Stream, VideoInfo
+
+                # Explicit local metadata keeps the enabled-action layout check offline.
+                url = "https://www.bilibili.com/video/BV1j4411W7F7"
+                info = VideoInfo(
+                    url,
+                    "原生界面合成来源（不下载）",
+                    "BV1j4411W7F7",
+                    "100",
+                    4,
+                    tuple(Page(i, f"合成选集 {i}", f"{url}?p={i}", 4, str(i)) for i in range(1, 4)),
+                    (Stream(32, 7, 200, ("https://cdn.example/video",)),),
+                    (Stream(30280, 0, 192000, ("https://cdn.example/audio",)),),
+                )
+                window.urls_edit.setPlainText(url)
+                window._parse_timer.stop()
+                window._pending_parse = False
+                window._info_generation = window._input_generation
+                window._parse_total = 1
+                window.metadata_tree.addTopLevelItem(QTreeWidgetItem([url, ""]))
+                window._on_event(dict(type="info", index=0, metadata=info.public_dict()))
+                window._parse_complete = True
+                window._update_draft_actions()
+            elif action == "focus_range":
+                window._draft_dialog.raise_()
+                window._draft_dialog.activateWindow()
+                window.part_range_edit.setFocus(Qt.FocusReason.OtherFocusReason)
             elif action == "queue":
                 from djhx_bilix.models import VideoTarget
                 from djhx_bilix.tasks import DownloadOptions, JobSpec
@@ -278,6 +347,9 @@ def main() -> int:
                     raise ValueError("Unknown task filter: " + str(request["state"]))
                 window.filter_combo.setCurrentIndex(index)
             elif action == "focus_table":
+                window._draft_dialog.hide()
+                window.raise_()
+                window.activateWindow()
                 window.jobs_view.setFocus(Qt.FocusReason.OtherFocusReason)
             elif action == "settings_dpi":
                 os.startfile("ms-settings:display")
