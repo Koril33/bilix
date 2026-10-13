@@ -1,5 +1,7 @@
 # PySide6 桌面版的发行、安装与升级调研
 
+> 历史设计/评审：保留当版基线、建议和决策。当前行为见 [使用文档](README.md#当前使用与开发)，未完成功能见 [backlog.md](backlog.md)，缺陷与流程问题见 [workflow-issues.md](workflow-issues.md)。构建、测试与发布从 [handoff.md](handoff.md) 进入，不直接执行下方旧版命令。
+
 2026-10-11 补充：维护者已确认更新功能方案并批准代码实施，见[《更新方案》](application-update-plan.md)与[开发指南](application-update-development.md)。新方案采用固定域名 `https://bilix.djhx.site`，应用直接下载改为 GitHub 优先、自有服务器备用，并细化渠道元数据、签名、Windows 两种包和 APT 源。本文保留历史调研，其中“服务器主源、GitHub 镜像”的建议不再作为新更新功能的源优先级；历史“尚未实现”的描述不代表当前开发状态。
 
 调研日期：2026-10-03。范围：Windows、Ubuntu/Debian；macOS 留待后续。本文保留方案形成时的调研与后续升级建议。源码实现和实际验证状态以 [GUI 构建与发行](gui-build-and-release.md) 为准；调研中的“建议”不代表已有产物或已完成安装、升级实测。

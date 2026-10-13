@@ -10,11 +10,9 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-**1.7.8** 加入运行中追加队列、单任务取消/暂停恢复、1–4 项并发、实际画质能力提示、范围联动、结构化预览与分组设置；命名模板和代理由 GUI/CLI 共用。1.7.6 的签名自动更新及 APT 源继续可用，相关说明见[图形版使用说明](docs/gui-usage.md)和[安装与更新](docs/gui-updating.md)。
+当前版本为 **1.7.9**，修复 Windows 绿色版更新后未替换或重启的问题；旧绿色版需[一次手动迁移](docs/portable-update-fix.md#用户迁移)。运行中追加队列、会话内暂停续传、1–4 项并发、画质提示、命名模板和代理继续保留。发行与验收状态见[本版记录](docs/validation-1.7.9.md)，后续功能见[待办清单](docs/backlog.md)。
 
-图形版自 1.6.0 起提供 Windows 10 x64 单文件绿色版、安装版，以及 Ubuntu 22.04/24.04、Debian 12/13 amd64 的 `.deb`。GUI 与 CLI 共用任务内核，支持会话历史、精确快照重试、逐来源选集、冲突预览及配置来源。1.7.1 的真实 IME、DPI 和原生性能证据独立记录，旧版结论见 [1.7.0 验收记录](docs/validation-1.7.0.md)，历史首版文件保留在 [v1.6.0 发行页](https://github.com/Koril33/bilix/releases/tag/v1.6.0)。
-
-Python 包要求 3.11 或更新版本。Windows GUI/CLI 独立程序和 Linux deb 无需安装 Python/Qt；Windows 包内置 FFmpeg，deb 自动安装系统 FFmpeg 依赖。macOS 暂提供 CLI Python 包，GUI 支持后续加入。
+Python 包要求 3.11 或更新版本。Windows GUI/CLI 独立程序和 Linux deb 无需 Python/Qt；Windows 包内置 FFmpeg，deb 安装系统 FFmpeg 依赖。原生 GUI 面向 Windows 10 x64 与 Ubuntu 22.04/24.04、Debian 12/13 amd64；macOS 当前提供 CLI Python 包。每版真实验证范围见 [文档索引](docs/README.md#版本验收)。
 
 ## 安装
 
@@ -32,7 +30,8 @@ Windows 从 [GitHub Releases](https://github.com/Koril33/bilix/releases) 下载�
 Ubuntu/Debian GUI 安装下载的 deb：
 
 ```shell
-sudo apt install ./djhx-bilix-gui_1.7.8-1_amd64.deb
+# 将 VERSION 换为发行页所选版本，文件名以下载结果为准。
+sudo apt install ./djhx-bilix-gui_VERSION-1_amd64.deb
 bilix-gui
 ```
 
@@ -49,7 +48,7 @@ GUI 与 CLI 共用下载内核、账号和配置。功能流程见[图形版使�
 
 自动更新从 1.7.6 GUI 发行版开始支持，旧版请手动安装新版；不受支持的系统不提供更新兼容。CLI 和 pip/源码环境使用原安装方式升级。
 
-首版的完成情况、最终产物和当时未验证的范围见 [1.6.0 验收记录](docs/validation-1.6.0.md)。桌面与性能基线见 [1.7.1 验收记录](docs/validation-1.7.1.md)。1.7.2 统一图标，1.7.3 改善交互与布局，1.7.7 补齐 GUI 偏好、主题及共享传输反馈；1.7.8 已实现运行中追加、单项取消与本次会话暂停续传；公开 JSONL、跨重启历史等继续独立排期，见 [CLI/GUI 开发路线](docs/roadmap.md)。
+历史设计、各版验收和未测范围保留在 [文档索引](docs/README.md)。GUI 会话内续传不跨重启；公开 JSONL 和持久历史仍待开发。
 
 ## 快速开始
 
@@ -87,54 +86,39 @@ blx completion powershell | Out-String | Invoke-Expression
 
 ## 文档
 
-| 内容 | 文档 |
-| --- | --- |
-| 命令、下载参数、配置与退出码 | [使用说明](docs/usage.md) |
-| 扫码登录、账号权限与排错 | [账号说明](docs/accounts.md) |
-| shell 补全与指令纠错 | [终端体验](docs/completion.md) |
-| 1.7.x 范围、任务契约、开发顺序与验收 | [开发指南](docs/cli-gui-ux-review.md) |
-| 1.7.8：下载交互、任务控制、测试验收与部署发布 | [开发指南](docs/gui-update-guide-1.7.8.md) · [候选验收记录](docs/validation-1.7.8.md) |
-| 1.7.4 列表布局、自动解析与托盘设计 | [更新指南](docs/gui-update-guide-1.7.4.md) |
-| 1.7.3 GUI 简洁布局、交互与开发验收 | [更新指南](docs/gui-update-guide-1.7.3.md) |
-| 1.7 指南的原型与实测范围 | [设计验证](docs/validation-1.7-design.md) |
-| 模块职责与下载事务 | [架构说明](docs/architecture.md) |
-| 图形版安装、下载与操作 | [GUI 使用说明](docs/gui-usage.md) |
-| GUI 技术与版本选择 | [GUI 技术评估](docs/gui-technology-evaluation.md) |
-| Windows/Linux 发行方式与升级方案 | [GUI 发行调研](docs/gui-distribution-and-updates.md) |
-| 应用更新已确认方案、双源与 APT 源 | [更新方案](docs/application-update-plan.md) |
-| 更新器实现、签名与首次上线步骤 | [更新开发指南](docs/application-update-development.md) |
-| GUI 本地构建和打包 | [GUI 构建与发行](docs/gui-build-and-release.md) |
-| Ubuntu/Debian 虚拟机验收 | [Linux 测试矩阵](docs/gui-vm-validation.md) |
-| Windows 10 虚拟机验收 | [Windows 测试流程](docs/gui-win10-validation.md) |
-| 本地开发、测试与构建 | [构建说明](docs/build.md) |
-| 持续测试、用例与验收门槛 | [测试规范](docs/testing.md) |
-| 每版验收记录格式 | [验收模板](docs/validation-template.md) |
-| 1.7.1 候选的完成情况与测试范围 | [1.7.1 验收记录](docs/validation-1.7.1.md) |
-| 首个 GUI 版本的最终完成情况 | [1.6.0 复核](docs/validation-1.6.0.md) |
-| 功能范围索引与后续方向 | [版本规划](docs/roadmap.md) |
-| 版本、产物、校验与发布 | [发布说明](docs/releasing.md) |
-| 旧版本与兼容入口 | [迁移说明](docs/releases.md) |
-| 贡献代码或报告问题 | [贡献指南](CONTRIBUTING.md) |
-| 安全报告与凭据保护 | [安全政策](SECURITY.md) |
-| 依赖与 FFmpeg 分发材料 | [第三方声明](THIRD_PARTY_NOTICES.md) |
+所有文档从 [docs/README.md](docs/README.md) 进入。没有会话上下文的开发人员或 AI 先读 [开发交接](docs/handoff.md)，再按任务选择入口。
 
-项目页面源码为 [site/bilix.html](site/bilix.html)，CSS、背景图与脚本内嵌，无需构建；版本查询失败时仍保留发行页链接。官网使用 `https://bilix.djhx.site/`，对应服务器文件 `/var/www/bilix.djhx.site/index.html`；见 [页面维护说明](site/README.md)。
+| 任务 | 文档 |
+| --- | --- |
+| CLI、登录与补全 | [使用](docs/usage.md) · [账号](docs/accounts.md) · [补全](docs/completion.md) |
+| GUI 使用、安装与更新 | [GUI 使用](docs/gui-usage.md) · [安装/更新/APT](docs/gui-updating.md) |
+| 共享内核与模块职责 | [架构](docs/architecture.md) |
+| 从源码开发与构建 | [开发/CLI](docs/build.md) · [GUI 原生包](docs/gui-build-and-release.md) |
+| 统一回归、原生平台与结果规则 | [测试](docs/testing.md) |
+| 最终产物、签名、发布与部署 | [维护者流程](docs/releasing.md) |
+| 已发布范围、未实现功能、当前缺陷 | [版本范围](docs/roadmap.md) · [backlog](docs/backlog.md) · [workflow issues](docs/workflow-issues.md) |
+| 当版证据、历史设计/研究 | [完整索引](docs/README.md) |
+| 贡献、安全与第三方材料 | [贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [许可材料](THIRD_PARTY_NOTICES.md) |
+
+官网源码为 [site/bilix.html](site/bilix.html)，样式、图像与脚本内嵌，无需构建；页面维护与浏览器检查见 [site/README.md](site/README.md)。官网、安装包、签名更新和 APT 的服务器部署统一使用 `bilix@djhx.site` 与现有专用 SSH 密钥，精确顺序见 [发布流程](docs/releasing.md)。
 
 ## 开发
 
-```shell
+CLI 日常验证：
+
+```powershell
 uv sync --locked
-uv run blx --help
-uv run ruff check src tests scripts
-uv run ruff format --check src tests scripts
-uv run pytest -q
+uv run --locked python scripts/validate.py --profile cli
 ```
 
-GUI 测试需要 `uv sync --locked --extra gui --group gui-test`；无桌面的环境可设置 `QT_QPA_PLATFORM=offscreen`。GUI 发行文件依目标平台分别构建，不把 Windows 编译结果当作 Linux 验证。
+GUI 或共享内核：
 
-统一检查入口为 `uv run --locked python scripts/validate.py --profile cli`；GUI 环境使用 `uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui`。每轮生成独立日志与 JSON/XML 结果，缺少 GUI 测试依赖会失败；完整平台及发布验收按[测试规范](docs/testing.md)执行。
+```powershell
+uv sync --locked --extra gui --group gui-test
+uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui
+```
 
-唯一业务实现位于 `src/djhx_bilix`。项目使用本地检查与手动发布，不运行 GitHub/Gitea Actions。发布前须完成 [发布说明](docs/releasing.md) 中的凭据、源码与产物检查。
+统一入口生成独立日志与 JSON/XML，核对版本身份，GUI 依赖缺失直接失败。完整 FFmpeg、skip 处理、原生桌面与发布检查见 [testing.md](docs/testing.md)。项目使用本地检查与手动发布，不运行 GitHub/Gitea Actions；推送代码或标签不会自动部署。
 
 ## 许可与使用边界
 

@@ -1,5 +1,7 @@
 # GUI 易用性建议实施评估
 
+> 历史设计/评审：保留当版基线、建议和决策。当前行为见 [使用文档](README.md#当前使用与开发)，未完成功能见 [backlog.md](backlog.md)，缺陷与流程问题见 [workflow-issues.md](workflow-issues.md)。构建、测试与发布从 [handoff.md](handoff.md) 进入，不直接执行下方旧版命令。
+
 评估日期：2026-10-10。对象：[gui-usability-review.md](gui-usability-review.md)，对照当前 1.7.2 源码。
 
 ## 结论

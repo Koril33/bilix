@@ -26,7 +26,7 @@ blx download BV1pB4y1o7TF -q 1080p --audio flac --strict
 
 默认音频为最高码率 AAC。`--audio flac` 选择 FLAC 无损音轨，`--audio dolby` 选择 Dolby 音轨，`--audio best` 按 FLAC、Dolby、AAC 的顺序选择。显式选择的视频/账号没有该音轨时直接失败；可先用 `info` 查看可获取的音轨。保留原始编码，不转码；非 AAC 音轨会在文件名中标明，播放器需要支持对应格式。杜比视界合并会保留其配置元数据。
 
-页面列出的清晰度可能需要登录或会员，实际下载取决于账号权限与视频提供的流；无登录时一般可获取 360P/480P，普通账号通常可获取 720P/1080P。不同视频的清晰度、编码和音轨权限可能不同，先用 `info` 检查。普通账号的完整流程、影视权限和排错见 [账号使用说明](https://github.com/Koril33/bilix/blob/main/docs/accounts.md)。本工具不会绕过权限。
+页面列出的画质不一定可下载，实际流取决于当前账号与视频权限，先用 `info` 检查。登录、会员与单独购买的权限范围见 [accounts.md](accounts.md)；本工具不绕过权限。
 
 多 P 默认下载全部集数，链接含 `?p=2` 时默认只下载 P2。`--page` 会覆盖链接中的选集：
 
@@ -48,7 +48,7 @@ blx info --file videos.txt --json
 
 `--dry-run` 读取实际媒体流和完整输出计划，显示新建、跳过、替换或阻塞；不下载媒体、不调用 FFmpeg、不创建保存目录。重复输出路径会提示。预览只代表读取时刻，执行和提交时会再次检查。
 
-Ctrl+C（Windows 也支持 Ctrl+Break）会协作取消整个批次，等待当前请求/媒体处理停止并清理本次临时材料，已完成文件不回滚；退出码为 130。汇总分开列出来源读取失败和已发现的媒体任务，未读取来源的媒体数量标记为未知。GUI 会话历史与精确重试见[图形版说明](gui-usage.md)。当前没有暂停/续传、持久任务队列或机器可读的实时任务事件；后续范围见[版本规划](roadmap.md)，候选验收见[1.7.0 记录](validation-1.7.0.md)。
+Ctrl+C（Windows 也支持 Ctrl+Break）会协作取消整个批次，等待当前请求/媒体处理停止并清理本次临时材料，已完成文件不回滚；退出码为 130。汇总分开列出来源读取失败和已发现的媒体任务，未读取来源的媒体数量标记为未知。GUI 的追加队列、单项暂停/会话内续传与精确重试见 [图形版说明](gui-usage.md)。CLI 没有交互暂停按钮；跨重启队列/续传和公开 JSONL 实时事件尚未实现，见 [backlog.md](backlog.md)。
 
 ```shell
 blx download BV1j4411W7F7 --overwrite
@@ -64,9 +64,13 @@ blx download BV1j4411W7F7 --quiet
 ```toml
 download_dir = "D:/Videos/BiliX"
 ffmpeg = "C:/Tools/ffmpeg/bin/ffmpeg.exe"
+naming_template = "{title}"
+concurrency = 1
+# 可选本地代理；不要在公开示例写认证信息。
+proxy = "http://127.0.0.1:7890"
 ```
 
-`BILIX_CONFIG_DIR`、`BILIX_DOWNLOAD_DIR`、`BILIX_FFMPEG` 覆盖配置文件；命令行的 `--save` 和 `--ffmpeg` 优先。默认配置位置由 platformdirs 按当前系统的用户目录决定。
+`BILIX_CONFIG_DIR` 改变配置目录；`BILIX_DOWNLOAD_DIR`、`BILIX_FFMPEG`、`BILIX_PROXY` 覆盖对应文件值，命令行的 `--save` 和 `--ffmpeg` 优先。默认配置位置由 platformdirs 决定。`concurrency` 为 1–4，CLI/GUI 共用；命名模板允许 `{title}`、`{owner}`、`{part}`、`{page}`、`{bvid}`、`{cid}`、`{quality}`、`{codec}`，清理路径字符并保留身份后缀。代理支持 HTTP/HTTPS/SOCKS5/SOCKS5H，留空沿用环境代理。这些设置当前通过配置文件或 GUI 修改，没有同名 CLI 参数。
 
 | 退出码 | 含义 |
 | --- | --- |

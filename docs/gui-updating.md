@@ -10,6 +10,8 @@
 
 点击“更新”后，等待当前整批账号或下载操作完成，再备份配置、退出、安装并重新打开。等待期间可以取消等待。草稿和列表历史不会跨重启保留，已下载文件不受影响。
 
+1.7.9 修复了绿色版退出后未替换/重启的问题。旧 portable 客户端使用自身携带的协调器，下载新包不能修正旧逻辑；1.7.6–1.7.8 绿色版用户需要一次手动替换，步骤见[修复与迁移](portable-update-fix.md#用户迁移)。遇到点击后退出但未更新，保留事务诊断供本地排查。实际发行和验收状态见[版本记录](validation-1.7.9.md)。
+
 - **Windows 绿色版**：更新原 EXE，即使改名或位于中文/空格路径也适用。成功后上一版本保存在同目录、原文件名追加 `.previous.exe`；下一次更新成功前保留。目录不可写或其他实例占用时保留下载包，可手动替换。
 - **Windows 安装版**：使用原安装目录，显示 Inno 安装向导；取消或安装失败时保留诊断，安装成功而新版启动失败需按提示人工恢复。不自动重启操作系统。
 - **Linux deb**：弹出系统管理员授权窗口，授权后通过 APT 安装本次已验证的 deb，再以原普通用户启动 GUI。取消授权则保留包并重新打开旧版；无桌面授权代理时使用下述手动命令。GUI 不收集管理员密码，不以 root 运行。
@@ -23,7 +25,8 @@
 退出应用后，绿色版替换 EXE；安装版运行新版 Setup；Linux：
 
 ```bash
-sudo apt install ./djhx-bilix-gui_1.7.6-1_amd64.deb
+# 将 VERSION 换为发行页所选版本，文件名以下载结果为准。
+sudo apt install ./djhx-bilix-gui_VERSION-1_amd64.deb
 ```
 
 卸载和升级保留用户目录内配置及下载文件；手动恢复较旧 Windows 安装版可能要先卸载新版。
@@ -55,7 +58,8 @@ Components: main
 Architectures: amd64
 Signed-By: /etc/apt/keyrings/bilix-archive-keyring.asc
 EOF
-sudo apt update && sudo apt upgrade
+sudo apt update
+sudo apt install djhx-bilix-gui
 ```
 
 之后可以随系统软件一起更新，或只运行 `sudo apt install --only-upgrade djhx-bilix-gui`。GUI 不会自动添加源，也不会替用户升级整个系统。APT 源使用官网服务器，仍可随时下载 deb 本地安装。

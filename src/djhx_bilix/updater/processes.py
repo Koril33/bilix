@@ -28,17 +28,37 @@ def process_image(pid: int) -> Path | None:
         wintypes.LPWSTR,
         ctypes.POINTER(wintypes.DWORD),
     ]
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
-    handle = kernel.OpenProcess(0x1000, False, pid)
+    # An exited process can remain queryable while its launcher holds a handle.
+    # Synchronization state, rather than path lookup or exit code 259, tells us
+    # whether it is still running.
+    handle = kernel.OpenProcess(0x1000 | 0x100000, False, pid)
     if not handle:
         error = ctypes.get_last_error()
         if error == 5:
             raise UpdateError("无法查询相关进程，请关闭其他实例后手动更新")
-        return None
+        if error == 87:
+            return None
+        raise UpdateError("无法打开相关进程，不能确认应用是否退出")
+
+    def exited() -> bool:
+        status = kernel.WaitForSingleObject(handle, 0)
+        if status == 0:
+            return True
+        if status == 258:
+            return False
+        raise UpdateError("无法等待相关进程，不能确认应用是否退出")
+
     try:
+        if exited():
+            return None
         buffer = ctypes.create_unicode_buffer(32768)
         size = wintypes.DWORD(len(buffer))
         if not kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            if exited():
+                return None
             raise UpdateError("无法确认相关进程是否退出")
         return Path(buffer.value).resolve()
     finally:

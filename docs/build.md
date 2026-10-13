@@ -1,77 +1,72 @@
-# 本地开发、测试与构建
+# 从源码开发与构建
 
-项目不使用 GitHub/Gitea Actions。所有检查、构建与发行文件上传在本地进行；推送提交或标签不会自动执行它们。发布流程统一见 [releasing.md](releasing.md)。
+在仓库根目录执行本文命令。测试入口见 [testing.md](testing.md)，完整发行与部署顺序见 [releasing.md](releasing.md)。首次接手先读 [handoff.md](handoff.md)。项目不使用 GitHub/Gitea Actions；推送代码或标签不会构建、测试或发布。
 
-可持续执行的测试入口、分层用例、环境矩阵和结果判定见[测试规范](testing.md)；每版使用[验收模板](validation-template.md)，首版实际结果见[1.6.0 记录](validation-1.6.0.md)。本文的版本/工具链数值为 1.6.0 基线，后续修改依赖时同时更新锁文件与原生平台证据。
+## 前置条件
 
-## Python 开发环境
+| 用途 | 环境 |
+| --- | --- |
+| CLI 开发 | Git、uv、Python 3.11 或更新版本 |
+| GUI 开发 | 上述工具与 `gui` extra；离线测试另需 `gui-test` 组 |
+| Windows 冻结构建 | Windows x64、CPython 3.14.8、Visual Studio 2022 C++ 工具链；GUI 安装器另需 Inno Setup 7.1.0 |
+| Linux 冻结构建 | Ubuntu 22.04 amd64、CPython 3.14.8、编译器、dpkg-dev、binutils、FFmpeg 和 Qt/X11 运行库 |
+| 合成媒体测试 | 完整 FFmpeg：lavfi、libx264/libx265、ffprobe；用 `BILIX_TEST_FFMPEG` 指定测试编码器 |
 
-```shell
-uv sync --locked
-uv run blx --help
-uv run ruff check src tests scripts
-uv run ruff format --check src tests scripts
-uv run python -m pytest -q
-```
+`pyproject.toml` 定义支持范围与依赖，`uv.lock` 固定解析结果，`.python-version` 选定默认构建解释器。当前锁定 PySide6-Essentials/Qt 6.11.2、cryptography 50.0.2、Nuitka 4.2.2；CLI 环境不安装 Qt/cryptography。工具链升级须更新锁文件并重新验证受影响的原生产物。若 uv 找不到指定解释器，用已安装的 Python 完整路径传给 `--python`；Linux 可使用仓库内 [install-python3148.sh](../tests/vm/install-python3148.sh)。
 
-Python 3.11–3.14 为支持范围，最低版本在 `pyproject.toml` 中定义。`.python-version` 固定本地默认解释器为 3.14.8，不缩小发行包的支持范围；旧版 uv 的 Python 下载索引可能找不到该补丁版，本轮构建使用 uv 0.12.22。uv 锁文件涵盖运行、开发与构建依赖；Nuitka 只在 `build` 依赖组中。
-
-GUI 使用可选的 `gui` extra，固定 PySide6-Essentials 与 Qt 6.11.2；开发测试另安装 `gui-test` 组：
-
-```shell
-uv sync --locked --extra gui --group gui-test
-uv run --locked --extra gui --group gui-test python -m pytest tests/gui -q
-uv run --locked --extra gui bilix-gui --smoke-test
-```
-
-Linux 无显示器的自动测试可设置 `QT_QPA_PLATFORM=offscreen`；完整交互测试还需在真实 Windows、Ubuntu/Debian 桌面验证。GUI 的 Windows 绿色 EXE、安装器和 Linux deb 构建流程见 [GUI 构建与发行](gui-build-and-release.md)。
-
-统一离线验收：CLI 使用 `uv run --locked python scripts/validate.py --profile cli`；GUI 使用 `uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui`。结果按版本写入 `build/validation/`，缺少 GUI 测试依赖直接失败。发行时审查全部 skip；Windows 全能力环境可加 `--strict-skips`。
-
-受限环境可把缓存与临时目录放进项目内：
+## 获取源码并运行
 
 ```powershell
-$env:UV_CACHE_DIR = Join-Path $PWD 'build/uv-cache'
-uv run python -m pytest --basetemp build/pytest-local -q
+git clone https://github.com/Koril33/bilix.git
+cd bilix
+uv sync --locked
+uv run --locked blx --help
+uv run --locked python scripts/validate.py --profile cli
 ```
 
-请为每轮验证使用明确的临时目录。`pytest --basetemp` 会清理指定目录，不要指向含个人数据的目录。
+GUI：
 
-## 测试范围
-
-- URL、解析器、选集、编码/音轨与文件名使用纯逻辑或合成响应。
-- 下载故障使用本地 HTTP 服务，覆盖截断、503、备用 CDN 与有限重试。
-- 下载事务验证失败保护旧文件、保留临时材料及并发提交。
-- 账号与会员使用虚构凭据，覆盖普通/有效/过期会员、失效登录与试看/DRM 拒绝。
-- 媒体集成用完整 FFmpeg 合成 H.264、FLAC、E-AC-3 与杜比视界测试数据。
-- CLI 覆盖中文输出、legacy 编码、旧入口、退出码、相近指令和 shell 补全。
-- GUI 覆盖窗口状态、输入校验、任务队列、账号事件、取消与失败重试，并复用内核的下载事务测试。
-
-媒体生成需要完整 FFmpeg（含 lavfi、libx264/libx265、ffprobe），可用 `BILIX_TEST_FFMPEG` 指定；缺少能力时明确 skip。Windows 扫描/合并使用包内 FFmpeg，避免把系统版本的成功当作内置版本成功。实际网络/权限检查与日常回归分开，使用账号前须获得授权。
-
-新版本应在需要支持的系统与解释器中实际执行检查；不能用[历史验证记录](validation-1.4.0.md)替代新版本验证。图形版的 Windows 和 Linux 测试分别记录于[Windows 10 流程](gui-win10-validation.md)与[Linux VM 矩阵](gui-vm-validation.md)。
-
-## Python 发行包
-
-```shell
-uv build --out-dir dist/candidate
+```powershell
+uv sync --locked --extra gui --group gui-test
+uv run --locked --extra gui --group gui-test python scripts/validate.py --profile gui
+uv run --locked --extra gui bilix-gui
 ```
 
-Hatchling 从 `src/djhx_bilix/__init__.py` 读取版本。wheel 包括统一实现、Windows FFmpeg 与许可证声明；sdist 另外包含测试、脚本、文档、单文件页面与锁文件。`build`、个人凭据和旧根目录脚本不属于发行内容。
+统一验证脚本使用独立配置/下载/临时目录和 Qt offscreen，不读取日常登录凭据。交互 GUI 需要可见桌面；基础离线自检可单独运行 `uv run --locked --extra gui bilix-gui --smoke-test`。
 
-使用独立环境安装候选 wheel 验证，不覆盖日常工具安装。完整检查、版本号与上传方法见 [发布流程](releasing.md)。内置 FFmpeg 的源码、许可与构建记录见 [第三方声明](../THIRD_PARTY_NOTICES.md) 和 [重建步骤](../vendor/ffmpeg/README.md)。
+合成媒体可用外部完整 FFmpeg；被测扫描/合并仍使用项目实际 FFmpeg，skip 逐项审查。`pytest --basetemp` 会清理指定目录，仅使用本轮专用目录。
 
-## Windows exe
+## Python wheel 与源码包
 
-1.6.0 Windows CLI 发行构建使用 CPython 3.14.8 x64、Nuitka 4.2.2、Visual Studio 2022 MSVC 14.3；Python 包仍支持 3.11 及更新版本。CLI 在独立、未安装 Qt 的环境构建，编译报告需确认没有 PySide6、shiboken6 或 `djhx_bilix.gui`。
+先冻结候选版本、源码与文档，再运行：
 
-```shell
+```powershell
+$version = uv run --locked python -c "from djhx_bilix import __version__; print(__version__)"
+uv build --out-dir "dist/python-$version"
+```
+
+版本来自 [src/djhx_bilix/__init__.py](../src/djhx_bilix/__init__.py)。wheel 包含统一实现、Windows FFmpeg 与许可；sdist 还含测试、脚本、文档、页面和锁文件，排除 build/dist、凭据、VM 状态与缓存。候选 wheel 在隔离环境安装验证，见 [发布流程](releasing.md#2-python-包与最低版本验证)。
+
+## Windows CLI EXE
+
+CLI 在独立、未安装 GUI extra 的环境构建，防止将 Qt/更新器依赖带入 CLI 包：
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT = 'build/venv-cli-build'
 uv sync --python 3.14.8 --locked --group build
-uv run --group build python scripts/build_windows.py
+uv run --locked --group build python scripts/build_windows.py
+$version = uv run --locked python -c "from djhx_bilix import __version__; print(__version__)"
+uv run --locked --group build python scripts/package_windows.py `
+  build/windows/bilix.exe "dist/cli/bilix-$version-windows-x64.zip"
+Remove-Item Env:UV_PROJECT_ENVIRONMENT
 ```
 
-默认 onefile 输出 `build/windows/bilix.exe`；`--mode standalone` 输出目录产物，必须分发整个目录。脚本显式包含 Windows runtime DLL 与包内 FFmpeg，使用 `python -X utf8 -m nuitka`、`--python-flag=isolated`，禁用 LTO；缓存保存在 `build/nuitka-cache`。
+`build_windows.py` 默认 onefile 输出 `build/windows/bilix.exe`；`--mode standalone` 输出目录，必须分发整个目录。脚本包含 Windows runtime DLL 和仓库 FFmpeg，禁用 LTO，缓存位于 `build/nuitka-cache`。编译报告应无 PySide6、shiboken6、GUI 与 updater。
 
-构建后自动在中文/空格目录、最小 Windows PATH、非 UTF-8 环境设置和重定向输出下检查启动、帮助、版本、doctor、参数错误与补全脚本。构建日志、编译报告与 `smoke.json` 保存在输出目录。只有运行检查通过才报告成功；编译成功不等于可发布。
+构建后自动在中文/空格目录、最小 PATH、非 UTF-8 环境和重定向输出中检查启动、帮助、版本、doctor、参数错误与补全，日志、报告与 `smoke.json` 留在输出目录。打包脚本收集运行依赖许可、FFmpeg 对应源码和构建材料。源码与许可来源见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 和 [vendor/ffmpeg/README.md](../vendor/ffmpeg/README.md)。
 
-发行包须携带 `LICENSE`、`THIRD_PARTY_NOTICES.md`、校验文件及准确对应的 FFmpeg 源码/构建材料。更新 FFmpeg 时须同时更新对应源码与构建记录。
+## GUI 原生产物
+
+Windows 绿色版、安装版及 Linux deb 的命令、输出与平台要求见 [gui-build-and-release.md](gui-build-and-release.md)。各平台必须原生构建和验收；Windows 检查不能证明 Linux deb 可运行。
+
+完整发行使用 `dist/gui/` 的两平台清单、`dist/python-<版本>/` 和 `dist/cli/` 集合八项产物，按 [releasing.md](releasing.md) 签名、上传与公开回验。

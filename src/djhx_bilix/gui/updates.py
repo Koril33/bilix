@@ -173,8 +173,11 @@ class UpdateActions:
         else:
             self._prepared_update = None
             self.update_status.setText("已是最新版本" if self._update_manual else "")
-        if self._prepared_update is not None:
-            self._show_update_ready()
+        if (result.get("error") or result.get("canceled")) and self._prepared_update is not None:
+            # Keep a retry entry without hiding the failure behind the old ready state.
+            # handoff() revalidates cached bytes on every attempt.
+            self.update_button.setText("重试更新" if result.get("error") else "更新")
+            self.update_button.show()
 
     def _update_finished(self):
         self._update_thread = None

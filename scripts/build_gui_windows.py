@@ -153,12 +153,26 @@ def build(mode: str, root_output: Path) -> Path:
 
 
 def main() -> None:
+    global GUI_ENTRY
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("both", "onefile", "standalone"), default="both")
+    parser.add_argument(
+        "--test-portable-handoff",
+        action="store_true",
+        help="Build the offline GUI handoff test in a separate directory; never a release package",
+    )
     args = parser.parse_args()
+    if args.test_portable_handoff:
+        if args.mode == "standalone":
+            parser.error("The portable handoff test requires onefile mode")
+        GUI_ENTRY = ROOT / "tests/platform/windows/portable_handoff_entry.py"
     require_build_environment()
-    root_output = ROOT / "build" / "gui" / "windows"
-    modes = ("onefile", "standalone") if args.mode == "both" else (args.mode,)
+    if args.test_portable_handoff:
+        root_output = ROOT / "build/gui/windows-portable-handoff-test"
+        modes = ("onefile",)
+    else:
+        root_output = ROOT / "build" / "gui" / "windows"
+        modes = ("onefile", "standalone") if args.mode == "both" else (args.mode,)
     for mode in modes:
         print(f"Building GUI {mode}...", flush=True)
         executable = build(mode, root_output)

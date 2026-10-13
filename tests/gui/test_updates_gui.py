@@ -1,8 +1,53 @@
+from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
 
 from djhx_bilix.gui import updates
 from djhx_bilix.gui.app import MainWindow
+from djhx_bilix.updater.protocol import UpdateError
+
+
+def test_handoff_failure_keeps_error_visible_and_allows_verified_retry(qtbot, monkeypatch):
+    monkeypatch.setattr(updates, "distribution", lambda: None)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    prepared = SimpleNamespace(artifact=SimpleNamespace(version="1.8.0"))
+    window._prepared_update = prepared
+    window._update_identity = fake_identity()
+
+    def failed_handoff(*args):
+        raise UpdateError("其他实例尚未退出")
+
+    warnings = []
+    monkeypatch.setattr(window, "_error", warnings.append)
+    monkeypatch.setattr(updates, "handoff", failed_handoff)
+    window._apply_update()
+    qtbot.waitUntil(lambda: window._update_thread is None)
+    assert window.update_status.text() == "暂时无法更新"
+    assert "其他实例" in window.update_status.toolTip()
+    assert window._prepared_update is prepared
+    assert window.update_button.isVisible()
+    assert window.update_button.text() == "重试更新"
+    assert not window._update_install_pending
+    assert not window._exit_requested
+    assert len(warnings) == 1 and "其他实例" in warnings[0]
+
+
+def test_successful_handoff_closes_real_window_after_worker_despite_tray(qtbot, monkeypatch):
+    monkeypatch.setattr(updates, "distribution", lambda: None)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    window._tray_enabled = True
+    window._prepared_update = SimpleNamespace(artifact=SimpleNamespace(version="1.8.0"))
+    window._update_identity = fake_identity()
+    monkeypatch.setattr(updates, "handoff", lambda *args: Path("accepted-transaction"))
+    with qtbot.waitSignal(window.closed, timeout=5000):
+        window._apply_update()
+    assert not window.isVisible()
+    assert window._exit_requested
+    assert window._update_thread is None
 
 
 def fake_identity():

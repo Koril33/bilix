@@ -17,7 +17,10 @@
 | `media.py` | FFmpeg 定位、包扫描、时长校验及合并 |
 | `service.py` | 编排下载事务及原子提交 |
 | `operations.py` | 前端共用的协作取消和阶段事件 |
-| `tasks.py` | Qt 无关的来源/任务/尝试快照、会话与串行 runner、冲突预览、批次汇总 |
+| `tasks.py` | Qt 无关的来源/任务/尝试快照、会话与批次队列、1–4 项并发 runner、冲突预览、批次汇总 |
+| `feedback.py` | CLI/GUI 共用的传输采样、速度与当前媒体传输 ETA |
+| `network.py` | 代理配置校验与请求会话；区分账号 API 与无凭据媒体/封面/更新请求 |
+| `updater/`、`gui/updates.py` | GUI 独立发行身份、签名检查、缓存、退出与安装协调；CLI 不导入更新器 |
 | `assets/ffmpeg.exe` | Windows 内置的 FFmpeg |
 
 业务模型构造和模块导入没有网络请求，也不创建用户目录。`info` 和下载共用页面解析器。选集发现只获取初始页面，随后逐集获取和下载；当前选集已获取播放数据时会复用。单集失败会记录错误并继续处理后续选集，整批最终返回非零退出码。
@@ -42,17 +45,17 @@ UGC、旧 PGC SSR、新版 `playurlSSRData.data.result` 共用 `apply_playback`�
 
 该参数要求可在 [FFmpeg 的 MOV 封装器源码](https://github.com/FFmpeg/FFmpeg/blob/n7.1/libavformat/movenc.c#L2615-L2623) 中核对。
 
-默认跳过已存在文件时不检查历史文件的完整性。如果旧版本生成过坏文件，需要使用 `--overwrite` 重新下载。残留 `.bilix-*` 可以手动检查或删除；目前不实现自动续传，也不自动删除失败材料。
+默认跳过已存在文件时不检查历史文件的完整性。如果旧版本生成过坏文件，需要使用 `--overwrite` 重新下载。普通失败的残留 `.bilix-*` 可以手动检查或删除，不自动当作新任务的可续传输入。GUI 单项暂停仅在本次会话保留正在下载的临时内容；恢复使用 Range/If-Range，核对资源验证器、Content-Range 和长度后才拼接，服务器忽略 Range 时安全重下。跨重启续传尚未实现。
 
 ## GUI 的线程与取消边界
 
-Qt 主线程只更新界面。下载、信息查询、扫码登录、账号状态与 FFmpeg 诊断通过 `gui/worker.py` 在后台 QThread 执行，以信号传回结构化事件。每次操作只有一个活动 worker；批量项目串行，单项的音视频传输保持双线程并行。进度回调合并音视频字节数并限频发送，避免高频网络事件堵塞界面队列。
+Qt 主线程只更新界面。下载、信息查询、扫码登录、账号状态与 FFmpeg 诊断通过 `gui/worker.py` 在后台 QThread 执行，以信号传回结构化事件。媒体批次顺序调度，每批按快照并发执行 1–4 项；单项音视频传输保持双线程并行。草稿解析/预览和更新准备有独立 worker，可以在下载期间追加等待批次。进度回调按尝试 ID 合并且限频发送，避免高频事件堵塞界面队列。
 
-CLI 和 GUI 共用 `tasks.run_batch`：逐来源发现并执行当前选集，再读取下一来源。GUI worker 只适配 Qt signals，不维护另一套下载循环。独立 `run_preview` 共用 planner 和路径冲突检查；只读预测不进入 Session。来源读取失败与已发现任务失败分别汇总。
+CLI 和 GUI 共用 `tasks.run_batch`：逐来源发现，按批次并发数执行当前选集，再读取下一来源；相同输出路径用共享锁协调。GUI worker 适配 Qt signals，`Session` 管理活动/等待批次、请求和控制作用域。独立 `run_preview` 共用 planner 和路径冲突检查；只读预测不进入 Session。来源读取失败与已发现任务失败分别汇总。
 
 Session 保存来源、稳定 task/attempt/batch ID 和不可变参数/结果快照，退出后不持久化。重试附加新尝试，旧批汇总不改写；默认沿用最新失败尝试选项，重新获取媒体并校验 BV/CID/EP 身份。只有请求链接和安全结果留在会话，凭据、播放/签名 URL 不写入历史。Qt 消费尝试 ID 与递增序号，在主线程更新表格并拒绝过期/未知尝试事件。清理会话记录不删除文件。
 
-`operations.CancellationToken` 提供线程安全的协作取消；网页请求之间、媒体流读取、二维码轮询和 FFmpeg 扫描/合并阶段检查取消。FFmpeg 子进程收到取消后先终止，必要时强制结束，并等待退出。下载事务在最终提交前再次检查取消；显式取消时清理本次 `.bilix-*` 临时目录，不覆盖旧输出。普通下载或校验错误仍保留临时材料供排查。取消无法撤回已经原子提交完成的文件，也不会把先前已完成的批量项目改为失败。
+`operations.CancellationToken` 与 `TaskControl` 提供批次/单项作用域的协作取消和暂停；队列暂停阻止后续启动，单项暂停关闭媒体连接并保留会话内状态。网页请求之间、媒体流读取、二维码轮询和 FFmpeg 阶段检查取消。FFmpeg 子进程收到取消后先终止，必要时强制结束，并等待退出。下载事务在最终提交前再次检查取消；显式取消时清理本次 `.bilix-*` 临时目录，不覆盖旧输出。普通下载或校验错误仍保留临时材料供排查。取消无法撤回已原子提交的文件，不改变先前完成的任务。
 
 GUI 只展示 `BilixError` 的安全消息；来自第三方网络库的异常和未知异常不会直接写入任务表、日志或弹窗，以免暴露 Cookie 或签名媒体 URL。二维码通过事件传入界面内存，登录用临时 PNG 在完成或取消时删除；账号凭据与 CLI 共用同一用户配置目录。
 
@@ -70,10 +73,10 @@ GUI 只展示 `BilixError` 的安全消息；来自第三方网络库的异常�
 
 保留 `blx video ...`、`blx user --login/--logout/-i`，以及 exe/Python 入口直接传 URL、`-i`、`-o`、`--login`、`--logout`、`-u` 的常用写法。它们只将参数转入新 CLI，不保留第二套业务逻辑。
 
-旧版根目录 Python 模块、旧日志模块与旧自更新器已移除。`python main.py` 应改为 `uv run blx` 或 `python -m djhx_bilix`。exe 自更新不沿用删除/替换自身的旧脚本；通过发行页更新 exe，Python 安装通过 `uv tool upgrade djhx-bilix` 更新。
+旧版根目录 Python 模块、旧日志模块与旧自更新器已移除。`python main.py` 应改为 `uv run blx` 或 `python -m djhx_bilix`。Windows CLI EXE 通过发行页手动更新，Python 安装通过 `uv tool upgrade djhx-bilix` 更新。原生 GUI 自 1.7.6 使用独立签名更新器，安装/恢复契约见 [application-update-development.md](application-update-development.md)，当前缺陷见 [workflow-issues.md](workflow-issues.md)。
 
 未知命令交给 Typer 的相近指令提示；只有 URL/BV 输入和旧版参数会转入下载入口，避免拼错命令被当成下载地址。命令和选项的补全候选来自同一 Typer 命令树，清晰度候选来自 `QUALITY_NAMES`，补全过程不访问网络或配置凭据。PowerShell 脚本通过 AST/JSON 传入参数，保留中文、空格与引号，并在调用后恢复环境变量。
 
-## 1.7.3 GUI 展示层
+## GUI 展示层
 
-`gui/panels.py` 组织紧凑主窗口及选集/预览/详情/设置等按需窗口，`gui/history.py` 将安全的来源/任务事件投影到 QAbstractItemModel。显示和选择按稳定 ID 关联，分组父行不代替子任务重试。状态筛选按 35ms 合并刷新，普通进度只更新对应行，避免批量事件触发反复全树筛选。MainWindow 继续协调单活动 worker，Session 和下载事务保持原有实现。
+`gui/panels.py` 组织主窗口及新建下载、预览、详情、设置等按需窗口，`gui/history.py` 将安全的来源/任务事件投影到 QAbstractItemModel。显示和选择按稳定 ID 关联，分组父行不代替子任务重试。状态筛选按 35ms 合并刷新，普通进度只更新对应行，避免全树重复筛选。MainWindow 协调草稿、媒体调度、账号与更新入口；Session 负责快照/尝试/批次，service 负责文件事务。

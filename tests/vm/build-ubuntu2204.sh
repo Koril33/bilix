@@ -3,7 +3,7 @@ set -euo pipefail
 
 source_root=/bilix-host
 work_root=/home/vagrant/bilix-work
-source_version=$(sed -n 's/^__version__ = "\([^"]*\)"$/\1/p' "$source_root/src/djhx_bilix/__init__.py")
+source_version=$(sed -n 's/\r$//; s/^__version__ = "\([^"]*\)"$/\1/p' "$source_root/src/djhx_bilix/__init__.py")
 [[ "$source_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.]*)$ ]]
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 record_root="/home/vagrant/bilix-records/$source_version/$run_id"

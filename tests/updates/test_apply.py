@@ -95,6 +95,49 @@ def test_unlaunchable_new_executable_uses_portable_recovery_path(signed_update, 
     assert read_json((transaction / "result.json").read_bytes())["installed"] is False
 
 
+def test_accepted_handoff_wait_failure_is_visible_and_does_not_start_another_instance(
+    signed_update, monkeypatch
+):
+    from djhx_bilix.updater.client import atomic_json
+    from djhx_bilix.updater.protocol import read_json
+
+    directory = signed_update["directory"]
+    target = directory / "current.exe"
+    target.write_bytes(b"old executable")
+    transaction = directory / "transaction"
+    transaction.mkdir()
+    atomic_json(
+        transaction / "request.json",
+        {
+            "schema": 1,
+            "directory": str(directory),
+            "artifact_id": "windows-x64-portable",
+            "target": str(target),
+            "version": "1.8.0",
+            "old_sha256": sha256(target),
+            "processes": [{"pid": 98765, "image": str(target)}],
+        },
+    )
+    messages = []
+    monkeypatch.setattr(apply, "other_instances", lambda *args, **kwargs: [])
+    monkeypatch.setattr(apply, "_message", messages.append)
+
+    def uncertain_exit(*args, **kwargs):
+        raise UpdateError("无法等待相关进程")
+
+    def unexpected_restart(*args, **kwargs):
+        pytest.fail("Do not start another instance without confirming the old one exited")
+
+    monkeypatch.setattr(apply, "wait_for_exit", uncertain_exit)
+    monkeypatch.setattr(apply.subprocess, "Popen", unexpected_restart)
+    assert apply.apply_update(transaction) == 1
+    assert target.read_bytes() == b"old executable"
+    assert (transaction / "accepted.json").is_file()
+    result = read_json((transaction / "result.json").read_bytes())
+    assert result["status"] == "failed" and not result["installed"]
+    assert len(messages) == 1 and "无法等待相关进程" in messages[0]
+
+
 def _root_fixture(signed_update, monkeypatch):
     executable = signed_update["directory"] / "root-owned-helper"
     monkeypatch.setattr(apply.sys, "platform", "linux")

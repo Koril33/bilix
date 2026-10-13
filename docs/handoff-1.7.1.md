@@ -1,5 +1,7 @@
 # 1.7.1 收尾交接
 
+> 历史设计/评审：保留当版基线、建议和决策。当前行为见 [使用文档](README.md#当前使用与开发)，未完成功能见 [backlog.md](backlog.md)，缺陷与流程问题见 [workflow-issues.md](workflow-issues.md)。构建、测试与发布从 [handoff.md](handoff.md) 进入，不直接执行下方旧版命令。
+
 更新：2026-10-09（Asia/Shanghai）。**1.7.1已发布，五项收尾、最终材料和公开渠道验收完成。** GitHub/PyPI均已公开，代码与标签已同步Gitea。详细事实与限制见[验收记录](validation-1.7.1.md)。
 
 ## 已完成

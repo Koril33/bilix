@@ -1,5 +1,7 @@
 # GUI 技术选型评估
 
+> 历史设计/评审：保留当版基线、建议和决策。当前行为见 [使用文档](README.md#当前使用与开发)，未完成功能见 [backlog.md](backlog.md)，缺陷与流程问题见 [workflow-issues.md](workflow-issues.md)。构建、测试与发布从 [handoff.md](handoff.md) 进入，不直接执行下方旧版命令。
+
 评估日期：2026-10-03。依据：当时的 BiliX 1.5.0 源码、同级目录中的 snake 项目，以及当时查询的官方发行信息和文档。本文是历史选型记录，所列工具版本不代表后续始终为最新版。
 
 状态：选型决策记录。PySide6/Qt Widgets 方案已进入源码实现；文中的部分接口和发行流程保留原先的设计建议，实际用法以 [GUI 使用说明](gui-usage.md) 和 [GUI 构建与发行](gui-build-and-release.md) 为准。版本兼容性仍需以各平台实际构建验证。

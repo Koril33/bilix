@@ -1,50 +1,57 @@
-# 项目页面维护
+# 官网页面维护
 
-`bilix.html` 是项目介绍/下载页面的唯一交付文件，官网为 `https://bilix.djhx.site/`，对应 `/var/www/bilix.djhx.site/index.html`。它保留现有页面的深色背景、原背景图、半透明介绍面板、绿色按钮、GitHub/Gitea 链接和使用示例布局。
+官网为 `https://bilix.djhx.site/`，唯一页面源码是 [bilix.html](bilix.html)，部署为 `/var/www/bilix.djhx.site/index.html`。CSS、JavaScript、图标和背景全部内嵌，没有构建步骤、外部字体或框架。本轮维护版本为 1.7.9，实际发布和部署状态见[验收记录](../docs/validation-1.7.9.md)。未公开候选不能提前部署为已发布页面。
 
-CSS、JavaScript 和原背景图（JPEG data URI）全部内嵌，没有构建步骤、外部字体或框架。背景图无需额外上传。下载按钮始终指向 GitHub 最新发行页，页面另列官网同版本备用文件、配套源码与 SHA256。版本号在加载时查询 GitHub；离线、超时或 API 限流时仍保留下载链接。命令、更新和 APT 说明在关闭 JavaScript 后仍可读。每次发行须同步备用链接的版本，并在资源已完整发布后部署页面。
+下载主入口始终指向 GitHub latest，备用链接使用官网同版本的不可变文件。版本查询失败仍保留发行链接，关闭 JavaScript 后命令/APT 说明仍可读。每次正式发行只在资源齐备后更新备用链接并部署页面。
 
-## 本地预览
+## 本地预览与核对
 
-页面项目图标与 favicon 内嵌同一份 `src/djhx_bilix/assets/bilix.svg`，与应用保持一致，仍只需上传 HTML。更换应用图标后应同步更新这两处 data URI。
-
-```shell
-python -m http.server 8765 --bind 127.0.0.1 --directory site
-```
-
-打开 `http://127.0.0.1:8765/bilix.html`；也能直接打开本地文件。
-
-## 发布前检查
-
-- 对照线上页面检查背景、配色、介绍区、下载按钮与使用示例。
-- 查看宽屏和 390px / 320px 手机布局；长命令只在代码块内横向滚动。
-- 测试版本查询成功、失败和禁用 JavaScript 时的版本提示及发行页链接。
-- 用键盘访问下载与文档链接；减少动画偏好下不执行按钮过渡。
-- 核对 GitHub/Gitea、PyPI 与文档链接，以及当前 CLI 命令与实际支持范围。
-- 更新补全章节的最低支持版本。版本提示只显示已正式发布的最新版，不将开发版本标为已发布。
-- CLI/GUI 功能和支持范围对照[1.7.1 验收记录](../docs/validation-1.7.1.md)，候选验收/发布状态分别确认；待实现功能保持在[版本规划](../docs/roadmap.md)。仓库文件、GitHub/PyPI 发行与线上网站部署分别记录。
-
-当前官网将本文件部署为 `/var/www/bilix.djhx.site/index.html`，仓库不自动部署线上页面。自 2026-10-12 起，页面与安装包、签名更新、APT 统一由 `bilix@djhx.site` 部署；站点根目录和首页已授权给 bilix，日常发布不使用 koril/sudo。完成验收与资源链接核对后，在仓库根目录执行：
+在仓库根目录：
 
 ```powershell
-python scripts/deploy_site.py --check --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
-python scripts/deploy_site.py --ssh-key "$env:USERPROFILE/.ssh/bilix-release-ed25519"
+uv run --locked python -m http.server 8765 --bind 127.0.0.1 --directory site
 ```
 
-脚本核对上传哈希、备份旧首页并原子替换；部署后仍须 HTTPS 回读核对页面与下载链接。管理员仅处理 Nginx、TLS、系统服务或项目权限恢复，详见 [发布流程](../docs/releasing.md#标签镜像与页面)。
+打开 `http://127.0.0.1:8765/bilix.html`；结束预览用 Ctrl+C。修改图标时同步页面和 favicon 的内嵌 SVG，与 [应用图标](../src/djhx_bilix/assets/bilix.svg) 保持一致。
 
-页面检查属于[持续测试](../docs/testing.md)的 T0；统一脚本仅检查本地 Markdown 文件链接，不能替代上述页面和远程链接检查。
+页面变化检查：
 
-## 可重复的浏览器验收
+- 宽屏与 390/320px：无页面横向溢出，长命令只在代码块内滚动。
+- 版本查询成功/失败/超时、关闭 JavaScript、减少动画偏好。
+- 全部链接的键盘前后遍历与窄屏代码块滚动。
+- GitHub/Gitea/PyPI/文档、备用下载、SHA256/配套源码链接。
+- CLI 命令、原生支持范围、更新与 APT 说明符合当前正式发行；待办不写成已有功能。
 
-在独立测试环境安装 Playwright，并使用机器上已有的 Chrome；不将浏览器测试依赖加入应用依赖。运行：
+当前文档从 [docs/README.md](../docs/README.md) 进入，实际范围见对应验收记录，缺陷见 [workflow-issues.md](../docs/workflow-issues.md)。仓库页面提交、发行渠道和线上部署分别记录。
 
-```shell
-python scripts/validate_site.py --live-api
+## 浏览器脚本
+
+[validate_site.py](../scripts/validate_site.py) 使用独立 Playwright 环境与已有 Chrome，不将测试依赖加入应用依赖。示例：
+
+```powershell
+uv venv build/venv-site-check
+uv pip install --python build/venv-site-check/Scripts/python.exe playwright
+& build/venv-site-check/Scripts/python.exe scripts/validate_site.py
 ```
 
-可用 `--browser-executable` 指定 Chrome/Chromium 的完整路径，用 `--output` 指定新的证据目录。脚本自动启动并关闭临时本地服务器，不部署网站。默认证据位于 `build/validation/site/<本轮标识>/`，记录页面源码 SHA256、浏览器版本、JSON 结果和宽窄屏截图。
+Linux 解释器路径为 `build/venv-site-check/bin/python`。默认使用已安装 Chrome，其他现有 Chrome/Chromium 通过 `--browser-executable <完整路径>` 指定。
 
-确定性检查共25项：八种版本查询场景（成功、HTTP失败、无JavaScript、预发布、草稿、异常版本字段、无效JSON、真实六秒超时）分别覆盖1440/390/320宽度，再检查减少动画偏好。每个页面核对发行入口、页面横向尺寸、全部11个链接的Tab/Shift+Tab访问；窄屏还验证长命令代码块可用键盘横向滚动。`--live-api` 单列真实GitHub响应观察，不能将API回退文案记成在线查询成功。
+脚本启动/关闭临时本地服务器，默认运行八种查询响应 × 三种宽度，再检查减少动画，共 25 个确定性场景。mock 的历史版本号只是测试样本，不是当前发布声明。通过 `--live-api` 额外观察真实 GitHub API；fallback 文案不算在线查询成功。
 
-1.7.1本轮以上25项通过，并观察到GitHub返回HTTP200及当前已发布的v1.7.0；宽屏和手机截图已人工核对。网站源码提交与维护者服务器部署仍分别记录在[验收记录](../docs/validation-1.7.1.md)。
+证据默认位于 `build/validation/site/<本轮标识>/`，包含源码 SHA256、浏览器版本、结果 JSON 和宽窄屏截图；`--output` 选择新的证据目录。记录本轮 Playwright/Python 实际版本，人工核对截图。Markdown 链接检查仅检查本地文件存在，不替代浏览器、远程 URL 和 HTTPS 核验。
+
+历史 1.7.1 的 25 项通过与当时观察到的 v1.7.0 已保留在 [validation-1.7.1.md](../docs/validation-1.7.1.md)，不沿用它证明当前页面通过。
+
+## 部署
+
+先完成本地核对，并确认正式发行全部备用资源已公开。服务器页面、安装包、签名更新和 APT 均使用 **`bilix@djhx.site`** 与已有 **`.ssh/bilix-release-ed25519`**，不使用服务器密码或 sudo。仓库/包上传不会自动部署页面。
+
+```powershell
+$sshKey = Join-Path $env:USERPROFILE '.ssh/bilix-release-ed25519'
+uv run --locked python scripts/deploy_site.py --check --ssh-key $sshKey
+uv run --locked python scripts/deploy_site.py --ssh-key $sshKey
+```
+
+`--check` 只读核对身份/目录权限。实际部署验上传哈希、备份旧首页并原子替换；失败 staging 保留供排查。Nginx/TLS/服务与项目权限恢复由管理员处理，常规资源发布仍使用 bilix。
+
+部署后 HTTPS 回读页面 SHA256，与本地一致；再次核对正式版本、下载/源码/校验链接与 APT 说明。SSH 成功不代表公网已更新。完整发布顺序见 [releasing.md](../docs/releasing.md#5-标签镜像与页面)，不要提前将候选写成已发布。

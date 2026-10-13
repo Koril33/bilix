@@ -212,6 +212,7 @@ def apply_update(transaction: Path) -> int:
     lock_descriptor = None
     lock_path = None
     exited = False
+    accepted = False
     try:
         request = read_json((transaction / "request.json").read_bytes())
         if request.get("schema") != 1:
@@ -241,6 +242,7 @@ def apply_update(transaction: Path) -> int:
         lock_descriptor = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         os.write(lock_descriptor, str(os.getpid()).encode("ascii"))
         atomic_json(transaction / "accepted.json", {"accepted": True})
+        accepted = True
         wait_for_exit(request["processes"], abort=transaction / "abort.json")
         exited = True
         if (transaction / "abort.json").exists():
@@ -313,10 +315,13 @@ def apply_update(transaction: Path) -> int:
             transaction / "result.json",
             {"status": "failed", "installed": installed, "message": str(exc)},
         )
-        if exited:
+        # Once handoff was accepted the GUI may already have closed. Report wait
+        # failures too; previously these left only a cache file and no visible result.
+        if accepted and not (transaction / "abort.json").exists():
             _message(str(exc) + f"\n更新记录：{transaction}")
             if (
-                not installed
+                exited
+                and not installed
                 and target is not None
                 and target.is_file()
                 and not other_instances(target)

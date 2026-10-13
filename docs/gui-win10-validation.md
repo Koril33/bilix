@@ -1,118 +1,53 @@
-# Windows 10 GUI 虚拟机验收
+# Windows GUI 原生验收
 
-此流程验收 Windows 10 x64 的绿色版和 Inno Setup 安装版。测试 VM 为已有的 `C:\VirtualMachine\Windows10\Windows10.vbox`，VirtualBox 名称 `Windows10`。本轮开始前已建立快照 `bilix-gui-pretest-20261003`（UUID `03ae0f5b-6044-4962-b183-930e3cff6b3e`）。只对这个 VM 做复制、运行、正常关机和启动操作；不要重建或删除 VM，也不要修改其他虚拟机。Windows 11 暂不在本轮范围。
+在明确选定的 Windows 10 x64 专用测试 VM 中验证绿色版和 Inno Setup 安装版。不要重建/删除用户已有 VM 或操作其他测试机。VM 身份、快照、系统 build、Guest Additions、用户与测试路径按本轮环境记录，不能沿用首版机器信息。首版结果已归档至 [archive/platform-1.6.0.md](archive/platform-1.6.0.md)。
 
-上述 VM 与快照是首轮环境示例，后续填写实际测试 VM 的身份与基线；操作仍仅限选定测试机。通用门槛见[测试规范](testing.md)，每版结果另存[验收模板](validation-template.md)所示文件，首版最终结果见[1.6.0 记录](validation-1.6.0.md)。后续版本沿用脚本，不沿用首版“通过”结论。
+## 最小可重复流程
 
-## 准备和执行
+使用不含开发运行时的干净 Windows 用户环境，登录可见桌面。把当轮最终候选与脚本复制到 guest：Windows 三项 GUI 文件、`release-manifest-windows.json`/`SHA256SUMS-windows.txt`，或完整发行的 `release-manifest.json`/`SHA256SUMS.txt`。按 manifest 校验身份/哈希，不从任意旧目录拿 EXE。
 
-在宿主机确认目标和快照，再启动 VM。已有运行中的 VM 不必重启。
-
-```powershell
-$vbox = 'C:\Software\VirtualBox\VBoxManage.exe'
-& $vbox showvminfo Windows10 --machinereadable
-& $vbox snapshot Windows10 list --machinereadable
-& $vbox startvm Windows10 --type gui
-```
-
-测试使用用户自己保管的 VM 凭据。把它写入被 Git 忽略的临时文件；不要把口令放在命令参数、日志或文档中。下面是完整执行示例，从创建临时文件到复制、验收都由同一个外层 `try/finally` 保护，复制失败也会清理凭据。读取方式不回显输入，也不在文件末尾添加换行。
+在 **guest 的已登录普通用户 PowerShell** 执行：
 
 ```powershell
-$privateDir = Join-Path (Resolve-Path 'dist/gui').Path 'validation'
-New-Item -ItemType Directory -Path $privateDir -Force | Out-Null
-$passwordFile = Join-Path $privateDir 'win10-vm-password.txt'
-$vm = 'Windows10'
-$user = 'koril'
-$guest = 'C:\Users\koril\AppData\Local\Temp\bilix-validation'
-$guestCredential = "$guest\vm-credential.tmp"
-$release = (Resolve-Path 'dist/gui').Path
-try {
-    $secure = Read-Host 'Windows VM password' -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        [IO.File]::WriteAllText($passwordFile,
-            [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr),
-            [Text.Encoding]::ASCII)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
-    & $vbox guestcontrol $vm mkdir --parents --username $user --passwordfile $passwordFile `
-        "$guest\artifacts" "$guest\results"
-    if ($LASTEXITCODE -ne 0) { throw 'Guest directory creation failed' }
-    $manifestName = 'release-manifest-windows.json'
-    $sumsName = 'SHA256SUMS-windows.txt'
-    if (-not (Test-Path (Join-Path $release $manifestName))) {
-        $manifestName = 'release-manifest.json'
-        $sumsName = 'SHA256SUMS.txt'
-    }
-    $manifest = Get-Content (Join-Path $release $manifestName) -Raw -Encoding UTF8 | ConvertFrom-Json
-    $names = @($manifest.artifacts | Where-Object { $_.name -match '^BiliX-GUI-.*-windows-x64\.(exe|zip)$' } | ForEach-Object { $_.name }) + @($manifestName, $sumsName)
-    foreach ($name in $names) {
-        & $vbox guestcontrol $vm copyto --username $user --passwordfile $passwordFile `
-            (Join-Path $release $name) "$guest\artifacts\$name"
-        if ($LASTEXITCODE -ne 0) { throw "Copy failed: $name" }
-    }
-    foreach ($name in @('validate-gui.ps1', 'run-guest-validation.ps1')) {
-        & $vbox guestcontrol $vm copyto --username $user --passwordfile $passwordFile `
-            (Join-Path 'tests/platform/windows' $name) "$guest\$name"
-        if ($LASTEXITCODE -ne 0) { throw "Copy failed: $name" }
-    }
-    & $vbox guestcontrol $vm copyto --username $user --passwordfile $passwordFile `
-        $passwordFile $guestCredential
-    if ($LASTEXITCODE -ne 0) { throw 'Credential copy failed' }
-    & $vbox guestcontrol $vm run --profile `
-        --exe 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
-        --username $user --passwordfile $passwordFile `
-        --wait-stdout --wait-stderr --timeout 1800000 -- `
-        powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-        -File "$guest\run-guest-validation.ps1" `
-        -ArtifactDir "$guest\artifacts" -ResultDir "$guest\results" `
-        -CredentialFile $guestCredential -UserName $user -UserDomain 'DESKTOP-GP5G2Q3' `
-        -Install -RequireWindows10
-    if ($LASTEXITCODE -ne 0) { throw 'VM validation failed; inspect result.json and setup.log' }
-} finally {
-    if (Test-Path -LiteralPath $passwordFile) {
-        & $vbox guestcontrol $vm rm --username $user --passwordfile $passwordFile $guestCredential 2>$null
-    }
-    Remove-Item -LiteralPath $passwordFile -Force -ErrorAction SilentlyContinue
-}
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\tests\platform\windows\validate-gui.ps1 `
+  -ArtifactDir 'C:\bilix-validation\artifacts' `
+  -ResultDir 'C:\bilix-validation\results' -Install -RequireWindows10
 ```
 
-`VBoxManage guestcontrol copyto` 在这个 VirtualBox 版本中应指定每个文件的完整目标路径。`validate-gui.ps1` 核对 OS build、三个产物的大小/SHA-256 和 Windows 专用校验和；它把绿色版复制到中文路径，在隔离配置目录中启动两次，静默安装并检查许可/源码，运行已安装程序自检，执行同版本重装及再次自检，再卸载并确认用户数据标记保留。可选 `-PriorSetup` 可验收同一安装渠道的旧版本升级，要求旧版号小于目标版本。`1.6.0.dev0` 与 `1.6.0` 的 Inno Setup AppId 不同，不能用二者的连续安装声称完成跨版本升级。
+路径是本轮测试目录示例，先确认文件已复制。实际稳定升级加 `-PriorSetup 'C:\bilix-validation\prior\<旧安装器>'`，旧文件应来自原始公开发行并已核对哈希。Preview 的独立 AppId 和同版重装不能代替稳定旧→新升级。
 
-1.7 的独立安装事务检查使用 [validate-installer-transactions.ps1](../tests/platform/windows/validate-installer-transactions.ps1)。从生产 `.iss` 编译小运行目录的同版、低版、1.10.0、Preview 和 `ValidationFailure` 测试安装器，交给已加载用户 profile 的 `run-guest-validation.ps1 -InstallerTransactions`。故障版本先覆盖运行文件，再读取故意缺失的外部文件触发真实安装 I/O 失败；验证原始完整 1.6.0 runtime 全部文件哈希和卸载版本恢复。另检查文件占用、目录创建权限不足、新安装器低版拒绝、数字版本排序及 Preview 隔离。生产发行不得定义 `ValidationFailure`。小目录测试证明安装脚本的事务行为，不能替代最终完整包的升级/重装测试，也不证明磁盘耗尽、用户主动取消或断电恢复已通过。
+[validate-gui.ps1](../tests/platform/windows/validate-gui.ps1) 核对 OS build、三项产物大小/SHA256、校验清单，绿色版在中文路径启动两次，安装并检查许可/源码，验证已安装程序、同版重装、卸载与隔离配置/下载内容哈希。自检退出后最多等待 15 秒释放 EXE 文件锁，卸载后再等待清理完成；永久残留会失败。
 
-程序自检退出后，验收脚本最多等待 15 秒确认 EXE 的文件锁释放，再启动卸载；卸载返回后再等待其清理助手删除 EXE，超过 15 秒仍残留会失败。这两个有界检查避免把进程退出信号当作全部文件已释放，也不把永久残留误记为通过。
+本轮结果写入 `results/<UTC时间>-<随机数>/result.json` 与安装/自检日志。复制脱敏结果回宿主忽略的 `build/validation/` 或 `dist/gui/validation/`，记录 VM/包/源码身份和实际范围。
 
-维护后的脚本在安装前创建非默认配置及配置/下载标记，核对安装、可选升级和卸载之后的内容；TOML 使用无 BOM UTF-8。`-PriorSetup` 会运行旧版自检再升级，先用旧发行清单人工核对旧安装器哈希；首版没有旧稳定包，从下一版开始使用原始 1.6.0。跨版升级检查仍不覆盖全部配置迁移或实际账号有效性。低版安装保护须单独实现/验收，不能由升级成功推断。
+## Guest Control 方式
 
-`-ArtifactDir` 可选原 `dist/gui` 的 Windows 平台清单，也可选 `dist/release-<版本>` 或公开回下载目录的完整清单；后者只需三个 Windows GUI 文件、完整 manifest 与校验文件。脚本核对清单格式和 Windows 子集，其他平台归档的完整校验仍由统一 `validate.py --release-dir` 完成。
+VirtualBox Guest Control 即使指定 `--profile` 也可能未加载用户 HKCU hive，导致 Inno 无法写卸载项。此时用 [run-guest-validation.ps1](../tests/platform/windows/run-guest-validation.ps1)，它以 `LoadUserProfile` 启动同一测试用户，并在启动前删除 guest 临时凭据文件。
 
-VM 未登录交互桌面时，Guest Control 即使指定 `--profile` 也可能没有加载用户的 `HKEY_USERS\<SID>` hive，无法写入 HKCU 卸载项。[run-guest-validation.ps1](../tests/platform/windows/run-guest-validation.ps1) 使用 `LoadUserProfile` 启动同一用户的子进程，并在启动前删除客体临时凭据文件。示例的用户名、域和客体路径应替换为实际测试 VM 的值；每次运行需重新提供凭据。
+参数为 `-ArtifactDir`、`-ResultDir`、`-CredentialFile`、`-UserName`、`-UserDomain`，可加 `-Install -RequireWindows10 -PriorSetup`。认证材料由维护者在忽略的私有临时位置准备，通过 Guest Control 的 `--passwordfile` 使用，不放命令行明文、不回显、不提交。外层复制与执行须用 try/finally 清理宿主与 guest 临时文件；优先使用上面的交互登录方式减少认证传递。
 
-验收脚本将每次结果写入 VM `results/<UTC时间>-<随机数>/result.json`。源码 ZIP 检查会拒绝 `.vagrant`、私钥等本地状态路径。出现失败时用 `guestcontrol copyfrom` 将 `result.json` 和安装日志复制回被忽略的 `dist/gui/validation/`，分析后保留证据。正常关机用 `controlvm Windows10 acpipowerbutton`，确认 `VMState="poweroff"`；需要重新打开窗口时再用 `startvm Windows10 --type gui`。不要强制断电。
+控制 VM 前用 VBoxManage 核对名称、UUID、配置路径与快照。已有运行 VM 不必重启；关闭用正常 ACPI 关机并确认 poweroff，不强制断电。原生桌面检查仍需交互会话，后台自检不代替它。
 
-可见界面必须在 VM 的交互桌面中验收，Guest Control 的后台进程自检不代替这一步。登录桌面后启动绿色版，检查主窗口中文字形，使用中文拼音输入法在文本框内输入并提交中文，打开原生“选择保存目录”对话框，进入测试目录后点选“选择文件夹”，再确认“保存到”字段更新。可用 `VBoxManage controlvm Windows10 screenshotpng <路径>` 留图；分享前裁掉桌面，并遮盖个人目录、账号等信息。此次可复核的裁剪图位于被 Git 忽略的 `dist/gui/validation/win10/`。
+## 安装与更新事务
 
-## 2026-10-03/04 本轮结果
-
-| 项目 | `1.6.0.dev0` 预览包 | `1.6.0` 正式候选 |
+| 风险 | 已提交驱动 | 前置条件/边界 |
 | --- | --- | --- |
-| Windows 10 x64 build 19045 与 Guest Additions 7.0.12 | 通过 | 通过 |
-| Manifest 中三个产物的大小/SHA-256 | 通过 | 通过 |
-| Windows 专用 `SHA256SUMS` 与 manifest 一致 | 旧包按旧格式校验 | 通过 |
-| 中文路径绿色版自检两次 | 通过 | 通过 |
-| 同渠道旧版升级 | 未验证 | 未验证；没有可用的旧稳定版安装包 |
-| 安装、已安装版自检、卸载与用户数据保留 | 预览包直接 Guest Control 安装失败并回滚；未用交互登录重试 | 通过；`candidate-result.json` 记录 14 项检查成功 |
-| 真实桌面主窗口及中文标签 | 未验证 | 通过；中文清晰，无方框字形 |
-| 拼音输入法候选和中文提交 | 未验证 | 通过 |
-| 原生保存目录选择器导航与选择后字段更新 | 未验证 | 通过 |
-| 扫码登录、真实下载、Windows 11 | 未验证 | 未验证 |
+| portable 完整冻结 GUI 交接 | [validate-portable-handoff.ps1](../tests/platform/windows/validate-portable-handoff.ps1) | 非提权交互会话；独立冻结测试入口与合法签名生产候选；真实两 PID/退出句柄/替换/备份/生产启动确认，重跑步骤见[修复说明](portable-update-fix.md#重跑冻结交接) |
+| 同渠道升级、降级拒绝、Preview 隔离、写入失败恢复/文件占用 | [validate-installer-transactions.ps1](../tests/platform/windows/validate-installer-transactions.ps1) | FixtureRoot、PriorSetup、ResultDir；加载普通用户 profile；需本轮冻结测试 fixture |
+| 更新安装故障 | [validate-update-install-failures.ps1](../tests/platform/windows/validate-update-install-failures.ps1) | CLI 静默事务；脚本固定 1.7.5 基线，先参数化/核对再用于新候选 |
+| 用户主动取消 | [validate-user-cancellation.ps1](../tests/platform/windows/validate-user-cancellation.ps1) | 维护者手动点取消，脚本只启动与核对结果；固定 1.7.0 基线/1.7.1 路径，不能照搬到当前版本 |
+| 磁盘耗尽 | [validate-disk-exhaustion.ps1](../tests/platform/windows/validate-disk-exhaustion.ps1) | CLI 事务和测试卷操作；固定旧版基线/目录，须先适配当前候选与专用卷 |
+| 原生窗口/输入/性能 | [launch-native-desktop.ps1](../tests/platform/windows/launch-native-desktop.ps1) 与 `scripts/native_windows_benchmark.py` | 可见桌面与同环境对比；自动动作不证明真实 IME |
 
-早期通过 Guest Control 直接运行 Inno Setup 时，安装在创建 HKCU 卸载项时报 `RegCreateKeyEx` 错误 5，并回滚，退出码 4。诊断显示进程用户与 `USERPROFILE` 均为 `koril`，但其 SID hive 未加载；使用 `LoadUserProfile` 后 hive 存在，用户对卸载分支有完整权限，临时注册表项创建和删除成功。正式候选通过该方式完成实际安装、已安装程序自检、卸载和用户数据保留。该问题属于 VM 的 Guest Control 登录方式，不是安装包故障；未更改用户长期注册表 ACL。
+CLI 事务驱动与可见界面操作分开。历史 [validate-updates.ps1](../tests/platform/windows/validate-updates.ps1) 通过 user32 发送按钮/关闭消息，含模拟安装向导操作，保留用于理解旧证据。当前安装向导、更新点击、取消与重启由维护者手动或经授权的界面工具操作，CLI 核对进程/文件/事务结果；AI 不直接继承旧 PowerShell 窗口控制步骤。
 
-正式候选的可见桌面截图是 `main-window.png`、`chinese-ime.png`、`folder-chooser.png` 与 `folder-selected.png`，均位于本地忽略目录 `dist/gui/validation/win10/`。截图遮盖了 VM 用户名或文件选择器的个人位置导航栏。正式候选曾因源码 ZIP 误收本地 `.vagrant` 状态而重包；上述安装与桌面测试使用清理后的包，Manifest 的三项 SHA-256 检查通过。最终发布包若因文档或构建内容变化再打包，须以最终 `release-manifest-windows.json` 复跑脚本；此前候选测试不能直接替代最终哈希验收。
+驱动已入仓库，但部分签名 fixture 生成步骤仍只存在忽略的 `build/release-1.7.8/`，另有旧版基线硬编码。新 clone 不具备这些输入；先按 [handoff.md](handoff.md#自动化边界) 与 [workflow-issues.md](workflow-issues.md) 补齐/核对公开入口，不能伪称一条命令已覆盖全部事务。
 
-2026-10-04 重编译后的候选曾在“自检退出后立即卸载”时出现 EXE 删除失败：安装与自检均通过，卸载日志记录 EXE 暂被占用，且初始卸载进程返回时清理助手仍在工作。后续诊断确认该 EXE 的运行进程数为零，文件锁已释放。验收脚本因此加入上述文件锁及清理完成等待；修复后必须重新运行完整验收，最终结果和文件哈希由本地 `final-result.json` 与公开发行说明记录。
+安装器的 `ValidationFailure` 仅用于受控故障 fixture，正式发行不得定义。小 runtime fixture 证明安装脚本行为，不替代最终完整包升级。新安装器有降级保护，原始 1.6.0 旧安装器没有该逻辑。安装失败恢复、安装成功后启动失败、磁盘耗尽、用户取消、断电分别留证。
 
-最终复验已完成：`dist/gui/validation/win10/final-result.json` 记录 1.6.0 正式文件的 15 项检查通过，最终产物哈希见[版本记录](validation-1.6.0.md)。原文的“必须重新运行”描述当时修复要求；最终结果已补齐。本次维护新增的数据内容与旧版自检检查属于后续脚本，须另记实际执行范围。
+## 可见桌面与结果
+
+在真实冻结 GUI 中检查中文字形、微软拼音候选与中文提交、原生保存目录导航/回填、二维码、快捷键、缩放和窗口/托盘生命周期。更新检查涵盖中文/空格/改名路径、退出等待、文件占用、系统安装向导与普通用户重启；当前 portable 问题状态见 [workflow-issues.md](workflow-issues.md)。
+
+截图分享前遮盖个人路径、账号、二维码和其他桌面内容。每项记录版本、源码/产物哈希、系统、会话、缩放、时间和结果；Windows 11 未单独验证时不写通过。按 [testing.md](testing.md) 新建当版记录，不继承首版结果。

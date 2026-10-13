@@ -1,24 +1,23 @@
 # 旧版本迁移
 
-1.4.0 起统一使用 `src/djhx_bilix`；1.4.1 修复 Windows 非 UTF-8 终端中文输出。版本变化见 [CHANGELOG](../CHANGELOG.md)。
+版本变化见 [CHANGELOG](../CHANGELOG.md)，安装与升级见 [gui-updating.md](gui-updating.md)。CLI、GUI 和旧兼容入口共用 `src/djhx_bilix`，不保留第二套业务实现。
 
-| 旧用法或行为 | 新版用法或行为 |
+| 旧用法或行为 | 当前用法或行为 |
 | --- | --- |
-| `python main.py` | `uv run blx` 或 `python -m djhx_bilix` |
-| 根目录业务脚本/第二套实现 | 唯一实现为 `src/djhx_bilix` |
-| `blx video URL` | 仍兼容；推荐 `blx download URL` |
-| `blx user --login` / `blx user` | 仍兼容；推荐 `blx auth login` / `blx auth status` |
-| exe 直接传 URL、`-i`、`-o` | 仍转入相同 CLI |
-| 默认尝试固定清晰度 | 默认选择实际可获取的最高流；精确要求加 `--strict` |
-| 根目录 cookie.txt | 不再自动读取，请重新扫码 |
-| 用户配置目录 token.txt | 自动在内存中兼容旧格式，无需重新登录 |
-| 删除/替换自身的 exe 自更新脚本 | 通过发行页更新 exe |
-| 旧版同名下载文件 | 默认跳过；需要重新下载时使用 `--overwrite` |
+| `python main.py`、根目录业务脚本 | `uv run blx` 或 `python -m djhx_bilix` |
+| `blx video URL` | 保持兼容，推荐 `blx download URL` |
+| `blx user --login` / `blx user` | 保持兼容，推荐 `blx auth login` / `blx auth status` |
+| CLI EXE 直接传 URL、`-i`、`-o` | 转入同一 CLI；`-o` 仍为输入文件 |
+| 固定默认清晰度 | 默认选择实际可获取的最高流，精确要求加 `--strict` |
+| 根目录 `cookie.txt` | 不自动读取，重新扫码 |
+| 用户目录旧格式 `token.txt` | 在内存兼容原格式，不自动改写 |
+| 旧 CLI EXE 自替换脚本 | 从发行页手动更新；Python 使用原包管理器 |
+| 已有同名输出 | 默认跳过且不重新校验，需要重下用 `--overwrite` |
 
-下载文件和用户配置目录不随升级删除。旧版本生成的文件不会在默认跳过时重新验证；发生过下载完整性问题的文件建议显式覆盖重新下载。失败保留 `.bilix-*` 临时材料，目前不实现断点续传。
+升级和卸载保留用户配置及下载目录。普通下载失败保留 `.bilix-*` 供排查；GUI 会话内暂停续传不读取旧任务残留，跨重启队列/续传尚未实现。
 
-具体账号流程见 [普通账号与会员权限](accounts.md)，构建和发布方法见 [打包与验证](build.md)，模块职责和事务边界见 [架构说明](architecture.md)。
+GUI 从 1.6.0 开始，1.7.6 起原生包支持签名更新。1.7.5 及以前先手动安装当前稳定版；CLI、pip/uv 和源码运行按原方式升级。已知 portable 问题与候选修复状态见 [workflow-issues.md](workflow-issues.md)，旧协调器不会因下载新包自动改变。
 
-1.6.0 增加可选 GUI，CLI 入口和配置继续兼容；GUI 首版手动升级，任务列表不持久化。后续安装器升级应以原始 1.6.0 为基线，实际保留/迁移行为按[测试规范](testing.md)验证。安装低版本前先确认其数据兼容策略，当前 Windows 模板没有显式版本比较保护。
+Windows 新安装器有同渠道降级保护；已公开的 1.6.0 旧安装器没有该逻辑。手动恢复旧安装版可能须先卸载新版，再安装已核对的旧包。APT 显式降级由包管理策略控制。稳定跨版升级使用原始公开旧包；Preview 的独立身份和同版重装不算升级测试。
 
-当前首版 GUI 的最终结果见[1.6.0 验收记录](validation-1.6.0.md)，更早的环境、样本和限制见[历史记录](validation-1.4.0.md)；下一版建议见[规划](roadmap.md)。
+行为/权限详见 [usage.md](usage.md)、[accounts.md](accounts.md)、[architecture.md](architecture.md)。历史实际结果保留在各版验收记录；当前功能待办见 [backlog.md](backlog.md)，完整索引见 [README.md](README.md)。

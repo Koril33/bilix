@@ -1,120 +1,76 @@
-# GUI 跨发行版虚拟机验证
+# Linux GUI 构建与原生验收
 
-本流程使用仓库内的 [Vagrant 配置](../tests/vm/Vagrantfile)管理专用测试虚拟机，不读取或修改 `C:\Project\vagrant` 中已有的虚拟机。Linux 目标为 Ubuntu 22.04、Ubuntu 24.04、Debian 12 和 Debian 13 的 amd64 版本；Windows 10 的绿色版与安装版验收另行记录。Windows 11 暂不纳入首版验证范围。
+使用本仓库 [tests/vm/Vagrantfile](../tests/vm/Vagrantfile) 的专用 VM。目标为 Ubuntu 22.04/24.04、Debian 12/13 amd64；deb 只在 Ubuntu 22.04 构建。测试不读取或修改用户 `C:\Project\vagrant` 中的 VM。历史首轮结果已保留在 [archive/platform-1.6.0.md](archive/platform-1.6.0.md)，当前结论填入当版验收记录。
 
-本文件维护平台操作；后续实际结果另存 `validation-<版本>.md`，沿用[测试规范](testing.md)和[模板](validation-template.md)。1.6.0 的最终文件与发布结果汇总于[首版复核](validation-1.6.0.md)，下方按日期记录保留首轮候选范围。
+## 前置条件与范围
 
-## 环境与构建原则
+Windows 宿主需要 PowerShell、Vagrant、VirtualBox，以及获取 box、系统依赖与 Python 源码的网络。构建 VM 为 4 vCPU/6 GiB，其余 2 vCPU/4 GiB；为构建缓存和磁盘预留数十 GiB，一次只启动一个目标。
 
-- 宿主机需要 VirtualBox、Vagrant、PowerShell，以及能获取 Ubuntu/Debian 软件包和 Python 构建依赖的网络。一次只启动一个 VM。构建机 `ubuntu2204` 使用 4 vCPU、6 GiB 内存，其他 VM 使用 2 vCPU、4 GiB 内存；大约要为 Ubuntu 构建缓存和多个虚拟磁盘预留数十 GiB。
-- `.deb` **仅在 Ubuntu 22.04 amd64** 编译。构建脚本把明确列出的源码、测试和锁文件复制到 VM 的 ext4 后再运行，避免直接在 VirtualBox 共享文件夹中编译。当前 `uv` 的独立解释器索引还没有 3.14.8 构建，脚本从 [python.org 官方 3.14.8 源码](https://www.python.org/downloads/release/python-3148/)下载并校验 SHA256，在 VM 内编译所需的 CPython 3.14.8；之后使用 `uv.lock`、PySide6-Essentials 6.11.2 和 Nuitka 4.2.2，执行离线 pytest、Ruff、冻结程序的 `--smoke-test`，然后打包 `.deb`。产物和日志写回忽略的 `dist/gui/`。
-- 每个安装目标从新的 VM 开始，检查包 SHA256、用本发行版的 `apt` 解析依赖并安装、检查桌面入口和图标、运行 Qt `offscreen` 与 Xvfb/X11 的启动自检、重装、卸载，并验证隔离用户目录中的标记文件仍在。**同版本重装并不等于跨版本升级**；有旧的正式 GUI 包时再做真正升级及降级行为测试。
-- `offscreen` 和 Xvfb 能发现动态库、插件、启动和基础交互错误，不能证明窗口字体、缩放、输入法、文件选择器、二维码在真实桌面上正常。发行前每种发行版仍需可见桌面检查；账号登录和真实下载需要受保护的测试账号并单独记录。
+脚本仅识别/管理本项目命名的 `bilix-validation-*` VM，检查 VM UUID、配置路径和专用标记后才销毁重建。失败会保留现场。运行前确认本轮允许重建这些测试机，不能把已有应用环境宣称为干净安装环境。
 
-可见桌面检查在完成基础安装验收后，针对需要检查的 VM 单独执行（以 Debian 12 为例）：
+源码白名单来自 Git 可见文件，复制至 guest ext4 构建；不在共享目录编译、不纳入 `.vagrant` 私钥或缓存。解释器安装脚本核对官方源码 SHA256 后编译 CPython 3.14.8，锁文件固定 GUI/build 依赖。
+
+## 一个入口
+
+在仓库根目录：
 
 ```powershell
-cd tests/vm
+./tests/vm/run-linux-matrix.ps1
+```
+
+它生成白名单、构建 deb 并关机，再依次重建四个验收目标，按 manifest 选定候选，核对 SHA256、apt 依赖、offscreen/Xvfb 启动、桌面入口/图标、同版重装、卸载与配置/下载内容保留。Ubuntu 22.04 安装目标是独立 `ubuntu2204clean`，不把有开发依赖的构建机当作干净目标。
+
+关键参数：
+
+| 参数 | 行为 |
+| --- | --- |
+| `-SkipBuild -ArtifactDir <目录>` | 验收已经集合的候选；按 manifest 选择同版本 deb |
+| `-PriorDeb <原始旧版deb>` | 实际旧→新升级、APT 降级策略、旧版启动、配置/下载哈希保留 |
+| `-Targets ubuntu2204,debian12` | 仅运行所选验收目标；完整发行范围仍须逐项记录 |
+| `-SkipBuild -PrepareOnly` | 重建/准备验收 VM 后关机，等待后续候选 |
+| `-SkipBuild -ReusePrepared` | 使用已核对的专用 VM；不销毁，不能自动证明本轮干净 |
+| `-Maintainer 'Name <email@example.org>'` | 覆盖构建 deb 的维护者元数据 |
+
+例如候选已在 `dist/release-<版本>`，将参数替换为当前真实目录和已校验旧包：
+
+```powershell
+./tests/vm/run-linux-matrix.ps1 -SkipBuild `
+  -ArtifactDir 'dist/release-<版本>' -PriorDeb 'dist/prior/<旧版deb>'
+```
+
+尖括号为占位值，不能照原样执行。未提供旧包时不做跨版升级；同版重装不算升级。脚本对 checksum 输入兼容 CRLF，不修改原清单或产物。
+
+产物为 `dist/gui/`；构建和目标日志保存于独立 `validation/<目标>/<本轮标识>/`，以脚本输出路径为准。记录版本、提交/工作树、deb 与 box SHA256、系统、时间、每步结果。box 版本在 Vagrantfile 固定；长期复现应保留获准使用的 box 和哈希，使用 `BILIX_BOX_UBUNTU2204`、`BILIX_BOX_UBUNTU2404`、`BILIX_BOX_DEBIAN12`、`BILIX_BOX_DEBIAN13` 指向本地/私有 box。不要提交镜像或密钥。
+
+## 可见 X11 与真实操作
+
+基础安装通过后单独准备可见桌面。以下在 `tests/vm` 执行，以 Debian 12 为例：
+
+```powershell
 vagrant up debian12 --provider=virtualbox
 vagrant ssh debian12 -c "sudo sh /bilix-host/tests/vm/desktop-setup.sh"
 vagrant reload debian12
-vagrant ssh debian12 -c "sudo apt-get install -y /bilix-host/dist/gui/djhx-bilix-gui_*_amd64.deb"
-vagrant ssh debian12 -c "setsid -f env DISPLAY=:0 XAUTHORITY=/home/vagrant/.Xauthority bilix-gui >/tmp/bilix-gui-visible.log 2>&1 </dev/null"
 ```
 
-`desktop-setup.sh` 只在本项目测试 VM 中安装 XFCE/LightDM、中文字体和 X11 操作工具，设置测试用户 `vagrant` 自动登录。维护者可打开该 VM 的 VirtualBox 窗口，或用 `VBoxManage controlvm bilix-validation-debian12 screenshotpng <截图路径>` 获取虚拟显示截图，确认主窗口、中文输入、文件选择器和二维码状态。截图与日志应保存在忽略的 `dist/gui/validation/<目标>/`，标出实际操作内容。服务器型 box 加装 XFCE 的这一步需要较多下载与磁盘空间。
+`desktop-setup.sh` 为本项目测试用户准备 XFCE/LightDM、中文字体和 X11 工具。安装 **manifest 选定的精确 deb** 后，在已登录桌面运行 `bilix-gui`，检查中文 IME 输入/提交、目录选择器回填、二维码、键盘、缩放和窗口退出。不要用 `*_amd64.deb` 通配符选择多个旧候选。
 
-**专用验收 VM 登录说明：** 本项目 `ubuntu2204` 构建/桌面验收机在 2026-10-12 已核对桌面用户名、默认测试密码均为 `vagrant`；这只是本地隔离 Vagrant box 的公开默认测试凭据，不用于生产服务器。自动登录不等于屏幕不会锁定；认证页由维护者手动登录，测试代理不自动填写。更换 box/账号或修改密码后须重新核对，并把非默认凭据放入忽略的本地私密文件，不写入本文。SSH 仍用 `vagrant ssh <目标>` 与该 VM 的专用密钥；不能把默认密码或服务器管理员凭据混用于官网部署。官网常规部署统一使用 bilix，见 [发布流程](releasing.md)。
+VM 登录由维护者使用本机保存的测试凭据；认证/锁屏页面不由脚本填写。SSH 使用 `vagrant ssh <目标>` 的专用测试密钥。口令不进入文档、日志或命令参数，生产部署仍使用 bilix 的专用 SSH 密钥。
 
-### 完整 Wayland 桌面验收
+可见窗口、IME、文件选择器与授权框由维护者手动或经授权的界面工具操作；SSH/CLI 负责包管理、自检、进程和结果核对。历史 `native-x11-acceptance.py` 包含 xdotool 输入/窗口控制，不作为无上下文 AI 可直接执行的当前通用入口。
 
-`tests/vm/full-wayland-acceptance.py` 必须在已经登录且可见的 GNOME 或 KDE Wayland 会话中，以专用测试用户运行。先准备该桌面、最终 deb 和 `/home/vagrant/bilix-work/.venv` 的离线 GUI 运行环境；它不会自动安装桌面或填写认证页。它检查冻结程序自检及实际 Wayland 窗口配置，再用生产源码窗口验证主题、范围、设置、详情与目录选择。Qt 组件动作不等同于物理输入法测试，系统原生目录选择器可能需要维护者操作。
+## 完整 Wayland
+
+[full-wayland-acceptance.py](../tests/vm/full-wayland-acceptance.py) 必须在已登录、可见的 GNOME 或 KDE Wayland 会话中运行。先准备最终 deb 与 `/home/vagrant/bilix-work/.venv` 的 GUI 运行环境；该脚本不安装桌面、不填写认证页：
 
 ```powershell
 vagrant ssh ubuntu2204 -c '/home/vagrant/bilix-work/.venv/bin/python /bilix-host/tests/vm/full-wayland-acceptance.py --desktop GNOME'
 vagrant ssh ubuntu2204 -c '/home/vagrant/bilix-work/.venv/bin/python /bilix-host/tests/vm/full-wayland-acceptance.py --desktop KDE'
 ```
 
-分别进入对应桌面后执行，结果位于忽略的 `build/validation/native/`。1.7.8 的 Ubuntu 22.04 VM 使用 GNOME/Mutter 42.9 与 Plasma/KWin 5.24.7；实际 1280×800、100% 缩放。此环境需要 VMSVGA 和启用 3D，原 VBoxVGA 设置会造成 GNOME 黑屏。`vagrant up/reload` 会重新应用 Vagrantfile 的显卡配置，维护者须核对实际配置，不能以无头 Weston 结果代替完整桌面。临时延长的锁屏时间、显示管理器及测试管理员凭据在验收后恢复。GUI 更新授权须从实际桌面启动；SSH 会话缺少对应授权代理时应失败并保留安装包，不能用 sudo 安装替代此项验收。
+分别进入对应会话后执行，结果位于 `build/validation/native/`。核对 VM 显卡、3D 和显示配置，Vagrant reload 会重新应用 Vagrantfile；某版使用过的桌面/分辨率不是下一版默认事实。
 
-## 可重复运行
+冻结程序与生产窗口的脚本动作不等同真实物理 IME 输入。无头 Weston 只证明协议启动；Xvfb/Qt offscreen 不证明完整 Wayland。Linux GUI 更新授权必须从实际桌面发起；SSH 没有授权代理而失败不能用 sudo 安装替代此项。
 
-在仓库根目录用 PowerShell 执行：
+## 判定
 
-```powershell
-./tests/vm/run-linux-matrix.ps1
-```
-
-脚本先用 Git 的 NUL 分隔文件列表创建源码白名单，再清理本项目 `tests/vm` 对应的旧测试 VM、创建 Ubuntu 22.04 构建机、构建并关机，然后依次重建四个目标 VM 安装同一 `.deb`。Ubuntu 22.04 安装验收使用单独的 `ubuntu2204clean` VM，保留构建机的编译环境以便修复后重新打包。白名单传给无 `.git` 元数据的 guest，发行源码包只能纳入 Git 可见文件，避免误收 `.vagrant` 私钥或本地缓存。失败即停止，故障 VM 留在现场供排查。产物在 `dist/gui/`，每机日志在 `dist/gui/validation/<目标>/`；这些目录被 Git 忽略。若 `.deb` 已构建，可按目标重跑：
-
-未用 `-Maintainer '姓名 <邮箱>'` 指定维护者时，构建脚本使用仓库提交历史中已公开的 `Koril <dingjinghui33@163.com>`。若维护者在发布前指定其他地址，应重新打包、重新核对哈希，并用最终包重复安装验收。
-
-```powershell
-./tests/vm/run-linux-matrix.ps1 -SkipBuild -Targets debian12
-```
-
-重验已集合的版本化目录时可使用：
-
-```powershell
-./tests/vm/run-linux-matrix.ps1 -SkipBuild -ArtifactDir dist/release-1.6.0 -Targets debian12
-```
-
-替换为实际候选目录。脚本从 `release-manifest-linux.json`（或完整 `release-manifest.json`）选择唯一 GUI deb 并核对大小/哈希，目录中可以保留其他版本的包。目录必须在仓库 `dist` 内以供 VM 共享访问；默认构建仍输出 `dist/gui`。每次安装验收保存到 `dist/gui/validation/<目标>/<UTC时间>-<运行标识>/`，包含明确的包版本、哈希和退出码，失败不会覆盖上一轮通过结果。配置 TOML、用户标记和下载标记在独立目录中验证重装/卸载前后内容。
-
-完整清单可能由 Windows 写成 CRLF；guest 校验时只移除清单输入的行尾回车，再交给 `sha256sum`，不会改写原清单或任何产物。2026-10-04 的维护复验曾发现此问题，独立失败记录和修复后重跑均保留。
-
-手动分步执行时，在 `tests/vm` 目录中运行：
-
-```powershell
-vagrant validate
-python ./write-source-manifest.py
-vagrant up ubuntu2204 --provider=virtualbox
-vagrant ssh ubuntu2204 -c "bash /bilix-host/tests/vm/build-ubuntu2204.sh"
-vagrant halt ubuntu2204
-vagrant up ubuntu2204clean --provider=virtualbox
-vagrant ssh ubuntu2204clean -c "bash /bilix-host/tests/vm/accept-deb.sh ubuntu2204 /bilix-host/dist/gui/djhx-bilix-gui_1.6.0-1_amd64.deb"
-vagrant halt ubuntu2204clean
-vagrant up debian12 --provider=virtualbox
-vagrant ssh debian12 -c "bash /bilix-host/tests/vm/accept-deb.sh debian12 /bilix-host/dist/gui/djhx-bilix-gui_1.6.0-1_amd64.deb"
-vagrant halt debian12
-```
-
-只销毁本项目定义的专用 VM。`Vagrantfile` 固定了四个 box 的版本，但 [HCP Vagrant 公共 Registry 计划在 2026 年底停止服务](https://www.hashicorp.com/en/blog/hcp-vagrant-deprecation-important-dates-and-migration-guidance)；长期复现时应把经许可取得的 `.box` 缓存在私有位置，保存每个 box 的 SHA256，并通过 `BILIX_BOX_UBUNTU2204`、`BILIX_BOX_UBUNTU2404`、`BILIX_BOX_DEBIAN12`、`BILIX_BOX_DEBIAN13` 环境变量改用本地/私有 box 名称。不要把 Windows 镜像或私人账号配置提交到 Git。
-
-若 Windows OpenSSH 提示 Vagrant 默认 RSA 私钥权限过宽，`Vagrantfile` 支持把该默认密钥复制到被 Git 忽略的 `tests/vm/.vagrant/keys/vagrant.key.rsa` 并只给当前用户读权限。这样无需改动用户原有的 `C:\Users\<用户名>\.vagrant.d`；复制后必须核对 ACL，不能把密钥移入可提交目录。本轮测试机出现过此问题，限制本地副本 ACL 后 SSH 恢复。
-
-## 每次发布的验收记录
-
-每次候选版本在此文件或新的版本记录中填写具体版本、提交 SHA、`.deb` SHA256、box SHA256、系统版本、执行时间与结果。失败项记录错误日志和修复后重新运行的结果。没有执行的项目标成“未验证”，不能推断通过。
-
-后续统一使用新的版本记录，不改写下方历史表。需要跨版升级时通过 `-PriorDeb` 指定原始 1.6.0 deb。脚本先完成候选干净安装，再验证 APT 默认拒绝静默降级、显式降级到旧包、旧版启动、旧→新升级、同版重装和卸载，逐步核对配置/下载哈希。未传入旧包不运行跨版检查；是否通过以该轮日志为准。可见桌面、IME、Weston 与完整 Wayland 各自填写。
-
-构建与测试可分阶段安排：`-SkipBuild -PrepareOnly` 重建并配置四台专用验收 VM 后关机；随后使用 `-SkipBuild -ReusePrepared -PriorDeb <仓库内旧包路径>` 验收已经核对 manifest 的候选。只有刚准备好且未安装产品的 VM 才能称为本轮干净环境。`-ReusePrepared` 不销毁 VM，不能用于把已有应用环境宣称为干净环境；脚本仍会核对专用 VM 标记。构建机与用户的 Windows VM 都不属于这一准备步骤。
-
-| 检查项 | Ubuntu 22.04 | Ubuntu 24.04 | Debian 12 | Debian 13 |
-| --- | --- | --- | --- | --- |
-| 干净 VM 启动 / `apt` 安装 | 通过 | 通过 | 通过 | 通过 |
-| `offscreen` 启动 | 通过 | 通过 | 通过 | 通过 |
-| Xvfb/X11 启动 | 通过 | 通过 | 通过 | 通过 |
-| 同版本重装 | 通过 | 通过 | 通过 | 通过 |
-| 跨版本升级 | 未验证 | 未验证 | 未验证 | 未验证 |
-| 卸载与用户数据保留 | 通过 | 通过 | 通过 | 通过 |
-| 可见 XFCE 桌面、中文路径、文件选择器 | 通过 | 通过 | 通过 | 通过 |
-| 中文输入法（IME） | 未验证 | 未验证 | 未验证 | 未验证 |
-| Wayland 启动 | 未验证 | 通过；Weston 无头 compositor | 未验证 | 通过；Weston 无头 compositor |
-| 真实登录和下载 | 未验证 | 未验证 | 未验证 | 未验证 |
-
-### 2026-10-04 本轮执行
-
-本轮版本是 `1.6.0-1`，首轮候选 `.deb` SHA256 为 `af7e10efbfc6df94635213adc1389f639362fa70e2abf814d6573cf0ffbf233e`。`dpkg-deb -f` 确认为 `amd64`，Maintainer 为 `Koril <dingjinghui33@163.com>`，Depends 包含 `ffmpeg` 及 Qt/X11 系统库。开发基线提交为 `26083783445940ac2371f4a41cda7f23358df9c7`，最终源码由 `v1.6.0` 标签确定；最终文件 SHA256 以发行页的 `release-manifest.json` 与 `SHA256SUMS.txt` 为准，避免把发行包自身包含的文档哈希作为自引用。宿主机使用 Vagrant 2.4.9、VirtualBox 7.0.12。文档或发行包变化后，必须使用新 SHA256 复验，复验日志保存于本地忽略目录。
-
-- Ubuntu 22.04：使用独立的 `ubuntu2204clean` VM（box `ubuntu/jammy64` 版本 `20241002.0.0`）从本发行版仓库解析依赖并安装，系统提供 FFmpeg 4.4.2；`offscreen`、Xvfb/X11、同版本重装后自检均通过，卸载后用户目录标记文件保留。真实 XFCE/X11 桌面截图确认主窗口和中文标签正常显示；文件选择器中选择现有 `/home/vagrant/Downloads` 和 `/home/vagrant/下载测试` 后，“保存到”字段正确回填。截图及 apt/自检日志位于 `dist/gui/validation/ubuntu2204/`。
-- Debian 12：box `debian/bookworm64` 版本 `12.20250126.1`，系统提供 FFmpeg 5.1.9；同一候选包的安装、两种无头启动、同版本重装、卸载及数据保留均通过。真实 XFCE/X11 桌面截图确认中文标签可读；文件选择器显示现有 `下载测试` 目录，点选后 `Choose` 按钮变为可用，确认后主窗口回填 `/home/vagrant/下载测试`。截图及日志位于 `dist/gui/validation/debian12/`。
-- Ubuntu 24.04.3：box `bento/ubuntu-24.04` 版本 `202510.26.0`；安装、offscreen、Xvfb/X11、同版本重装、卸载和数据保留通过。真实 XFCE/X11 桌面确认中文标签正常，选择 `/home/vagrant/下载测试` 后保存目录字段正确更新。额外安装 Weston 13，使用无头 Wayland compositor 运行 `QT_QPA_PLATFORM=wayland bilix-gui --smoke-test` 通过；这验证了 Wayland 协议启动，不代表已验收 GNOME/KDE 的完整 Wayland 桌面交互。日志和截图位于 `dist/gui/validation/ubuntu2404/`。
-- Debian 13.1：box `bento/debian-13` 版本 `202510.26.0`，系统 FFmpeg 7.1.5；安装、offscreen、Xvfb/X11、同版本重装、卸载及用户数据保留均通过。真实 XFCE/X11 桌面显示中文标签；文件选择器识别 `/home/vagrant/下载测试`，确认选择后主窗口字段正确更新。无头 Weston/Wayland 启动自检通过，范围同上述 Ubuntu 24.04 测试。日志和截图位于 `dist/gui/validation/debian13/`。
-
-Debian 13 的初始 box 使用旧 HTTP 重定向软件源，首次依赖下载很慢；测试时改用 Debian 官方 HTTPS CDN，仍由 apt 的已签名索引与包校验确定内容并执行安装。`provision.sh` 固定改用该官方入口，并跳过这些专用测试 VM 不需要的源码/翻译索引。此调整只用于仓库创建的测试 VM，不修改宿主机或用户已有虚拟机的软件源。
-
-中文路径是用系统剪贴板粘贴，或在文件选择器中用鼠标选择；这验证了路径显示和交互，**尚未验证中文输入法（IME）键入**。当前也尚未使用受保护的测试账号做真实登录/下载，且没有旧 GUI 正式发行包可做跨版本升级。box 的原始 `.box` 文件校验值本轮未保留；重建长期镜像缓存时应记录 SHA256。
-
-最终发布 deb 的 SHA256 为 `d6ba0f21662b924559eae4be045eeeb454866941c326601ae2e558419a500f26`，四目标重新安装/启动/重装/卸载/保留数据通过，证据为 `dist/gui/validation/final-matrix.json` 及各目标日志。它与前文 `af7e…` 首轮候选不同；最终结果见[1.6.0 版本记录](validation-1.6.0.md)。本次维护新增的独立日志/配置保留检查需按新增脚本另外留证，不继承旧脚本结果。
+按 [testing.md](testing.md) 与 [validation-template.md](validation-template.md) 填写通过/失败/未验证/不适用。授权账号下载、APT 公网验签/升级、可见桌面、IME 和各 Wayland 会话分别留证；不能从自动矩阵成功推断它们通过。生产服务器和其他 VM 不在此流程范围。
