@@ -134,7 +134,16 @@ sh scripts/publish_apt.sh /path/to/final.deb \
 
 aptly 可以只发布 `Contents-amd64.gz`，同时在 Release 声明压缩文件与解压原文的哈希；未压缩 Contents 返回 404 属于正常发布方式，不要人为补文件。核验须检查 `.gz` 本身，再用解压内容核对原文大小及摘要；真正缺失的 Packages、压缩索引、包或必要 by-hash 仍应失败。此行为见 [aptly 1.4 的索引实现](https://github.com/aptly-dev/aptly/blob/v1.4.0/deb/index_files.go#L75-L94)。
 
-例如把完整 public 输出受控复制到本机忽略的 `build/apt-public/` 后，在仓库根目录使用既有 SSH 密钥：
+aptly 的 `by-hash/Packages*`、`by-hash/Contents*` 等名字别名可能是指向同一 public 内散列实体的符号链接。发布工具只接收普通文件并省略这些别名；保留所有签名索引、包和散列实体。可在 Linux 发布机导出到全新目录：
+
+```bash
+apt_source="$HOME/.bilix-release/apt-work/public"
+apt_export="$HOME/.bilix-release/apt-public-export"
+mkdir "$apt_export"
+(cd "$apt_source" && find . -type f -print0 | tar --null -T - -cf -) | tar -C "$apt_export" -xf -
+```
+
+将这个普通文件导出目录受控复制到本机忽略的 `build/apt-public/` 后，在仓库根目录使用既有 SSH 密钥：
 
 ```powershell
 $aptPublic = 'build/apt-public'
@@ -147,7 +156,7 @@ uv run --locked python scripts/publish_apt.py --directory $aptPublic --ssh-key $
 
 三份签名索引分别切换。失败保留 staging 的 manifest、upload.tar 和 status.json（阶段/已完成文件）；核查后重跑相同 public 目录。网络中断若留下 `.publish-lock`，先确认没有仍在运行的发布，核对 owner token 与对应 staging，再按工具诊断恢复；不要删除其他发布的锁或未知路径。
 
-2026-10-13，现有 1.7.8 公有树的真实 GPG 双验签和 `bilix@djhx.site` 只读 `--check` 已通过，核对 37 个实体文件；两个 Contents 原文由 `.gz` 解压核验。新工具的实际上传/activation 尚未执行，状态见 [workflow-issues.md](workflow-issues.md)。
+2026-10-13，工具已实际发布 1.7.9，核对并上传 50 个实体文件；已有包和 by-hash 保留，两个逻辑 Contents 由 `.gz` 解压核验。真实 HTTPS 和目标系统升级结果见[本版验收](validation-1.7.9.md)，后续维护项见 [workflow-issues.md](workflow-issues.md)。
 
 用户配置与独立 APT 公钥指纹见 [gui-updating.md](gui-updating.md)。GUI 不自动添加源、不执行全系统升级。
 

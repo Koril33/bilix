@@ -33,7 +33,7 @@
 
 | 版本 | 当版记录 |
 | --- | --- |
-| 1.7.9（未发布修复候选） | [validation-1.7.9.md](validation-1.7.9.md) |
+| 1.7.9 | [validation-1.7.9.md](validation-1.7.9.md) |
 | 1.7.8 | [validation-1.7.8.md](validation-1.7.8.md) |
 | 1.7.7 | [validation-1.7.7.md](validation-1.7.7.md) |
 | 1.7.6 | [validation-1.7.6.md](validation-1.7.6.md) |

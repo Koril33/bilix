@@ -84,6 +84,6 @@ CLI/GUI 共用账号、配置和任务契约。队列、并发与会话内暂停
 | `scripts/publish_apt.py` | 公有树验签/哈希、bilix 按顺序上传/切换；`--check` 不改服务器 | 本地需 gpg/gpgv；保留实际 public 文件，Contents 仅 `.gz` 时验证解压原文摘要；签名索引分别切换 |
 | `scripts/deploy_site.py` | bilix 原子部署首页并保留备份 | 不代替 HTTPS 页面/下载链接回验 |
 
-`build/` 与 `dist/` 被 Git 忽略。`build/release-1.7.8/` 的一次性驱动、原始日志和截图不会随 clone 取得；历史记录引用它们表示本机留证。portable 签名 fixture 已有公开生成入口，其他安装故障 fixture、源码映射和全渠道回下载仍有人工/本地脚本步骤。APT 工具已入仓库，1.7.8 公有树的真实 GPG 与服务器只读检查通过，实际 activation 尚未执行；准确状态见 [workflow-issues.md](workflow-issues.md)。使用历史输入前确认文件存在。
+`build/` 与 `dist/` 被 Git 忽略。各版一次性驱动、原始日志和截图不会随 clone 取得；历史记录引用它们表示本机留证。portable 签名 fixture 已有公开生成入口，其他安装故障 fixture、源码映射和全渠道回下载仍有人工/本地脚本步骤。APT 工具已在 1.7.9 实际发布中使用；导出普通文件、验签、上传及恢复按[发布指南](releasing.md#6-apt-发布)执行。使用历史输入前确认文件存在。
 
 接手结束时更新问题状态、实际检查与证据路径；未完成事项留在对应登记表。
