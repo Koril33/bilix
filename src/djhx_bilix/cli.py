@@ -70,6 +70,14 @@ class Audio(StrEnum):
     best = "best"
 
 
+class OutputMode(StrEnum):
+    merged = "merged"
+    audio = "audio"
+    video = "video"
+    separate = "separate"
+    cover = "cover"
+
+
 def guarded(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
@@ -271,6 +279,20 @@ def download_command(
         typer.Option("--quiet", rich_help_panel="执行与安全", help="隐藏进度和计划，仅显示结果"),
     ] = False,
     info: Annotated[bool, typer.Option("--info", "-i", help="兼容旧版：仅查看视频信息")] = False,
+    mode: Annotated[
+        OutputMode,
+        typer.Option(
+            "--mode",
+            rich_help_panel="媒体与选集",
+            help="merged 完整视频 / audio 音频 / video 无声视频 / separate 分别保存 / cover 封面",
+        ),
+    ] = OutputMode.merged,
+    cover: Annotated[
+        bool,
+        typer.Option(
+            "--cover", rich_help_panel="媒体与选集", help="同时保存封面，普通多 P 每来源一张"
+        ),
+    ] = False,
 ):
     if info:
         run_info(urls, file, False)
@@ -291,6 +313,8 @@ def download_command(
         naming_template=settings.naming_template,
         proxy=settings.proxy,
         concurrency=settings.concurrency,
+        mode=mode.value,
+        cover=cover,
     )
     cancel = CancellationToken()
     previous_handlers = {}

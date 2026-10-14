@@ -20,7 +20,15 @@ from .bilibili.client import BilibiliClient
 from .config import load_settings
 from .errors import InputError, OperationCancelled, safe_error
 from .feedback import TransferSample
-from .models import CODECS, QUALITY_NAMES, DownloadPlan, VideoInfo, VideoTarget
+from .models import (
+    CODECS,
+    OUTPUT_MODES,
+    QUALITY_NAMES,
+    DownloadPlan,
+    OutputResult,
+    VideoInfo,
+    VideoTarget,
+)
 from .operations import CancellationToken, TaskControl
 from .planner import build_plan
 from .service import discover, execute
@@ -36,6 +44,7 @@ ACTIVE = (
     "checking_audio",
     "muxing",
     "committing",
+    "exporting",
 )
 
 
@@ -62,8 +71,12 @@ class DownloadOptions:
     naming_template: str = "{title}"
     proxy: str | None = None
     concurrency: int = 1
+    mode: str = "merged"
+    cover: bool = False
 
     def __post_init__(self) -> None:
+        if self.mode not in OUTPUT_MODES:
+            raise InputError("未知下载方式")
         object.__setattr__(self, "save", self.save.expanduser().absolute())
         from .filenames import validate_template
         from .network import validate_proxy
@@ -78,7 +91,8 @@ class DownloadOptions:
             f"{QUALITY_NAMES.get(self.quality, '自动')} / {self.codec or '自动编码'} / "
             f"{self.audio.upper()} · 严格 {'开' if self.strict else '关'} · "
             f"覆盖 {'开' if self.overwrite else '关'} · {self.save} · "
-            f"FFmpeg {self.ffmpeg or '自动查找'}"
+            f"FFmpeg {self.ffmpeg or '自动查找'} · {OUTPUT_MODES[self.mode]}"
+            + (" · 同时保存封面" if self.cover and self.mode != "cover" else "")
         )
 
 
@@ -126,6 +140,8 @@ class Attempt:
     planned_output: str = ""
     output: str = ""
     resolved_ffmpeg: str = ""
+    planned_outputs: tuple[str, ...] = ()
+    files: tuple[OutputResult, ...] = ()
     paused: bool = False
 
 
@@ -211,7 +227,19 @@ class Session:
             batch_id = self._begin(enqueue)
             for task in selected:
                 attempt = Attempt(
-                    new_id(), batch_id, task.latest.number + 1, options or task.latest.options
+                    new_id(),
+                    batch_id,
+                    task.latest.number + 1,
+                    options or task.latest.options,
+                    files=(
+                        tuple(
+                            file
+                            for file in task.latest.files
+                            if file.state in {"completed", "skipped"}
+                        )
+                        if options is None
+                        else ()
+                    ),
                 )
                 self.tasks[task.task_id] = replace(task, attempts=(*task.attempts, attempt))
             request_ids_new = []
@@ -320,8 +348,11 @@ class Session:
         with self._lock:
             source = self.requests[request_id]
             ids = []
-            for target in targets:
+            for target_index, target in enumerate(targets):
                 task_id = new_id()
+                options = source.options
+                if target_index and options.cover and not target.episode_id:
+                    options = replace(options, cover=False)
                 # Explicit part metadata is supplied by discovery, never parsed from a label.
                 spec = JobSpec(source.spec.source, str(target.page_number))
                 self.tasks[task_id] = Task(
@@ -331,7 +362,7 @@ class Session:
                     target.url,
                     target.label or target.url,
                     Identity(target.bvid, target.cid, target.episode_id),
-                    (Attempt(new_id(), source.batch_id, 1, source.options),),
+                    (Attempt(new_id(), source.batch_id, 1, options),),
                 )
                 ids.append(task_id)
             batch = self.batches[source.batch_id]
@@ -353,8 +384,12 @@ class Session:
             if attempt.state in TERMINAL:
                 return False
             if state is not None and state not in TERMINAL:
+                export_transition = state == "exporting" and attempt.state in {
+                    "loading",
+                    "exporting",
+                }
                 if state not in ACTIVE or not (
-                    0 <= ACTIVE.index(state) - ACTIVE.index(attempt.state) <= 1
+                    export_transition or 0 <= ACTIVE.index(state) - ACTIVE.index(attempt.state) <= 1
                 ):
                     raise ValueError(f"Illegal task transition {attempt.state} -> {state}")
             fields = {
@@ -369,6 +404,8 @@ class Session:
                     "output",
                     "resolved_ffmpeg",
                     "paused",
+                    "planned_outputs",
+                    "files",
                 }
             }
             attempt = replace(
@@ -440,10 +477,21 @@ def conflict(output: Path, overwrite: bool) -> str:
 
 
 def plan_description(plan: DownloadPlan) -> str:
-    return (
-        f"{QUALITY_NAMES.get(plan.video.quality, plan.video.quality)} / "
-        f"{CODECS.get(plan.video.codec, plan.video.codec)} / {plan.audio.audio_kind.upper()}"
-    )
+    values = []
+    if plan.video:
+        values.extend(
+            (
+                QUALITY_NAMES.get(plan.video.quality, str(plan.video.quality)),
+                CODECS.get(plan.video.codec, str(plan.video.codec)),
+            )
+        )
+    if plan.audio:
+        values.append(plan.audio.audio_kind.upper())
+    if plan.mode != "merged":
+        values.insert(0, OUTPUT_MODES[plan.mode])
+    if any(f.kind == "cover" for f in plan.outputs) and plan.mode != "cover":
+        values.append("同时保存封面")
+    return " / ".join(values)
 
 
 def summary_text(counts: dict[str, int]) -> str:
@@ -571,8 +619,11 @@ def run_batch(
             options = task.latest.options
             session.event(task_id, emit, state="loading")
             try:
-                video = cached.get(task_id) or scoped_client(control, options).fetch(
-                    task.target_url
+                target_client = scoped_client(control, options)
+                video = cached.get(task_id) or (
+                    target_client.fetch(task.target_url, metadata_only=True)
+                    if options.mode == "cover" and isinstance(target_client, BilibiliClient)
+                    else target_client.fetch(task.target_url)
                 )
                 control.checkpoint()
                 if not task.identity.matches(video):
@@ -590,6 +641,8 @@ def run_batch(
                     options.strict,
                     options.audio,
                     options.naming_template,
+                    mode=options.mode,
+                    cover=options.cover,
                 )
                 decision = conflict(plan.output, options.overwrite)
                 with paths_guard:
@@ -600,22 +653,49 @@ def run_batch(
                     emit,
                     kind="plan",
                     planned_output=str(plan.output),
+                    planned_outputs=tuple(str(f.output) for f in plan.outputs),
                     title=video.title,
                     selection=plan_description(plan),
                     warnings=plan.warnings,
                     conflict=decision,
                     duplicate=duplicate,
                 )
-                if decision == "blocked":
+                if decision == "blocked" and len(plan.outputs) == 1:
                     raise InputError(
                         "输出路径已存在但不是普通文件",
                         error_code="filesystem",
                         action="请调整保存路径",
                     )
-                path_guard = session.path_lock(plan.output)
-                while not path_guard.acquire(timeout=0.1):
-                    control.checkpoint()
+                guards = []
+
+                def record_file(value):
+                    existing = session.tasks[task_id].latest.files
+                    files = tuple(f for f in existing if f.kind != value.kind) + (value,)
+                    successful = sum(f.state in {"completed", "skipped"} for f in files)
+                    session.event(
+                        task_id,
+                        emit,
+                        kind="artifact",
+                        files=files,
+                        output=str(
+                            next(
+                                (f.output for f in files if f.state in {"completed", "skipped"}), ""
+                            )
+                        ),
+                        detail=f"已保存 {successful}/{len(plan.outputs)} 个文件",
+                    )
+
                 try:
+                    for path in sorted(
+                        {
+                            f.output.with_suffix("") if f.kind == "cover" else f.output
+                            for f in plan.outputs
+                        }
+                    ):
+                        guard = session.path_lock(path)
+                        while not guard.acquire(timeout=0.1):
+                            control.checkpoint()
+                        guards.append(guard)
                     control.checkpoint()
                     result = execute(
                         plan,
@@ -624,6 +704,11 @@ def run_batch(
                         progress_sink(session, task_id, emit),
                         cancel=control,
                         proxy=options.proxy or "",
+                        **(
+                            {"artifact": record_file, "retained": task.latest.files}
+                            if plan.mode != "merged" or len(plan.outputs) > 1
+                            else {}
+                        ),
                         stage=lambda stage, tid=task_id: (
                             session.event(
                                 tid,
@@ -636,13 +721,30 @@ def run_batch(
                         ),
                     )
                 finally:
-                    path_guard.release()
+                    for guard in reversed(guards):
+                        guard.release()
+                failed = [f for f in result.files if f.state == "failed"]
+                successful = sum(f.state in {"completed", "skipped"} for f in result.files)
+                detail = "已存在，未校验" if result.skipped else "已校验并合并"
+                if result.files:
+                    detail = (
+                        f"部分完成：{successful}/{len(result.files)} 个文件已保存；"
+                        if failed and successful
+                        else ""
+                    ) + (
+                        "；".join(f.detail for f in failed)
+                        if failed
+                        else f"已保存 {successful}/{len(result.files)} 个文件"
+                    )
                 session.event(
                     task_id,
                     emit,
-                    state="skipped" if result.skipped else "completed",
-                    output=str(result.output),
-                    detail="已存在，未校验" if result.skipped else "已校验并合并",
+                    state="failed" if failed else "skipped" if result.skipped else "completed",
+                    output=str(result.output) if not failed or successful else "",
+                    files=result.files,
+                    detail=detail,
+                    error_code="partial" if failed and successful else "download" if failed else "",
+                    action="重试失败文件" if failed else "",
                 )
             except OperationCancelled:
                 if cancel.cancelled() or not control.cancelled():
@@ -676,6 +778,7 @@ def run_batch(
                     source.spec.source,
                     source.spec.page,
                     cancel=source_control,
+                    **({"cover_only": True} if source.options.mode == "cover" else {}),
                 )
                 source_control.checkpoint()
                 if not targets:
@@ -743,7 +846,13 @@ def run_preview(
     for index, spec in enumerate(specs):
         cancel.raise_if_cancelled()
         try:
-            targets = discover(client, normalize_url(spec.source), spec.page, cancel=cancel)
+            targets = discover(
+                client,
+                normalize_url(spec.source),
+                spec.page,
+                cancel=cancel,
+                **({"cover_only": True} if options.mode == "cover" else {}),
+            )
         except OperationCancelled:
             raise
         except Exception as error:
@@ -762,7 +871,7 @@ def run_preview(
             )
             continue
         totals["tasks"] += len(targets)
-        for target in targets:
+        for target_index, target in enumerate(targets):
             cancel.raise_if_cancelled()
             try:
                 info = target.cached_info or client.fetch(target.url)
@@ -775,27 +884,31 @@ def run_preview(
                     options.strict,
                     options.audio,
                     options.naming_template,
+                    mode=options.mode,
+                    cover=options.cover and (target_index == 0 or bool(target.episode_id)),
                 )
-                decision = conflict(plan.output, options.overwrite)
-                emit(
-                    dict(
-                        type="preview",
-                        source_index=index,
-                        label=target.label,
-                        title=info.title,
-                        output=str(plan.output),
-                        selection=plan_description(plan),
-                        warnings=plan.warnings,
-                        conflict=decision,
-                        duplicate=plan.output in paths,
-                        detail="输出路径已存在但不是普通文件" if decision == "blocked" else "",
-                        action="请调整保存目录" if decision == "blocked" else "",
+                for output_file in plan.outputs:
+                    output = output_file.output
+                    decision = conflict(output, options.overwrite)
+                    emit(
+                        dict(
+                            type="preview",
+                            source_index=index,
+                            label=target.label,
+                            title=info.title,
+                            output=str(output),
+                            selection=plan_description(plan),
+                            warnings=plan.warnings,
+                            conflict=decision,
+                            duplicate=output in paths,
+                            detail="输出路径已存在但不是普通文件" if decision == "blocked" else "",
+                            action="请调整保存目录" if decision == "blocked" else "",
+                        )
                     )
-                )
-                paths.add(plan.output)
-                totals["planned"] += 1
-                if decision == "blocked":
-                    totals["failed"] += 1
+                    paths.add(output)
+                    totals["planned"] += 1
+                    if decision == "blocked":
+                        totals["failed"] += 1
             except OperationCancelled:
                 raise
             except Exception as error:

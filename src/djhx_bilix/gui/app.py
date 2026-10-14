@@ -64,6 +64,7 @@ _STAGES = {
     "checking_video": "校验视频",
     "checking_audio": "校验音频",
     "muxing": "合并音视频",
+    "exporting": "下载与保存文件",
     "committing": "保存文件",
     "completed": "完成",
     "skipped": "跳过",
@@ -75,6 +76,7 @@ _STATES = {
     "checking_video": "校验视频",
     "checking_audio": "校验音频",
     "muxing": "合并音视频",
+    "exporting": "下载与保存文件",
     "committing": "保存文件",
     "completed": "完成",
     "skipped": "跳过",
@@ -203,7 +205,7 @@ class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
         for label, value in (("跟随系统", "system"), ("浅色", "light"), ("深色", "dark")):
             self.theme_combo.addItem(label, value)
         interface.addRow("界面主题", self.theme_combo)
-        self.remember_check = QCheckBox("记住画质、编码、音轨和严格匹配")
+        self.remember_check = QCheckBox("记住下载方式、封面和媒体选项")
         self.feedback_check = QCheckBox("显示下载速度和传输剩余时间")
         interface.addRow(self.remember_check)
         interface.addRow(self.feedback_check)
@@ -404,17 +406,24 @@ class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
             overwrite=self.overwrite_check.isChecked(),
             ffmpeg=load_settings().ffmpeg,
             dry_run=dry_run,
+            mode=self.mode_combo.currentData(),
+            cover=self.save_cover_check.isChecked(),
         )
 
     def _update_option_summary(self, *_args):
-        values = []
-        if self.quality_combo.currentData() is not None:
+        mode = self.mode_combo.currentData()
+        video = mode in {"merged", "video", "separate"}
+        audio = mode in {"merged", "audio", "separate"}
+        values = [self.mode_combo.currentText()]
+        if self.save_cover_check.isChecked() and mode != "cover":
+            values.append("同时保存封面")
+        if video and self.quality_combo.currentData() is not None:
             values.append(self.quality_combo.currentText())
-        if self.codec_combo.currentData() is not None:
+        if video and self.codec_combo.currentData() is not None:
             values.append(self.codec_combo.currentText())
-        if self.audio_combo.currentData() != "aac":
+        if audio and self.audio_combo.currentData() != "aac":
             values.append(self.audio_combo.currentText())
-        if self.strict_check.isChecked():
+        if video and self.strict_check.isChecked():
             values.append("严格匹配画质和编码")
         if self.overwrite_check.isChecked():
             values.append("替换同名文件")
@@ -572,7 +581,11 @@ class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
                         f"类别 {a.error_code or '无'} · "
                         f"{a.action}\n"
                         f"计划路径 {a.planned_output or '尚未生成'}\n"
-                        f"实际输出 {a.output or '无'}"
+                        f"全部计划路径：{', '.join(a.planned_outputs) or '尚未生成'}\n"
+                        f"实际输出 {a.output or '无'}\n"
+                        + "\n".join(
+                            f"{f.kind} · {f.state} · {f.output} · {f.detail}" for f in a.files
+                        )
                     )
                     for a in task.attempts
                 )
@@ -599,7 +612,7 @@ class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
                 f"{attempt.detail} {attempt.action}\n"
                 f"输出：{attempt.output or '尚无输出'}"
             )
-            if node.estimator is not None and attempt.state == "downloading":
+            if node.estimator is not None and attempt.state in {"downloading", "exporting"}:
                 feedback = node.estimator.snapshot()
                 text += "\n" + feedback_text(feedback)
                 for stream in feedback.streams:
@@ -674,13 +687,22 @@ class BaseWindow(UpdateActions, DesktopActions, CompactUi, QMainWindow):
 
     def _selected_output(self):
         task = self._selected_task()
-        if task and task.latest.state in {"completed", "skipped"} and task.latest.output:
+        if (
+            task
+            and task.latest.output
+            and (
+                task.latest.state in {"completed", "skipped"}
+                or any(f.state in {"completed", "skipped"} for f in task.latest.files)
+            )
+        ):
             return Path(task.latest.output)
 
     def _open_selected_file(self):
         output = self._selected_output()
         if not output or not output.is_file():
             self._error("尚无可打开的输出文件，或文件已被移动 / 删除")
+        elif len(self._selected_task().latest.files) > 1:
+            self._open_folder(output.parent)
         elif not QDesktopServices.openUrl(QUrl.fromLocalFile(str(output))):
             self._error("无法打开输出文件，请检查桌面关联程序")
 

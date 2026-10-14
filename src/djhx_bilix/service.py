@@ -25,12 +25,23 @@ def discover(
     page: str | None,
     *,
     cancel: CancellationToken | None = None,
+    cover_only: bool = False,
 ) -> tuple[VideoTarget, ...]:
     if cancel:
         cancel.raise_if_cancelled()
-    info = client.fetch(url)
+    info = (
+        client.fetch(url, metadata_only=True)
+        if cover_only and isinstance(client, BilibiliClient)
+        else client.fetch(url)
+    )
     if cancel:
         cancel.raise_if_cancelled()
+    if cover_only:
+        return (
+            VideoTarget(
+                info.url, info, info.title, cid=info.cid, bvid=info.bvid, episode_id=info.episode_id
+            ),
+        )
     pages = select_pages(info, page)
     result = []
     for part in pages:
@@ -77,7 +88,7 @@ def commit_file(source: Path, destination: Path, overwrite: bool) -> bool:
     return True
 
 
-def execute(
+def _execute_merged(
     plan: DownloadPlan,
     ffmpeg_path: str | None = None,
     overwrite: bool = False,
@@ -233,3 +244,34 @@ def execute(
     if stage:
         stage(StageEvent("completed" if committed else "skipped"))
     return DownloadResult(plan.output, skipped=not committed)
+
+
+def execute(
+    plan,
+    ffmpeg_path=None,
+    overwrite=False,
+    progress=None,
+    *,
+    cancel=None,
+    stage=None,
+    proxy=None,
+    artifact=None,
+    retained=(),
+):
+    if plan.mode == "merged" and len(plan.outputs) == 1:
+        return _execute_merged(
+            plan, ffmpeg_path, overwrite, progress, cancel=cancel, stage=stage, proxy=proxy
+        )
+    from .exports import execute_files
+
+    return execute_files(
+        plan,
+        ffmpeg_path,
+        overwrite,
+        progress,
+        cancel=cancel,
+        stage=stage,
+        proxy=proxy,
+        artifact=artifact,
+        retained=retained,
+    )

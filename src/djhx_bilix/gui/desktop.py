@@ -69,12 +69,16 @@ class DesktopActions:
             ("quality", self.quality_combo),
             ("codec", self.codec_combo),
             ("audio", self.audio_combo),
+            ("mode", self.mode_combo),
         ):
             raw = self._prefs.value(name, "") if self._remember_options else ""
             value = int(raw) if name == "quality" and str(raw).isdigit() else raw or None
             index = combo.findData(value)
             if index >= 0:
                 combo.setCurrentIndex(index)
+        self.save_cover_check.setChecked(
+            self._remember_options and self._pref("cover", False, bool)
+        )
         self.strict_check.setChecked(self._remember_options and self._pref("strict", False, bool))
         self.advanced_toggle.setChecked(self._pref("advancedExpanded", False, bool))
         self.advanced_toggle.toggled.connect(
@@ -390,10 +394,15 @@ class DesktopActions:
     def _run_parse(self, valid):
         mapping = [index for index, spec in valid]
         specs = tuple(spec for index, spec in valid)
+        metadata_only = self.mode_combo.currentData() == "cover"
+        self._metadata_only = metadata_only
 
         def operation(emit, cancel):
             return run_info(
-                specs, lambda event: emit({**event, "index": mapping[event["index"]]}), cancel
+                specs,
+                lambda event: emit({**event, "index": mapping[event["index"]]}),
+                cancel,
+                **({"metadata_only": True} if metadata_only else {}),
             )
 
         self._start_operation("info", operation)
@@ -434,7 +443,12 @@ class DesktopActions:
                     for j in range(root.childCount())
                     if root.child(j).checkState(0) == Qt.CheckState.Checked
                 ]
-                if parts:
+                if (
+                    self.mode_combo.currentData() == "cover"
+                    and root.checkState(0) != Qt.CheckState.Unchecked
+                ):
+                    specs.append(JobSpec(data["url"]))
+                elif parts:
                     specs.append(JobSpec(data["url"], ",".join(parts)))
             if not specs:
                 raise InputError("请勾选至少一个有效选集")
@@ -568,9 +582,11 @@ class DesktopActions:
             (self.quality_combo, options.quality),
             (self.codec_combo, options.codec),
             (self.audio_combo, options.audio),
+            (self.mode_combo, options.mode),
         ):
             combo.setCurrentIndex(max(0, combo.findData(value)))
         self.output_edit.setText(str(options.save))
+        self.save_cover_check.setChecked(options.cover)
         self.strict_check.setChecked(options.strict)
         self.overwrite_check.setChecked(options.overwrite)
 
@@ -756,20 +772,26 @@ class DesktopActions:
             ("quality", self.quality_combo),
             ("codec", self.codec_combo),
             ("audio", self.audio_combo),
+            ("mode", self.mode_combo),
         ):
             self._prefs.setValue(name, combo.currentData() or "")
         self._prefs.setValue("strict", self.strict_check.isChecked())
+        self._prefs.setValue("cover", self.save_cover_check.isChecked())
 
     def _restore_media_options(self):
         for name, combo, default in (
             ("quality", self.quality_combo, None),
             ("codec", self.codec_combo, None),
             ("audio", self.audio_combo, "aac"),
+            ("mode", self.mode_combo, "merged"),
         ):
             raw = self._prefs.value(name, default) if self._remember_options else default
             value = int(raw) if name == "quality" and str(raw).isdigit() else raw or default
             index = combo.findData(value)
             combo.setCurrentIndex(index if index >= 0 else combo.findData(default))
+        self.save_cover_check.setChecked(
+            self._remember_options and self._pref("cover", False, bool)
+        )
         self.strict_check.setChecked(self._remember_options and self._pref("strict", False, bool))
         self.advanced_toggle.setChecked(self._pref("advancedExpanded", False, bool))
 

@@ -43,7 +43,11 @@ def run_session(
 
 
 def run_info(
-    specs: tuple[JobSpec, ...], emit: EventSink, cancel: CancellationToken
+    specs: tuple[JobSpec, ...],
+    emit: EventSink,
+    cancel: CancellationToken,
+    *,
+    metadata_only: bool = False,
 ) -> dict[str, int]:
     client = BilibiliClient(load_settings(), cancel=cancel)
     failures = 0
@@ -51,7 +55,9 @@ def run_info(
     for index, spec in enumerate(specs, 1):
         cancel.raise_if_cancelled()
         try:
-            info = client.fetch(normalize_url(spec.source))
+            info = client.fetch(
+                normalize_url(spec.source), **({"metadata_only": True} if metadata_only else {})
+            )
             cancel.raise_if_cancelled()
             emit(
                 {

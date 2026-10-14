@@ -17,6 +17,7 @@ STATES = {
     "checking_video": "校验视频",
     "checking_audio": "校验音频",
     "muxing": "合并音视频",
+    "exporting": "下载与保存文件",
     "committing": "保存文件",
     "completed": "已完成",
     "skipped": "已存在，跳过未校验",
@@ -132,7 +133,11 @@ class HistoryModel(QAbstractItemModel):
                     "",
                 )
             else:
-                state = STATES.get(row.state, row.state)
+                state = (
+                    "部分完成"
+                    if row.state == "failed" and row.detail.startswith("部分完成")
+                    else STATES.get(row.state, row.state)
+                )
                 if row.paused:
                     state = "已暂停" if row.feedback == "已暂停" else "暂停中（处理阶段结束后等待）"
                 symbols = {
@@ -205,13 +210,13 @@ class HistoryModel(QAbstractItemModel):
         row.detail = f"{attempt.detail} {attempt.action}".strip()
         if progress is not None:
             row.progress = progress
-        elif attempt.state != "downloading":
+        elif attempt.state not in {"downloading", "exporting"}:
             row.progress = ""
         if streams is not None:
             row.streams = dict(streams)
-        elif attempt.state != "downloading":
+        elif attempt.state not in {"downloading", "exporting"}:
             row.streams = {}
-        if samples and attempt.state == "downloading":
+        if samples and attempt.state in {"downloading", "exporting"}:
             if row.estimator is None:
                 row.estimator = TransferEstimator()
             for sample in samples:
@@ -226,7 +231,7 @@ class HistoryModel(QAbstractItemModel):
                 s.stream: (s.completed, s.total or (s.completed if s.phase == "finished" else None))
                 for s in row.estimator.snapshot().streams
             }
-        elif attempt.state != "downloading":
+        elif attempt.state not in {"downloading", "exporting"}:
             row.estimator, row.feedback = None, ""
         roles = [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole]
         roles.append(Qt.ItemDataRole.ForegroundRole)

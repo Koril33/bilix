@@ -33,6 +33,7 @@
 
 | 版本 | 当版记录 |
 | --- | --- |
+| 1.8.0 | [设计](gui-update-guide-1.8.0.md) · [validation-1.8.0.md](validation-1.8.0.md) |
 | 1.7.9 | [validation-1.7.9.md](validation-1.7.9.md) |
 | 1.7.8 | [validation-1.7.8.md](validation-1.7.8.md) |
 | 1.7.7 | [validation-1.7.7.md](validation-1.7.7.md) |

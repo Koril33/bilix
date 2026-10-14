@@ -79,6 +79,23 @@ def test_packet_scan_and_mux_with_bundled_ffmpeg(media_files, tmp_path):
     assert (tmp_path / "result.mp4").stat().st_size > 0
 
 
+def test_independent_aac_and_silent_video_are_decodable(media_files, encoder, tmp_path):
+    media = FFmpeg(find_ffmpeg())
+    video, audio = media_files
+    outputs = (
+        (audio, tmp_path / "audio.m4a", "a"),
+        (video, tmp_path / "silent.video.mp4", "v"),
+    )
+    for source, target, kind in outputs:
+        media.check_stream(source, target, kind, 4)
+        assert target.stat().st_size > 0
+        subprocess.run(
+            [encoder, "-v", "error", "-i", str(target), "-map", f"0:{kind}:0", "-f", "null", "-"],
+            check=True,
+            capture_output=True,
+        )
+
+
 def test_truncated_packet_data_is_rejected(media_files, tmp_path):
     video, _ = media_files
     truncated = tmp_path / "truncated.mp4"

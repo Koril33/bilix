@@ -12,18 +12,18 @@ def release_collection(signed_update):
     records = []
     names = [entry["filename"] for entry in signed_update["manifest"]["artifacts"]]
     names += [
-        "BiliX-GUI-licenses-and-source-1.8.0-windows-x64.zip",
-        "djhx-bilix-gui_1.8.0_source.tar.gz",
-        "djhx_bilix-1.8.0-py3-none-any.whl",
-        "djhx_bilix-1.8.0.tar.gz",
-        "bilix-1.8.0-windows-x64.zip",
+        "BiliX-GUI-licenses-and-source-1.8.1-windows-x64.zip",
+        "djhx-bilix-gui_1.8.1_source.tar.gz",
+        "djhx_bilix-1.8.1-py3-none-any.whl",
+        "djhx_bilix-1.8.1.tar.gz",
+        "bilix-1.8.1-windows-x64.zip",
     ]
     for name in names:
         path = directory / name
         path.write_bytes(signed_update["content"])
         records.append(dict(name=name, bytes=path.stat().st_size, sha256=sha256(path)))
     (directory / "release-manifest.json").write_bytes(
-        encode_json(dict(version="1.8.0", artifacts=records))
+        encode_json(dict(version="1.8.1", artifacts=records))
     )
     (directory / "SHA256SUMS.txt").write_text(
         "".join(f"{r['sha256']}  {r['name']}\n" for r in sorted(records, key=lambda r: r["name"])),
@@ -75,7 +75,7 @@ def test_changed_materials_rejected_before_signing(signed_update, monkeypatch):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "scripts"))
     signing = importlib.import_module("update_release")
     directory = release_collection(signed_update)
-    (directory / "djhx_bilix-1.8.0.tar.gz").write_bytes(b"changed")
+    (directory / "djhx_bilix-1.8.1.tar.gz").write_bytes(b"changed")
     with pytest.raises(RuntimeError, match="changed"):
         signing.sign_release(directory, Path("private-key-not-needed"), 123)
 

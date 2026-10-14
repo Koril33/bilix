@@ -64,7 +64,7 @@ class BilibiliClient:
             raise BilixError("短链接未指向支持的 Bilibili 视频")
         return target
 
-    def fetch(self, url: str) -> VideoInfo:
+    def fetch(self, url: str, *, metadata_only: bool = False) -> VideoInfo:
         self._check_cancel()
         url = self.resolve(url)
         try:
@@ -73,6 +73,8 @@ class BilibiliClient:
                 self._check_cancel()
                 response.raise_for_status()
                 info = parse_video(response.text, url)
+            if metadata_only:
+                return info
             self._check_cancel()
             if info.episode_id and not info.videos:
                 # SSR occasionally omits video_info even for an authorized account.

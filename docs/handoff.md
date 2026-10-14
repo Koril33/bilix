@@ -2,7 +2,7 @@
 
 本文面向没有会话上下文的开发人员或 AI。仓库提供 Bilibili CLI 与 PySide6 GUI，唯一业务实现为 `src/djhx_bilix`。所有当前文档从 [README.md](README.md) 进入。
 
-当前源码版本为 **1.7.9**。发行、各渠道上线和验收范围见 [validation-1.7.9.md](validation-1.7.9.md)，portable 修复与旧版一次手动迁移见 [portable-update-fix.md](portable-update-fix.md)。开始修改前查看 [workflow-issues.md](workflow-issues.md) 与 [backlog.md](backlog.md)，不要把源码版本号等同于发布已经完成。
+当前源码版本为 **1.8.0**。新下载方式的设计见 [gui-update-guide-1.8.0.md](gui-update-guide-1.8.0.md)，发行、各渠道上线和验收范围见 [validation-1.8.0.md](validation-1.8.0.md)；portable 修复与旧版一次手动迁移见 [portable-update-fix.md](portable-update-fix.md)。开始修改前查看 [workflow-issues.md](workflow-issues.md) 与 [backlog.md](backlog.md)，不要把源码版本号等同于发布已经完成。
 
 ## 1. 先确定源码身份
 

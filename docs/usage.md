@@ -17,6 +17,10 @@ blx download BV1j4411W7F7
 blx download BV1j4411W7F7 -s videos -q 480p --codec HEVC
 blx download BV1j4411W7F7 -q 1080p --strict
 blx download BV1j4411W7F7 --dry-run
+blx download BV1j4411W7F7 --mode audio
+blx download BV1j4411W7F7 --mode video --cover
+blx download BV1j4411W7F7 --mode separate
+blx download BV1j4411W7F7 --mode cover
 blx download BV1Wv411y7o9 -q HDR --strict
 blx download BV13L4y1K7th -q 126 --audio dolby --strict
 blx download BV1pB4y1o7TF -q 1080p --audio flac --strict
@@ -56,6 +60,8 @@ blx download BV1j4411W7F7 --quiet
 ```
 
 默认目录为用户 Downloads 下的 `djhx-bilix`。文件名包含视频标题、BV/CID、清晰度和实际编码，用于区分视频和选集。
+
+`--mode` 可选 `merged`（完整视频，默认）、`audio`（仅音频）、`video`（无声视频）、`separate`（音视频分别保存）和 `cover`（仅封面）。媒体模式可加 `--cover` 同时保存封面。仅封面只请求封面元数据；AAC 独立文件为 M4A，FLAC/Dolby 为仅含音轨的 MP4，独立视频为无声 MP4。均保留源编码，不转码。分别保存时，一个文件失败会保留其他已成功文件。完整规则见 [1.8.0 设计](gui-update-guide-1.8.0.md)。
 
 ## 配置与退出码
 

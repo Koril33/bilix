@@ -20,6 +20,15 @@ QUALITY_NAMES = {
     127: "8K",
 }
 
+OUTPUT_MODES = {
+    "merged": "完整视频（含声音）",
+    "audio": "仅音频",
+    "video": "仅视频（无声音）",
+    "separate": "音频与视频分别保存",
+    "cover": "仅封面",
+}
+OUTPUT_KINDS = {"media": "完整视频", "video": "无声视频", "audio": "音频", "cover": "封面"}
+
 
 @dataclass(frozen=True)
 class Stream:
@@ -115,15 +124,36 @@ class VideoTarget:
 
 
 @dataclass(frozen=True)
+class OutputFile:
+    kind: str
+    output: Path
+
+
+@dataclass(frozen=True)
+class OutputResult:
+    kind: str
+    output: Path
+    state: str
+    detail: str = ""
+
+
+@dataclass(frozen=True)
 class DownloadPlan:
     info: VideoInfo
-    video: Stream
-    audio: Stream
+    video: Stream | None
+    audio: Stream | None
     output: Path
     warnings: tuple[str, ...] = ()
+    mode: str = "merged"
+    files: tuple[OutputFile, ...] = ()
+
+    @property
+    def outputs(self) -> tuple[OutputFile, ...]:
+        return self.files or (OutputFile("media", self.output),)
 
 
 @dataclass(frozen=True)
 class DownloadResult:
     output: Path
     skipped: bool = False
+    files: tuple[OutputResult, ...] = ()

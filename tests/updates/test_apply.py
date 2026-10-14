@@ -71,7 +71,7 @@ def test_unlaunchable_new_executable_uses_portable_recovery_path(signed_update, 
             "directory": str(directory),
             "artifact_id": "windows-x64-portable",
             "target": str(target),
-            "version": "1.8.0",
+            "version": "1.8.1",
             "old_sha256": sha256(target),
             "processes": [],
         },
@@ -113,7 +113,7 @@ def test_accepted_handoff_wait_failure_is_visible_and_does_not_start_another_ins
             "directory": str(directory),
             "artifact_id": "windows-x64-portable",
             "target": str(target),
-            "version": "1.8.0",
+            "version": "1.8.1",
             "old_sha256": sha256(target),
             "processes": [{"pid": 98765, "image": str(target)}],
         },
@@ -154,14 +154,14 @@ def _root_fixture(signed_update, monkeypatch):
     def run(command, **kwargs):
         calls.append(command)
         if command[0] == "/usr/bin/dpkg-deb":
-            return SimpleNamespace(returncode=0, stdout="djhx-bilix-gui 1.8.0-1 amd64")
+            return SimpleNamespace(returncode=0, stdout="djhx-bilix-gui 1.8.1-1 amd64")
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(apply.subprocess, "run", run)
     monkeypatch.setattr(
         apply,
         "installed_deb_version",
-        lambda: "1.8.0-1" if any(c[0] == "/usr/bin/apt-get" for c in calls) else "1.7.5-1",
+        lambda: "1.8.1-1" if any(c[0] == "/usr/bin/apt-get" for c in calls) else "1.7.5-1",
     )
     return calls
 
@@ -219,7 +219,7 @@ def test_inno_reboot_required_does_not_restart_pending_install(signed_update, mo
             "directory": str(directory),
             "artifact_id": "windows-x64-installer",
             "target": str(target),
-            "version": "1.8.0",
+            "version": "1.8.1",
             "processes": [],
         },
     )

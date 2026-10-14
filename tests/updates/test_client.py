@@ -110,7 +110,7 @@ def test_insufficient_space_never_downloads_package(signed_update, tmp_path, mon
 def test_current_version_does_not_download_or_offer_update(signed_update, tmp_path, monkeypatch):
     from djhx_bilix.updater import client as module
 
-    monkeypatch.setattr(module, "__version__", "1.8.0")
+    monkeypatch.setattr(module, "__version__", "1.8.1")
     mirror = Mirror(signed_update)
     client = UpdateClient(
         Distribution("windows-x64-portable", tmp_path / "current.exe"),

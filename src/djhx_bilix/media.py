@@ -121,6 +121,8 @@ class FFmpeg:
                 f"0:{kind}:0",
                 "-c",
                 "copy",
+                "-f",
+                "mp4",
                 # MP4 otherwise silently drops Dolby Vision's dvcC/dvvC record.
                 "-strict",
                 "experimental",

@@ -5,8 +5,8 @@ from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QBuffer, QIODevice, QSize, Qt, QThread, QTimer, Slot
-from PySide6.QtGui import QIcon, QImageReader, QPixmap
+from PySide6.QtCore import QBuffer, QIODevice, QSize, Qt, QThread, QTimer, QUrl, Slot
+from PySide6.QtGui import QDesktopServices, QIcon, QImageReader, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSpinBox,
+    QTreeWidget,
     QTreeWidgetItem,
 )
 
@@ -24,10 +25,10 @@ from djhx_bilix import __version__
 from djhx_bilix.config import load_settings, save_settings
 from djhx_bilix.errors import BilixError, InputError
 from djhx_bilix.feedback import format_speed
-from djhx_bilix.models import CODECS, QUALITY_NAMES, Stream, VideoInfo
+from djhx_bilix.models import CODECS, OUTPUT_KINDS, QUALITY_NAMES, Stream, VideoInfo
 from djhx_bilix.operations import CancellationToken
 from djhx_bilix.planner import build_plan
-from djhx_bilix.tasks import TERMINAL
+from djhx_bilix.tasks import TERMINAL, plan_description
 from djhx_bilix.urls import parse_pages
 
 from .colors import state_color
@@ -74,7 +75,52 @@ class FeatureActions:
         self._round_timer = QTimer(self)
         self._round_timer.setInterval(250)
         self._round_timer.timeout.connect(self._update_global_progress)
+        self.mode_combo.currentIndexChanged.connect(self._update_output_mode)
+        self.save_cover_check.toggled.connect(self._update_option_summary)
         self._restore_media_options()
+        self._update_output_mode()
+
+    def _update_output_mode(self, *_args):
+        mode = self.mode_combo.currentData()
+        video = mode in {"merged", "video", "separate"}
+        audio = mode in {"merged", "audio", "separate"}
+        self.quality_label.setVisible(video)
+        self.quality_combo.setVisible(video)
+        self.media_form.setRowVisible(self.codec_combo, video)
+        self.media_form.setRowVisible(self.audio_combo, audio)
+        self.strict_check.setVisible(video)
+        self.save_cover_check.setVisible(mode != "cover")
+        self.mode_hint.setText(
+            {
+                "merged": "保存一个带声音的完整视频，保持现有下载行为。",
+                "audio": "只下载音频流。AAC 保存为 M4A，其他音轨保存为仅音频 MP4。",
+                "video": "只下载视频流，保存的视频没有声音。",
+                "separate": "音频与视频分别校验、保存为两个独立文件。",
+                "cover": "每个勾选来源保存封面；普通多 P 共用投稿封面，不重复保存。",
+            }[mode]
+        )
+        for index in self._metadata:
+            root = self.metadata_tree.topLevelItem(index)
+            for j in range(root.childCount()):
+                root.child(j).setHidden(mode == "cover")
+        if mode != "cover" and getattr(self, "_metadata_only", False):
+            self._metadata_only = False
+            self._invalidate_info()
+        self._update_option_summary()
+        self._update_capabilities()
+        self._update_parse_summary()
+        self._update_draft_actions()
+
+    def _update_parse_summary(self):
+        super()._update_parse_summary()
+        if self.mode_combo.currentData() == "cover" and self._parse_complete:
+            selected = sum(
+                self.metadata_tree.topLevelItem(i).checkState(0) != Qt.CheckState.Unchecked
+                for i in self._metadata
+            )
+            self.parse_summary.setText(
+                f"已读取 {len(self._metadata)} 个来源 · 已选择 {selected} 个封面"
+            )
 
     def _make_settings_tab(self):
         page = super()._make_settings_tab()
@@ -404,7 +450,11 @@ class FeatureActions:
                 bool(self._parse_complete and self._failed_parse and not auxiliary)
             )
         else:
-            self.start_button.setText("下载")
+            self.start_button.setText(
+                {"audio": "下载音频", "cover": "下载封面"}.get(
+                    self.mode_combo.currentData(), "下载"
+                )
+            )
 
     def _drain_pending(self):
         if (
@@ -638,7 +688,7 @@ class FeatureActions:
         speeds = [
             row.estimator.snapshot().speed
             for row in self.history_model.tasks.values()
-            if row.state == "downloading" and not row.paused and row.estimator
+            if row.state in {"downloading", "exporting"} and not row.paused and row.estimator
         ]
         speed = sum(v for v in speeds if v is not None) if speeds else None
         text = f"已结束 {ended}/{total}" + (" · 仍在读取" if unknown else "") + f" · 失败 {failed}"
@@ -661,6 +711,9 @@ class FeatureActions:
 
     def _update_capabilities(self, *_args):
         if not hasattr(self, "capability_summary"):
+            return
+        if self.mode_combo.currentData() == "cover":
+            self.capability_summary.setText("封面格式按实际图片响应确认；无需正片音视频流。")
             return
         selected = []
         unknown = False
@@ -759,11 +812,9 @@ class FeatureActions:
                     self.codec_combo.currentData(),
                     self.strict_check.isChecked(),
                     self.audio_combo.currentData(),
+                    mode=self.mode_combo.currentData(),
                 )
-                predictions.append(
-                    f"{QUALITY_NAMES.get(plan.video.quality)} · "
-                    f"{CODECS.get(plan.video.codec)} · {plan.audio.audio_kind.upper()}"
-                )
+                predictions.append(plan_description(plan))
             except BilixError as error:
                 predictions.append(str(error))
         text = (
@@ -861,6 +912,9 @@ class FeatureActions:
                 root.setText(0, root.text(0) + " · " + owner)
                 root.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_MediaPlay))
             self._update_capabilities()
+            if self.mode_combo.currentData() == "cover" and root:
+                for j in range(root.childCount()):
+                    root.child(j).setHidden(True)
         elif event["type"] == "preview":
             conflict = event["conflict"]
             labels = {
@@ -935,6 +989,46 @@ class FeatureActions:
         folder.clicked.connect(self._detail_folder)
         self._details_dialog.layout().insertWidget(3, folder)
         self.detail_folder_button = folder
+        self.output_files = QTreeWidget()
+        self.output_files.setHeaderLabels(["文件", "结果", "路径"])
+        self.output_files.setMaximumHeight(170)
+        self.output_files.itemDoubleClicked.connect(self._open_output_file)
+        self._details_dialog.layout().insertWidget(4, self.output_files)
+        open_file = QPushButton("打开选中文件")
+        open_file.clicked.connect(self._open_output_file)
+        self._details_dialog.layout().insertWidget(5, open_file)
+        self.detail_open_file_button = open_file
+
+    def _open_node_details(self, node, batch_id=None):
+        super()._open_node_details(node, batch_id)
+        self.output_files.clear()
+        task = self.session.tasks.get(node.identity) if node else None
+        if task:
+            for value in task.latest.files:
+                labels = {"completed": "已保存", "skipped": "已存在，未校验", "failed": "失败"}
+                row = QTreeWidgetItem(
+                    [OUTPUT_KINDS[value.kind], labels[value.state], str(value.output)]
+                )
+                row.setToolTip(1, value.detail)
+                row.setData(
+                    0,
+                    Qt.ItemDataRole.UserRole,
+                    str(value.output) if value.state in {"completed", "skipped"} else "",
+                )
+                self.output_files.addTopLevelItem(row)
+        visible = self.output_files.topLevelItemCount() > 0
+        self.output_files.setVisible(visible)
+        self.detail_open_file_button.setVisible(visible)
+        if visible:
+            self.output_files.setCurrentItem(self.output_files.topLevelItem(0))
+
+    def _open_output_file(self, *_args):
+        row = self.output_files.currentItem()
+        output = row.data(0, Qt.ItemDataRole.UserRole) if row else None
+        if not output or not Path(output).is_file():
+            self._error("所选文件尚未保存，或已被移动 / 删除")
+        elif not QDesktopServices.openUrl(QUrl.fromLocalFile(output)):
+            self._error("无法打开文件，请检查桌面关联程序")
 
     def _retry_detail(self):
         node = self._diagnostic_node

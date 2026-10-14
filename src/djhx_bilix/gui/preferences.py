@@ -15,6 +15,8 @@ INTERFACE_KEYS = (
     "quality",
     "codec",
     "audio",
+    "mode",
+    "cover",
     "strict",
     "geometry",
     "column1",

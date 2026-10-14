@@ -19,8 +19,8 @@ def signed_update(tmp_path, monkeypatch):
     keys = {"test": base64.b64encode(public).decode()}
     monkeypatch.setattr(protocol, "trusted_keys", lambda: keys)
     content = b"verified test update bytes"
-    app_version = "1.8.0"
-    tag = "v1.8.0"
+    app_version = "1.8.1"
+    tag = "v1.8.1"
     entries = []
     for artifact_id, (platform, arch, kind, scope) in ARTIFACT_IDS.items():
         label = "Portable" if kind == "portable" else "Setup"
@@ -53,7 +53,7 @@ def signed_update(tmp_path, monkeypatch):
         min_updater_schema=1,
         config_compatibility="backup-before-migration",
         published_at="2026-10-11T00:00:00Z",
-        release_notes_url="https://github.com/Koril33/bilix/releases/tag/v1.8.0",
+        release_notes_url="https://github.com/Koril33/bilix/releases/tag/v1.8.1",
         artifacts=entries,
     )
 

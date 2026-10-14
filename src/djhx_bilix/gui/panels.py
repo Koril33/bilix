@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from djhx_bilix import __version__
-from djhx_bilix.models import QUALITY_NAMES
+from djhx_bilix.models import OUTPUT_MODES, QUALITY_NAMES
 
 from .appearance import TaskDelegate, action_icon
 from .history import HistoryFilter, HistoryModel
@@ -430,6 +430,18 @@ class CompactUi:
         copy_info.setVisible(False)
         details.toggled.connect(copy_info.setVisible)
         layout.addWidget(copy_info)
+        output_form = QFormLayout()
+        self.mode_combo = QComboBox()
+        self.mode_combo.setObjectName("outputMode")
+        for value, text in OUTPUT_MODES.items():
+            self.mode_combo.addItem(text, value)
+        output_form.addRow("下载方式", self.mode_combo)
+        self.save_cover_check = QCheckBox("同时保存封面")
+        output_form.addRow(self.save_cover_check)
+        layout.addLayout(output_form)
+        self.mode_hint = QLabel()
+        self.mode_hint.setWordWrap(True)
+        layout.addWidget(self.mode_hint)
         directory = QHBoxLayout()
         directory.addWidget(QLabel("保存到"))
         self.output_edit = QLineEdit()
@@ -438,7 +450,8 @@ class CompactUi:
         directory.addWidget(self._button("选择…", self._choose_output, False))
         layout.addLayout(directory)
         controls = QHBoxLayout()
-        controls.addWidget(QLabel("画质"))
+        self.quality_label = QLabel("画质")
+        controls.addWidget(self.quality_label)
         self.quality_combo = QComboBox()
         self.quality_combo.addItem("最高可用", None)
         for quality in sorted(QUALITY_NAMES, reverse=True):
@@ -450,6 +463,7 @@ class CompactUi:
         layout.addLayout(controls)
         self.advanced_group = QWidget()
         form = QFormLayout(self.advanced_group)
+        self.media_form = form
         self.codec_combo = QComboBox()
         for text, value in (("自动", None), ("AVC", "AVC"), ("HEVC", "HEVC"), ("AV1", "AV1")):
             self.codec_combo.addItem(text, value)
@@ -457,7 +471,7 @@ class CompactUi:
         self.audio_combo = QComboBox()
         for text, value in (("AAC", "aac"), ("FLAC", "flac"), ("Dolby", "dolby"), ("最佳", "best")):
             self.audio_combo.addItem(text, value)
-        form.addRow("音频格式", self.audio_combo)
+        form.addRow("音轨", self.audio_combo)
         self.strict_check = QCheckBox("严格匹配画质和编码")
         self.overwrite_check = QCheckBox("替换同名文件（新文件校验成功后才替换）")
         form.addRow(self.strict_check)
