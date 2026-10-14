@@ -10,7 +10,7 @@ Bilibili 视频下载器，提供命令行及 PySide6 图形界面，支持扫�
 
 ## 项目状态
 
-当前源码版本为 **1.8.0**，新增仅音频、仅无声视频、分别保存、仅封面和媒体附带封面五种下载选择；完整视频仍为默认。界面设计见[1.8.0 指南](docs/gui-update-guide-1.8.0.md)，发行与验收状态见[本版记录](docs/validation-1.8.0.md)。旧绿色版更新问题的一次手动迁移见[说明](docs/portable-update-fix.md#用户迁移)，后续功能见[待办清单](docs/backlog.md)。
+当前已发布版本为 **1.8.0**，新增仅音频、仅无声视频、分别保存、仅封面和媒体附带封面五种下载选择；完整视频仍为默认。界面设计见[1.8.0 指南](docs/gui-update-guide-1.8.0.md)，发行与验收结果见[本版记录](docs/validation-1.8.0.md)。旧绿色版更新问题的一次手动迁移见[说明](docs/portable-update-fix.md#用户迁移)，后续功能见[待办清单](docs/backlog.md)。
 
 Python 包要求 3.11 或更新版本。Windows GUI/CLI 独立程序和 Linux deb 无需 Python/Qt；Windows 包内置 FFmpeg，deb 安装系统 FFmpeg 依赖。原生 GUI 面向 Windows 10 x64 与 Ubuntu 22.04/24.04、Debian 12/13 amd64；macOS 当前提供 CLI Python 包。每版真实验证范围见 [文档索引](docs/README.md#版本验收)。
 
